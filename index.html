@@ -9,13 +9,14 @@
     body { overflow: hidden; background-color: #030303; font-family: 'Courier New', Courier, monospace; }
     #canvas-container { width: 100vw; height: 100vh; position: relative; }
     
-    /* Vệt chém Pixel đổi shape theo từng frame giật cục chính xác chuẩn game retro */
+    /* Vệt chém Pixel đổi shape theo từng frame chính xác như video mẫu */
     .slash-effect {
       position: absolute;
       top: 50%; left: 50%;
-      width: 32px; height: 130vh;
+      width: 42px; /* Tăng độ rộng vệt chém */
+      height: 140vh; /* Tăng độ cao vệt chém */
       background: #ff3344;
-      border: 4px solid #000000;
+      border: 5px solid #000000;
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 10;
@@ -25,16 +26,16 @@
     /* Khung số 99999 chuẩn kiểu Game RPG Pixel */
     .damage-text {
       position: absolute;
-      top: 38%; left: 50%;
+      top: 40%; left: 50%;
       transform: translate(-50%, -50%) scale(0);
       background-color: #ff3344;
       color: #000000;
-      border: 4px solid #000000;
-      padding: 8px 20px;
-      font-size: 60px;
+      border: 5px solid #000000;
+      padding: 10px 24px;
+      font-size: 65px;
       font-weight: 900;
       letter-spacing: 4px;
-      box-shadow: 5px 5px 0px #000000;
+      box-shadow: 6px 6px 0px #000000;
       pointer-events: none;
       z-index: 20;
       white-space: nowrap;
@@ -42,7 +43,7 @@
 
     .ui-layer {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.5); font-size: 13px; pointer-events: none; z-index: 30;
+      color: rgba(255, 255, 255, 0.4); font-size: 14px; pointer-events: none; z-index: 30;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -67,7 +68,7 @@
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5.2; // Đặt cự ly để slide to rõ, lấp đầy màn hình
+    camera.position.z = 5.2; // Đặt cự ly để slide lấp đầy màn hình nhất có thể
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -79,13 +80,14 @@
 
     const textureLoader = new THREE.TextureLoader();
 
+    // Mẹo: Để ảnh không bị dư, hãy đảm bảo ảnh của bạn có tỷ lệ rộng:cao gần với 16:9
     function createSlicedSlide(texturePath, zIndex) {
       const group = new THREE.Group();
       group.position.z = zIndex;
 
-      // Phóng to kích thước slide để hiển thị lớn hơn, không bị lọt thỏm
-      const width = 7.2;
-      const height = 4.05; 
+      // Tăng kích thước slide đáng kể
+      const width = 7.5; 
+      const height = 4.2; 
       const texture = textureLoader.load(texturePath);
 
       // Nửa Trái
@@ -120,12 +122,13 @@
     if (nextSlideObj) scene.add(nextSlideObj.group);
 
     // Chuỗi các Frame clip-path tạo hiệu ứng pixel xuất hiện giật cục đúng chuẩn video mẫu
+    // Bạn sẽ thấy từng mảng pixel xuất hiện theo thời gian
     const pixelSlashFrames = [
-      'polygon(40% 0%, 60% 0%, 60% 15%, 40% 15%)', // Frame 1: Chấm điểm pixel đầu
-      'polygon(30% 0%, 70% 0%, 70% 35%, 30% 35%, 30% 15%, 50% 15%)', // Frame 2: Lớn dần xuống trên
-      'polygon(20% 0%, 80% 0%, 80% 65%, 40% 65%, 40% 35%, 60% 35%)', // Frame 3: Cán sâu xuống giữa
-      'polygon(10% 0%, 90% 0%, 90% 90%, 20% 90%, 20% 50%, 60% 50%)', // Frame 4: Gần chạm đáy
-      'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' // Frame 5: Khung chém răng cưa hoàn chỉnh
+      'polygon(40% 0%, 60% 0%, 60% 15%, 40% 15%)', // Frame 1: Mảng pixel đầu tiên (30ms)
+      'polygon(35% 0%, 65% 0%, 65% 35%, 40% 35%, 40% 15%, 55% 15%)', // Frame 2: Kéo dài xuống, có nấc (30ms)
+      'polygon(25% 0%, 75% 0%, 75% 65%, 45% 65%, 45% 35%, 60% 35%)', // Frame 3: Cán xuống giữa, thêm nấc (30ms)
+      'polygon(15% 0%, 85% 0%, 85% 100%, 35% 100%, 35% 65%, 65% 65%)', // Frame 4: Dài hết màn hình, nhiều nấc (30ms)
+      'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' // Frame 5: Phủ toàn bộ, kết thúc (30ms)
     ];
 
     function playPixelSlashAnimation(callback) {
@@ -133,7 +136,7 @@
       slashEl.style.opacity = '1';
       let frameIndex = 0;
 
-      // Tốc độ chuyển frame cực nhanh (30ms/frame) tạo độ giật cục đặc trưng game thùng
+      // Tốc độ chuyển frame cực nhanh (30ms/frame) tạo độ giật cục đặc trưng
       const interval = setInterval(() => {
         if (frameIndex < pixelSlashFrames.length) {
           slashEl.style.clipPath = pixelSlashFrames[frameIndex];
@@ -152,19 +155,19 @@
 
       const damageEl = document.getElementById('damage');
 
-      // 1. Chạy hiệu ứng chém frame-by-frame pixel
+      // 1. Chạy hiệu ứng chém frame-by-frame pixel (lúc này bạn sẽ thấy vệt chém giật cục)
       playPixelSlashAnimation(() => {});
 
-      // 2. Hiệu ứng nảy số damage 99999 đồng bộ
+      // 2. Nảy số damage 99999 đồng bộ
       gsap.timeline()
         .set(damageEl, { scale: 0.2, opacity: 1, y: 0 })
-        .to(damageEl, { scale: 1.35, duration: 0.12, ease: "back.out(3)" })
+        .to(damageEl, { scale: 1.4, duration: 0.12, ease: "back.out(3)" })
         .to(damageEl, { scale: 1, duration: 0.08 })
-        .to(damageEl, { y: -60, opacity: 0, duration: 0.35, delay: 0.15, ease: "power2.in" });
+        .to(damageEl, { y: -60, opacity: 0, duration: 0.35, delay: 0.2, ease: "power2.in" });
 
-      // 3. Tách đôi slide và rơi xuống dưới
+      // 3. Tách đôi slide và rơi xuống
       const { leftPiece, rightPiece, group } = currentSlideObj;
-      const duration = 1.0;
+      const duration = 1.0; // Tăng tốc độ rơi
 
       gsap.to(leftPiece.position, {
         y: -7, x: leftPiece.position.x - 1.5,
@@ -184,7 +187,7 @@
         duration: duration, delay: 0.05, ease: "power2.in"
       });
 
-      // 4. Slide tiếp theo tiến lên trung tâm
+      // 4. Slide sau tiến lên
       if (nextSlideObj) {
         gsap.to(nextSlideObj.group.position, {
           z: 0, duration: 0.8, delay: 0.15, ease: "power2.out",
