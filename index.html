@@ -8,18 +8,14 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background-color: #030303; font-family: 'Courier New', Courier, monospace; }
     #canvas-container { width: 100vw; height: 100vh; position: relative; }
-    
-    /* Sân khấu 200x198 giống hệt khung gif mẫu, phóng to theo màn hình (JS đặt scale) */
     #fx {
-      position: absolute; top: 50%; left: 50%;
-      width: 200px; height: 198px;
-      transform-origin: 0 0;
-      pointer-events: none; z-index: 10;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      pointer-events: none; z-index: 10; image-rendering: pixelated;
     }
-    #fx img { position: absolute; display: none; image-rendering: pixelated; pointer-events: none; }
-    .slash-effect { z-index: 10; }
-    .damage-text { z-index: 20; }
-
+    #dmg {
+      position: fixed; display: none; pointer-events: none; z-index: 20;
+      image-rendering: pixelated; transform-origin: 50% 50%;
+    }
     .ui-layer {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
       color: rgba(255, 255, 255, 0.4); font-size: 14px; pointer-events: none; z-index: 30;
@@ -31,185 +27,330 @@
 <body>
 
   <div class="ui-layer">Click chuột hoặc bấm Space để tung chiêu Chém Slide!</div>
-  <div id="canvas-container">
-    <div id="fx">
-      <img id="slash" class="slash-effect" alt="">
-      <img id="damage" class="damage-text" alt="">
-    </div>
-  </div>
+  <div id="canvas-container"></div>
+  <canvas id="fx"></canvas>
+  <canvas id="dmg"></canvas>
 
   <script>
-    // Danh sách đủ 10 slide của bạn
+    // ================= CẤU HÌNH =================
     const slideImages = [
       'slide1.png', 'slide2.png', 'slide3.png', 'slide4.png', 'slide5.png',
       'slide6.png', 'slide7.png', 'slide8.png', 'slide9.png', 'slide10.png'
     ];
+    const PX = 8;                 // kích thước 1 "pixel" trên màn hình
+    const DUST_GRID = [72, 40];   // độ chi tiết khi slide tan thành bụi
     let currentIndex = 0;
     let isAnimating = false;
 
+    // ================= THREE.JS =================
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5.2; // Đặt cự ly để slide lấp đầy màn hình nhất có thể
+    const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+    camera.position.z = 5.2;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     document.getElementById('canvas-container').appendChild(renderer.domElement);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.3));
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
-    scene.add(ambientLight);
+    // Cache texture: mỗi ảnh chỉ load 1 lần
+    const texCache = {};
+    function getTex(path) {
+      if (!texCache[path]) texCache[path] = new THREE.TextureLoader().load(path);
+      return texCache[path];
+    }
 
-    const textureLoader = new THREE.TextureLoader();
+    // Shader tan thành bụi: mỗi ô pixel có số ngẫu nhiên, khi uProgress vượt qua thì ô đó bay lên và biến mất
+    const DUST_VERT = `
+      uniform float uProgress;
+      varying vec2 vUv;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main() {
+        vUv = uv;
+        vec2 cell = floor(uv * vec2(${DUST_GRID[0]}.0, ${DUST_GRID[1]}.0));
+        float r2 = hash(cell + 17.31);
+        float r3 = hash(cell + 41.70);
+        float k = uProgress * uProgress;
+        vec3 p = position;
+        p.x += (r2 - 0.5) * 1.8 * k;
+        p.y += (0.6 + r3) * 2.4 * k;
+        p.z += hash(cell) * 0.4 * k;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }`;
 
-    // Mẹo: Để ảnh không bị dư, hãy đảm bảo ảnh của bạn có tỷ lệ rộng:cao gần với 16:9
+    const DUST_FRAG = `
+      uniform sampler2D map;
+      uniform float uProgress;
+      varying vec2 vUv;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main() {
+        vec2 cell = floor(vUv * vec2(${DUST_GRID[0]}.0, ${DUST_GRID[1]}.0));
+        float r1 = hash(cell);
+        if (r1 < uProgress - 0.12) discard;
+        vec4 c = texture2D(map, vUv);
+        if (c.a < 0.01) discard;
+        float fade = clamp((r1 - (uProgress - 0.12)) / 0.12, 0.0, 1.0);
+        gl_FragColor = vec4(c.rgb, c.a * fade);
+      }`;
+
+    function makeDustMat(tex) {
+      return new THREE.ShaderMaterial({
+        uniforms: { map: { value: tex }, uProgress: { value: 0 } },
+        vertexShader: DUST_VERT,
+        fragmentShader: DUST_FRAG,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+    }
+
     function createSlicedSlide(texturePath, zIndex) {
       const group = new THREE.Group();
       group.position.z = zIndex;
+      const width = 7.5, height = 4.2;
+      const texture = getTex(texturePath);
 
-      // Tăng kích thước slide đáng kể
-      const width = 7.5; 
-      const height = 4.2; 
-      const texture = textureLoader.load(texturePath);
-
-      // Nửa Trái
+      // Nửa trái: UV 0 → 0.5, nằm bên trái tâm
       const leftGeo = new THREE.PlaneGeometry(width / 2, height);
       leftGeo.translate(-width / 4, 0, 0);
-      const leftUv = leftGeo.attributes.uv;
-      for (let i = 0; i < leftUv.count; i++) leftUv.setX(i, leftUv.getX(i) * 0.5);
-      const leftMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-      const leftPiece = new THREE.Mesh(leftGeo, leftMat);
-      leftPiece.position.x = width / 4;
+      const lu = leftGeo.attributes.uv;
+      for (let i = 0; i < lu.count; i++) lu.setX(i, lu.getX(i) * 0.5);
+      const leftPiece = new THREE.Mesh(leftGeo, makeDustMat(texture));
 
-      // Nửa Phải
+      // Nửa phải: UV 0.5 → 1, nằm bên phải tâm
       const rightGeo = new THREE.PlaneGeometry(width / 2, height);
       rightGeo.translate(width / 4, 0, 0);
-      const rightUv = rightGeo.attributes.uv;
-      for (let i = 0; i < rightUv.count; i++) rightUv.setX(i, 0.5 + rightUv.getX(i) * 0.5);
-      const rightMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, transparent: true });
-      const rightPiece = new THREE.Mesh(rightGeo, rightMat);
-      rightPiece.position.x = -width / 4;
+      const ru = rightGeo.attributes.uv;
+      for (let i = 0; i < ru.count; i++) ru.setX(i, 0.5 + ru.getX(i) * 0.5);
+      const rightPiece = new THREE.Mesh(rightGeo, makeDustMat(texture));
 
-      group.add(leftPiece);
-      group.add(rightPiece);
+      group.add(leftPiece, rightPiece);
       return { group, leftPiece, rightPiece };
+    }
+
+    function disposeSlide(obj) {
+      obj.group.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose();
+      });
+      scene.remove(obj.group);
     }
 
     let currentSlideObj = createSlicedSlide(slideImages[currentIndex], 0);
     scene.add(currentSlideObj.group);
-
-    let nextSlideObj = (currentIndex + 1 < slideImages.length) 
-      ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) 
-      : null;
+    let nextSlideObj = currentIndex + 1 < slideImages.length
+      ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) : null;
     if (nextSlideObj) scene.add(nextSlideObj.group);
 
-    // Frame lấy trực tiếp từ gif mẫu (x, y là toạ độ trong khung 200x198, ms là thời gian mỗi frame)
-    const slashFrames = [{"x": 81, "y": 38, "w": 15, "h": 19, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAATBAMAAAC97EqZAAAAMFBMVEVqZGQjHx/X19dkMjKfn5/oX1+gS0uMOjr/hYUAAAAKAwP8eXlvLS3ZWlrl5eUvFxcKnWY0AAAAEHRSTlP///////////8A////////Xxf4pAAAALBJREFUeNolxiEPAQEYgOH3vjszEtMUhwlmkpnCpip+gnjq/QDhEhNsVwRdkkxQBDaCYm4j2M5GIpjt2hm3ETzpUUbQe3f7bYEhkENgrs+y86lA1Y8nio7QSC/de8TWQq03OKBkUs6tpbgXCBuddUmr860tzkmvaasF8SZGdXVkUl6cY828LQCaayIAAfxzBYT6ztIB8VclC0CdPkP7zeEUKJmnV3l9TF8dPKLjbYzgB5xmOKMPvcGZAAAAAElFTkSuQmCC"}, {"x": 81, "y": 38, "w": 15, "h": 57, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAA5BAMAAAAb22zJAAAAMFBMVEXeW1sqISHe3t5iXl6jo6NnLi6cQECIODj/goIHAQH8aWkAAAD/dXV3NDS7TExHHBxQ7FAMAAAAEHRSTlP//////////////wD/////B0V1GAAAANpJREFUeNrN0CFLQwEYheFnHzd4DQsziIg6ZxRkYBJWRH+C+guEJcFoNhkvGASTUbSYLBvMKDKzICg3icWBIro2w/WCUUy2lxfO9x2OTqezMHW4eBG0MSkh5mo3b1nCaOKsutZLmL3uv68cBSFHYKhaAHkJ9d+admliUFEn2jPPIzlJ47U1rU7cpufHcuKg1b+ijCOxdS9+mn8D46gRPsqqGo8bxYa2N8fumoHP9cvBbsBwPi3i+4PvO5U0K2D0t+8IJ91TSPZ6zZcKYnnn4WkJ8Zh0V3NEhjTjC0ztN8G3yyk7AAAAAElFTkSuQmCC"}, {"x": 81, "y": 38, "w": 24, "h": 156, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAACcBAMAAACXeHYFAAAAMFBMVEUtHx+kpKRbJibR0dHaWlqVPT2cQEBpYWH/hoYAAAD8aGj+dHQMAwNJSUnl5eW5S0uZfp2rAAAAEHRSTlP///////////8A////////Xxf4pAAAAhJJREFUeNrtlTFoE2EYhp+cl0Bto4kYlUJLjNqComRos7i0ohmqliMlIIjlEImLQsGhFGcHJxEUjNgYkCwZSoviYtwcanAIrkIwUIs0YmJDbJvUnMPd/+ePWNAOgtDx4f3e/3+/u+/ucyUB1s8vPR8ADaBhAGMOpCPRq63ToAPMfQsZpbgDhKPRhP+RXQa7oIAAwqYmYR6QYKiwHQVoSfhRSIclaOEpkSAWOHbu4BkHzPyCqxEEVxIy9dYFc/S2rTw7O/JgKADokEm99XpONG2ojfZrvYumfenyi+/ruU/YykbXzc0bIo73Y60bmW1NxLPjVFXw8UsLf1D275VeRcksK0ptwpKK+8uTdgu34geOy7J33lBAKHrlw3TF4rdt5yu42PKBSPD4FWhUtirb8fx3nqbqaYwpZZNGG3ruldPCUx8ITbgdj+VZPbk5LH5CTFuR0qLwVNV7LKbUbNWOOBpoRHwquyToQ0dXPKZQ/OPF3XJg36dWXknPy8Nv1tpDrl1U5joBHePfMfE7ynaUWpd4wxoQ9Dnzp8Pg17tc3+so2dVi6anwxILF2QUBiWzfSPvoK/uVxXLZVFeO8RfLqAPSKpiPJRQ4VZY7C6y4M72FkLGHuX06QGypG691KejsrPFsPVd+6EoCuGfq/ZN9g/YB9fy1BrPYCu6ZQ4XaHedbqOfvH3H3OOB5ncoNfxYJmsD8T1iRu0P0/+vOAAAAAElFTkSuQmCC"}, {"x": 81, "y": 116, "w": 38, "h": 80, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAABQBAMAAACHaBpBAAAAMFBMVEVfKSkqHh5fWlqmpqbZ2dnmXl7/hoaRV1cAAAD7aGj+dHQNAwPo6OiuSEiRPDzRVlaz6X6QAAAAEHRSTlP//////////wD/////////62q0cgAAAoxJREFUeNqNlE1IFGEYx3/vOH5tpjNThKsEuit4SroEQgPtYaOCiAg8dAiti3TIQgILDHehw3qICqIugdHHOeoSiNYe5hSGSx20aN3tYGtRMyOVZQ07HXbVnQ+i9zY//u//fd7n+/u+/ucyUB1s8vPR8ADaBhAGMOpCPRq63ToAPMfQsZpbgDhKPRhP+RXQa7oIAAwqYmYR6QYKiwHQVoSfhRSIclaOEpkSAWOHbu4BkHzPyCqxEEVxIy9dYFc/S2rTw7O/JgKADokEm99XpONG2ojfZrvYumfenyi+/ruU/YykbXzc0bIo73Y60bmW1NxLPjVFXw8UsLf1D275VeRcksK0ptwpKK+8uTdgu34geOy7J33lBAKHrlw3TF4rdt5yu42PKBSPD4FWhUtirb8fx3nqbqaYwpZZNGG3ruldPCUx8ITbgdj+VZPbk5LH5CTFuR0qLwVNV7LKbUbNWOOBpoRHwquyToQ0dXPKZQ/OPF3XJg36dWXknPy8Nv1tpDrl1U5joBHePfMfE7ynaUWpd4wxoQ9Dnzp8Pg17tc3+so2dVi6anwxILF2QUBiWzfSPvoK/uVxXLZVFeO8RfLqAPSKpiPJRQ4VZY7C6y4M72FkLGHuX06QGypG691KejsrPFsPVd+6EoCuGfq/ZN9g/YB9fy1BrPYCu6ZQ4XaHedbqOfvH3H3OOB5ncoNfxYJmsD8T1iRu0P0/+vOAAAAAElFTkSuQmCC"}, {"x": 86, "y": 165, "w": 38, "h": 33, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAhBAMAAABHFsQlAAAAMFBMVEWbm5sqHx9hKytiWVnh4eGjRkb/hoaOOzvdW1sAAAD4aGjX19fo6Oj+d3cGAwPQVlY/XaLEAAAAEHRSTlP///////////8A////////Xxf4pAAAAddJREFUeNpV0c9r03AYx/F3km+3Om3agQpFsHVhqBS72MyrOrtBRQa9FE+iuwiCyg5CCzJQxJMrzIPi/gNBt4OoF6ft5sCJRjuh/qrtsg1RFGnGFKqxrYfVaZ7ji4fn88BHGuf/ka8/PHRKdpGzG83ucpv3QNtJZcBttegu43in235bjSnKbhPhOsO4DbkxPqQJd4bvvSZVZSfWFfmXsfFl1fdUePexKfvXPId/5J2C6NlraZHi+uYVe0NRImarpf1JV1AsXta6L7iSpKXzgcvbe9OoBXB2ohZAwE84mtgTTEJ7Qt+aBFl3+k+Et6iLMxGUbrUyEwHJENuWnykh1M2pW7kQ6ocs8sVfuWbe//rMyhPjtP9tdqUHxOdXeiG+MFny+XuVhduzx+6DqM3ZiSifzs4uGg2stf88Lzqb1sBwez8V6+C7a3ffgMA5Z4S7Jri0DPXHmtoHAu90NAXcS4HzfPVLEARNmEqbKDrUVkPBJMhIkK5D3TQpBEoAAuS2TMcRwJOp+29YgExt2jTnLCBuzpfGAGQ8xb7qA0XHIPdtMrlmMGITVgyQv4/RusfoHf3rBNx8lC+u26BvR2YpXJl3WrUIgNGRISB09WOrD4DBgK9cLtMi/gBa250EjF3eUAAAAABJRU5ErkJggg=="}];
-    const DMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKEAAAAhBAMAAABDz9ZdAAAAMFBMVEX8Pj4CAAD/REQuDg7HMTGXPj53Hh5rKyupKyvVWFhOExM0FRWIIiIAAAAAAAAAAADFUnuSAAAAEHRSTlP/////////////////AAAAzZ+UhgAAAodJREFUeNq1lr1rFEEYh5/bW+/Ok6BCQIIiy4uIHwT/hFyRVkxhaYgBtRHkGgutAlY2IdiIjdgJHoT8CYJgIR5YWQ6DIElhwMqPfEwsZudj95LVYt3umX1n9vf+5n1ntiU0+1gaf1qNa2wByaLWlFlzyHuVlwIqiORNKhShBf3LceT6ygQrOZmY9BFkeSNw9z28GwZsf9Nkufmty9+psDVTEdqAtjFArQ1lPWLnhOjM0KvJQgmoKRM4q27kEP09ZU2Wm9qd05DNRt7T9T5qyAzQv+VSeu6V3UlY5XBxAMCVYbH1xxfd+i9R5w10bgOw8wopNO6O3ELBrcBKrDGznHUDS16HdZyBNQIzDre6QaOrM1WpOyVgNSp3yU/WqboAoOc89wka0aUypRW40Jh+DCkv7j4gwFb0sRpwIMnOqHzSfV8sOB/jfK9xf97Z8roYj1xovDkNQA7i8nUB++vOx80bAOxuBI2F0dHFUUXjfUcj0CDwM5mg59gZJRpVfVsrya05MutD61EZftVWuFG1PVBRJJDlpivpUQUpK7HGXEsUCNBPAqwRlaDz8cc9v8WPUII1CVsNe5/XioFLC2jg4Qu/xGNAb/rXb0yx1/LUZ+BKOWUANeMHlorUPPcBCK9DzwSns6mS8z6bcHhJZWtcz8T5oWdCeaptlFgj9eYn9dwpY+iZLwPffNtYTYmVgA1TBmuZkAR0vpLi8mqh8WBc6cFx5Xw87ctnwZ2PT1ZL8Yv+khj7euw1eMm7euRvt8JRNv5zz/RKPaO1MTVd+CznVHKxOY3H5uPQ23jyeFbn7n4KfHUF5EwMaD+A6QQ/iG6Vq8OaenY/DeXLV/if/xTQ8HLFv5k1jWr8A9oHAHGFf/CnAAAAAElFTkSuQmCC";
-    const damageFrames = [{"x": 29, "y": 76, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 40, "y": 68, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 37, "y": 57, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 15, "y": 60, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 6, "y": 73, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 21, "y": 84, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 24, "y": 68, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}];
-
-    const fxEl = document.getElementById('fx');
-    function layoutFx() {
-      const s = Math.max(1, Math.floor(Math.min(window.innerHeight * 0.9 / 198, window.innerWidth * 0.95 / 200)));
-      fxEl.style.transform = 'scale(' + s + ') translate(-100px, -99px)';
+    // ================= LỚP PIXEL (canvas 2D) =================
+    const fxCanvas = document.getElementById('fx');
+    const fx = fxCanvas.getContext('2d');
+    let COLS = 0, ROWS = 0;
+    function resizeFx() {
+      fxCanvas.width = innerWidth;
+      fxCanvas.height = innerHeight;
+      COLS = Math.ceil(innerWidth / PX);
+      ROWS = Math.ceil(innerHeight / PX);
     }
-    layoutFx();
+    resizeFx();
 
-    let fxToken = 0;
-    function showFrame(el, f) {
-      el.src = f.src;
-      el.style.left = f.x + 'px'; el.style.top = f.y + 'px';
-      el.style.width = f.w + 'px'; el.style.height = f.h + 'px';
-      el.style.display = 'block';
+    function drawMask(m, color) {
+      fx.fillStyle = color;
+      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+        if (m[y * COLS + x]) fx.fillRect(x * PX, y * PX, PX, PX);
+      }
     }
 
-    // Phát đúng chuỗi gif: vệt máu rơi + bắn tung (5 frame x 100ms), sau đó số 99999 rung (7 frame x 200ms)
-    function playPixelSlashAnimation(callback) {
-      const slashEl = document.getElementById('slash');
-      const damageEl = document.getElementById('damage');
-      const token = ++fxToken;
-      slashEl.style.display = 'none';
-      damageEl.style.display = 'none';
-      let t = 0;
-      slashFrames.forEach((f) => {
-        setTimeout(() => { if (token === fxToken) showFrame(slashEl, f); }, t);
-        t += f.ms;
-      });
-      setTimeout(() => { if (token === fxToken) slashEl.style.display = 'none'; }, t);
-      damageFrames.forEach((f) => {
-        setTimeout(() => { if (token === fxToken) showFrame(damageEl, f); }, t);
-        t += f.ms;
-      });
-      setTimeout(() => {
-        if (token === fxToken) { damageEl.style.display = 'none'; if (callback) callback(); }
-      }, t);
+    // Vệt chém: build sẵn hình dạng từng hàng, rồi mở dần từ trên xuống theo bước 40ms (giật cục)
+    let slash = null;
+    function startSlash(hitX) {
+      const rows = new Array(ROWS);
+      let x = hitX, half = 2, left = 0;
+      for (let y = 0; y < ROWS; y++) {
+        if (left <= 0) {
+          left = 4 + ((Math.random() * 12) | 0);
+          x = hitX + ((Math.random() * 7) | 0) - 3;
+          half = 1 + ((Math.random() * 3) | 0);
+        }
+        left--;
+        rows[y] = [x - half, x + half];
+      }
+      slash = { start: performance.now(), rows };
+    }
+
+    function slashMask(now) {
+      const e = now - slash.start;
+      if (e > 450) { slash = null; return null; }
+      const step = Math.floor(e / 40) * 40;
+      const grow = Math.min(ROWS, Math.ceil(ROWS * Math.min(1, step / 280)));
+      const m = new Uint8Array(COLS * ROWS);
+      for (let y = 0; y < grow; y++) {
+        const [a, b] = slash.rows[y];
+        for (let x = Math.max(0, a); x <= Math.min(COLS - 1, b); x++) m[y * COLS + x] = 1;
+      }
+      return m;
+    }
+
+    // Vết pixel dính vào slide sau khi chém
+    let splat = null;
+    function startSplat(cx, cy) {
+      const N = 20, R = [];
+      for (let i = 0; i < N; i++) R.push(9 + Math.random() * 6);
+      const mask = new Uint8Array(COLS * ROWS);
+      const set = (x, y) => { if (x >= 0 && y >= 0 && x < COLS && y < ROWS) mask[y * COLS + x] = 1; };
+      for (let y = cy - 22; y <= cy + 22; y++) for (let x = cx - 22; x <= cx + 22; x++) {
+        const dx = x - cx, dy = y - cy;
+        const i = Math.floor(((Math.atan2(dy, dx) + Math.PI) / (2 * Math.PI)) * N) % N;
+        if (Math.hypot(dx, dy) < R[i]) set(x, y);
+      }
+      for (let k = 0; k < 24; k++) {         // giọt văng ra xung quanh
+        const a = Math.random() * Math.PI * 2, d = R[0] + 2 + Math.random() * 8;
+        set(Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d));
+      }
+      splat = { mask };
+    }
+
+    // Bụi bay lên
+    const particles = [];
+    let dustUntil = 0;
+    function spawnDust(n) {
+      for (let i = 0; i < n && particles.length < 500; i++) {
+        const r = Math.random();
+        particles.push({
+          x: innerWidth * (0.15 + Math.random() * 0.7),
+          y: innerHeight * (0.2 + Math.random() * 0.6),
+          vx: (Math.random() - 0.5) * 1.2,
+          vy: -(0.8 + Math.random() * 2.2),
+          life: 50 + Math.random() * 50, age: 0,
+          c: r < 0.12 ? '#ff3344' : (r < 0.56 ? '#e8dcc4' : '#7a6a52'),
+          s: Math.random() < 0.5 ? PX * 0.5 : PX * 0.35
+        });
+      }
+    }
+
+    function fxLoop(now) {
+      fx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+      if (slash) {
+        const m = slashMask(now);
+        if (m) drawMask(m, '#ff3344');
+      }
+      if (splat) drawMask(splat.mask, '#ff3344');
+      if (now < dustUntil) spawnDust(6);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.age++; p.x += p.vx; p.y += p.vy; p.vy *= 0.99;
+        if (p.age > p.life) { particles.splice(i, 1); continue; }
+        fx.globalAlpha = 1 - p.age / p.life;
+        fx.fillStyle = p.c;
+        fx.fillRect(Math.round(p.x / PX) * PX, Math.round(p.y / PX) * PX, p.s, p.s);
+      }
+      fx.globalAlpha = 1;
+      requestAnimationFrame(fxLoop);
+    }
+    requestAnimationFrame(fxLoop);
+
+    // ================= SỐ DAMAGE (pixel font 3x5) =================
+    const GLYPHS = {
+      '0': ['111','101','101','101','111'], '1': ['010','110','010','010','111'],
+      '2': ['111','001','111','100','111'], '3': ['111','001','111','001','111'],
+      '4': ['101','101','111','001','001'], '5': ['111','100','111','001','111'],
+      '6': ['111','100','111','101','111'], '7': ['111','001','010','010','010'],
+      '8': ['111','101','111','101','111'], '9': ['111','101','111','001','111']
+    };
+    const dmgEl = document.getElementById('dmg');
+    function showDamage(px, py, num) {
+      const cell = Math.max(4, Math.round(innerHeight / 160)); // kích thước 1 pixel font
+      const s = String(num);
+      const pad = 2, border = 1, gap = 1;
+      const W = s.length * 3 + (s.length - 1) * gap + (pad + border) * 2;
+      const H = 5 + (pad + border) * 2;
+      dmgEl.width = W; dmgEl.height = H;
+      const g = dmgEl.getContext('2d');
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#ff3344'; g.fillRect(border, border, W - border * 2, H - border * 2);
+      g.fillStyle = '#000';
+      let x = pad + border;
+      for (const ch of s) {
+        const rows = GLYPHS[ch];
+        for (let y = 0; y < 5; y++) for (let i = 0; i < 3; i++) {
+          if (rows[y][i] === '1') g.fillRect(x + i, pad + border + y, 1, 1);
+        }
+        x += 3 + gap;
+      }
+      dmgEl.style.width = W * cell + 'px';
+      dmgEl.style.height = H * cell + 'px';
+      dmgEl.style.left = (px - W * cell / 2) + 'px';
+      dmgEl.style.top = (py - H * cell / 2) + 'px';
+
+      gsap.killTweensOf(dmgEl);
+      gsap.timeline()
+        .set(dmgEl, { display: 'block', opacity: 1, scale: 0.2, y: 0 })
+        .to(dmgEl, { scale: 1.25, duration: 0.12, ease: 'back.out(3)' })
+        .to(dmgEl, { scale: 1, duration: 0.08 })
+        .to(dmgEl, { y: -40, opacity: 0, duration: 0.35, delay: 0.25, ease: 'power2.in' })
+        .set(dmgEl, { display: 'none' });
+    }
+
+    // ================= LUỒNG CHÉM =================
+    function finishSlide() {
+      splat = null;
+      disposeSlide(currentSlideObj);
+      currentIndex++;
+      currentSlideObj = nextSlideObj;
+      nextSlideObj = currentIndex + 1 < slideImages.length
+        ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) : null;
+      if (nextSlideObj) scene.add(nextSlideObj.group);
+      isAnimating = false;
     }
 
     function nextSlide() {
       if (isAnimating || currentIndex >= slideImages.length - 1) return;
       isAnimating = true;
 
-      // 1. Chạy hiệu ứng chém frame-by-frame pixel (lúc này bạn sẽ thấy vệt chém giật cục)
-      playPixelSlashAnimation(() => {});
+      const { leftPiece, rightPiece } = currentSlideObj;
+      const hitX = Math.round((innerWidth * 0.5 + (Math.random() - 0.5) * innerWidth * 0.15) / PX);
+      const hitY = Math.round(innerHeight * 0.42 / PX);
 
-      // 2. Số damage 99999 đã được phát cùng chuỗi frame ở bước 1
+      // 0ms: vệt chém từ trên xuống
+      startSlash(hitX);
 
-      // 3. Tách đôi slide và rơi xuống
-      const { leftPiece, rightPiece, group } = currentSlideObj;
-      const duration = 1.0; // Tăng tốc độ rơi
+      // 320ms: vết pixel dính vào slide + số damage ngẫu nhiên 1-100
+      setTimeout(() => {
+        startSplat(hitX, hitY);
+        showDamage(hitX * PX, hitY * PX, 1 + Math.floor(Math.random() * 100));
+      }, 320);
 
-      gsap.to(leftPiece.position, {
-        y: -7, x: leftPiece.position.x - 1.5,
-        duration: duration, delay: 0.05, ease: "power2.in"
-      });
-      gsap.to(leftPiece.rotation, {
-        z: 0.3, x: 0.2,
-        duration: duration, delay: 0.05, ease: "power2.in"
-      });
-
-      gsap.to(rightPiece.position, {
-        y: -7, x: rightPiece.position.x + 1.5,
-        duration: duration, delay: 0.05, ease: "power2.in"
-      });
-      gsap.to(rightPiece.rotation, {
-        z: -0.3, x: -0.2,
-        duration: duration, delay: 0.05, ease: "power2.in"
-      });
-
-      // 4. Slide sau tiến lên
-      if (nextSlideObj) {
-        gsap.to(nextSlideObj.group.position, {
-          z: 0, duration: 0.8, delay: 0.15, ease: "power2.out",
-          onComplete: () => {
-            scene.remove(group);
-            currentIndex++;
-            currentSlideObj = nextSlideObj;
-            nextSlideObj = (currentIndex + 1 < slideImages.length)
-              ? createSlicedSlide(slideImages[currentIndex + 1], -1.5)
-              : null;
-            if (nextSlideObj) scene.add(nextSlideObj.group);
-            isAnimating = false;
-          }
+      // 500ms: slide tan thành bụi
+      setTimeout(() => {
+        dustUntil = performance.now() + 1300;
+        gsap.to([leftPiece.material.uniforms.uProgress, rightPiece.material.uniforms.uProgress], {
+          value: 1.2, duration: 1.1, ease: 'none', onComplete: finishSlide
         });
+      }, 500);
+
+      // Slide sau tiến lên khi slide trước đang tan
+      if (nextSlideObj) {
+        gsap.to(nextSlideObj.group.position, { z: 0, duration: 0.9, delay: 0.7, ease: 'power2.out' });
       }
     }
 
     window.addEventListener('click', nextSlide);
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
     });
 
     window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      layoutFx();
+      renderer.setSize(innerWidth, innerHeight);
+      resizeFx();
     });
 
-    function animate() {
+    (function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
-    }
-    animate();
+    })();
   </script>
 </body>
 </html>
