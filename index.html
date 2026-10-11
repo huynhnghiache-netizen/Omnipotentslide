@@ -41,6 +41,7 @@
     const PX = 8;                     // kích thước 1 "pixel" trên màn hình
     const MOSAIC = [80, 45];          // số ô mosaic khi slide vỡ (ngang x dọc)
     const BREAK_END = 1.3;            // mốc uProgress để slide vỡ hết
+    const RISE_FROM = -4.5;           // slide sau bắt đầu từ dưới màn hình
     let currentIndex = 0;
     let isAnimating = false;
 
@@ -77,9 +78,9 @@
         vec2 cell = floor(uv * vec2(${MOSAIC[0]}.0, ${MOSAIC[1]}.0));
         float k = uProgress * uProgress;
         vec3 p = position;
-        p.x += (hash(cell + 17.31) - 0.5) * 1.6 * k;
-        p.y += (0.5 + hash(cell + 41.70)) * 2.2 * k;
-        p.z += hash(cell) * 0.4 * k;
+        p.x += (hash(cell + 17.31) - 0.5) * 0.8 * k;   // ô bay nhẹ, không văng ra ngoài slide
+        p.y += (0.3 + hash(cell + 41.70)) * 1.2 * k;   // bụi bay lên
+        p.z += hash(cell) * 0.2 * k;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }`;
 
@@ -137,10 +138,15 @@
       return { group, leftPiece, rightPiece };
     }
 
-    function setProgress(obj, v) {
-      obj.leftPiece.material.uniforms.uProgress.value = v;
-      obj.rightPiece.material.uniforms.uProgress.value = v;
+    // Slide chưa tới lượt: tạo sẵn nhưng ẩn, để không lộ qua slide đang vỡ
+    function makeNext(index) {
+      if (index >= slideImages.length) return null;
+      const o = createSlicedSlide(slideImages[index], -1.5);
+      o.group.visible = false;
+      scene.add(o.group);
+      return o;
     }
+
     function tweenProgress(obj, to, dur, ease, onComplete) {
       return gsap.to(
         [obj.leftPiece.material.uniforms.uProgress, obj.rightPiece.material.uniforms.uProgress],
@@ -158,9 +164,7 @@
 
     let currentSlideObj = createSlicedSlide(slideImages[currentIndex], 0);
     scene.add(currentSlideObj.group);
-    let nextSlideObj = currentIndex + 1 < slideImages.length
-      ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) : null;
-    if (nextSlideObj) scene.add(nextSlideObj.group);
+    let nextSlideObj = makeNext(currentIndex + 1);
 
     // ================= LỚP PIXEL (canvas 2D) =================
     const fxCanvas = document.getElementById('fx');
@@ -329,25 +333,22 @@
     }
 
     // ================= CHUYỂN SLIDE =================
-    // Slide sau trồi lên từ dưới, hiện ra theo mosaic ngược lại với lúc vỡ
-    function revealNext(nxt) {
-      nxt.group.position.z = 0;
-      nxt.group.position.y = -4;
-      setProgress(nxt, BREAK_END);
-      gsap.to(nxt.group.position, { y: 0, duration: 1.0, ease: 'power3.out' });
-      tweenProgress(nxt, 0, 0.9, 'power1.out', () => finishSlide(nxt));
+    // Slide mới trồi lên từ dưới màn hình (không còn mosaic lúc hiện)
+    function riseIn(obj, onDone) {
+      obj.group.position.z = 0;
+      obj.group.position.y = RISE_FROM;
+      obj.group.visible = true;
+      gsap.to(obj.group.position, { y: 0, duration: 0.9, ease: 'power3.out', onComplete: onDone });
     }
 
     function finishSlide(nxt) {
       currentSlideObj = nxt;
       currentIndex++;
-      nextSlideObj = currentIndex + 1 < slideImages.length
-        ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) : null;
-      if (nextSlideObj) scene.add(nextSlideObj.group);
+      nextSlideObj = makeNext(currentIndex + 1);
       isAnimating = false;
     }
 
-    // Tiến: chém -> vết máu -> slide vỡ mosaic -> slide sau trồi lên
+    // Tiến: chém -> vết máu -> slide vỡ -> slide sau trồi lên từ dưới
     function nextSlide() {
       if (isAnimating || currentIndex >= slideImages.length - 1) return;
       isAnimating = true;
@@ -369,18 +370,18 @@
         showDamage(hitX * PX, hitY * PX, 1 + Math.floor(Math.random() * 100));
       }, 320);
 
-      // 500ms: slide vỡ thành mosaic rồi bay lên thành bụi
+      // 500ms: slide hiện tại vỡ và bay lên thành bụi
       setTimeout(() => {
         dustUntil = performance.now() + 1500;
         tweenProgress(cur, BREAK_END, 1.5, 'none', () => {
           splat = null;
           disposeSlide(cur);
-          revealNext(nxt);
+          riseIn(nxt, () => finishSlide(nxt));
         });
       }, 500);
     }
 
-    // Lùi: slide trước hiện lại từ mosaic, slide hiện tại vỡ đi
+    // Lùi: slide hiện tại vỡ đi, slide trước trồi lên từ dưới
     function prevSlide() {
       if (isAnimating || currentIndex <= 0) return;
       isAnimating = true;
@@ -388,20 +389,17 @@
 
       const cur = currentSlideObj;
       const ahead = nextSlideObj;
-      const back = createSlicedSlide(slideImages[currentIndex - 1], -0.05);
-      setProgress(back, BREAK_END);
+      const back = createSlicedSlide(slideImages[currentIndex - 1], 0);
+      back.group.visible = false;
       scene.add(back.group);
 
-      tweenProgress(back, 0, 1.2, 'power1.out');
       tweenProgress(cur, BREAK_END, 1.0, 'power1.in', () => {
         disposeSlide(cur);
         if (ahead) disposeSlide(ahead);
-        back.group.position.z = 0;
         currentSlideObj = back;
         currentIndex--;
-        nextSlideObj = createSlicedSlide(slideImages[currentIndex + 1], -1.5);
-        scene.add(nextSlideObj.group);
-        isAnimating = false;
+        nextSlideObj = makeNext(currentIndex + 1);
+        riseIn(back, () => { isAnimating = false; });
       });
     }
 
