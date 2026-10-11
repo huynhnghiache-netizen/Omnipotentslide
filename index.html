@@ -26,7 +26,7 @@
 </head>
 <body>
 
-  <div class="ui-layer">Click chuột hoặc bấm Space để tung chiêu Chém Slide!</div>
+  <div class="ui-layer">Click / Space: chém slide tiếp &nbsp;·&nbsp; ← : quay lại slide trước</div>
   <div id="canvas-container"></div>
   <canvas id="fx"></canvas>
   <canvas id="dmg"></canvas>
@@ -128,6 +128,17 @@
       return { group, leftPiece, rightPiece };
     }
 
+    function setProgress(obj, v) {
+      obj.leftPiece.material.uniforms.uProgress.value = v;
+      obj.rightPiece.material.uniforms.uProgress.value = v;
+    }
+    function tweenProgress(obj, to, dur, ease, onComplete) {
+      return gsap.to(
+        [obj.leftPiece.material.uniforms.uProgress, obj.rightPiece.material.uniforms.uProgress],
+        { value: to, duration: dur, ease: ease, onComplete: onComplete }
+      );
+    }
+
     function disposeSlide(obj) {
       obj.group.traverse(o => {
         if (o.geometry) o.geometry.dispose();
@@ -161,7 +172,7 @@
       }
     }
 
-    // Vệt chém: build sẵn hình dạng từng hàng, rồi mở dần từ trên xuống theo bước 40ms (giật cục)
+    // Vệt chém: build sẵn hình dạng từng hàng, mở dần từ trên xuống theo bước 40ms (giật cục)
     let slash = null;
     function startSlash(hitX) {
       const rows = new Array(ROWS);
@@ -176,6 +187,7 @@
         rows[y] = [x - half, x + half];
       }
       slash = { start: performance.now(), rows };
+      return rows;
     }
 
     function slashMask(now) {
@@ -191,21 +203,14 @@
       return m;
     }
 
-    // Vết pixel dính vào slide sau khi chém
+    // Vết máu dính vào slide đúng chỗ chém: cùng chiều rộng với vệt chém, dài bằng vùng nội dung slide
     let splat = null;
-    function startSplat(cx, cy) {
-      const N = 20, R = [];
-      for (let i = 0; i < N; i++) R.push(9 + Math.random() * 6);
+    function startSplat(rows) {
       const mask = new Uint8Array(COLS * ROWS);
-      const set = (x, y) => { if (x >= 0 && y >= 0 && x < COLS && y < ROWS) mask[y * COLS + x] = 1; };
-      for (let y = cy - 22; y <= cy + 22; y++) for (let x = cx - 22; x <= cx + 22; x++) {
-        const dx = x - cx, dy = y - cy;
-        const i = Math.floor(((Math.atan2(dy, dx) + Math.PI) / (2 * Math.PI)) * N) % N;
-        if (Math.hypot(dx, dy) < R[i]) set(x, y);
-      }
-      for (let k = 0; k < 24; k++) {         // giọt văng ra xung quanh
-        const a = Math.random() * Math.PI * 2, d = R[0] + 2 + Math.random() * 8;
-        set(Math.round(cx + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d));
+      const y0 = Math.round(ROWS * 0.18), y1 = Math.round(ROWS * 0.78);
+      for (let y = y0; y < y1; y++) {
+        const [a, b] = rows[y];
+        for (let x = Math.max(0, a); x <= Math.min(COLS - 1, b); x++) mask[y * COLS + x] = 1;
       }
       splat = { mask };
     }
@@ -292,52 +297,80 @@
         .set(dmgEl, { display: 'none' });
     }
 
-    // ================= LUỒNG CHÉM =================
-    function finishSlide() {
-      splat = null;
-      disposeSlide(currentSlideObj);
+    // ================= CHUYỂN SLIDE =================
+    // Sau khi slide cũ tan xong: slide mới đã được đưa lên sẵn ở nxt, chỉ cần cập nhật trạng thái
+    function finishSlide(nxt) {
+      currentSlideObj = nxt;
       currentIndex++;
-      currentSlideObj = nextSlideObj;
       nextSlideObj = currentIndex + 1 < slideImages.length
         ? createSlicedSlide(slideImages[currentIndex + 1], -1.5) : null;
       if (nextSlideObj) scene.add(nextSlideObj.group);
       isAnimating = false;
     }
 
+    // Tiến: chém -> vết máu -> slide tan dần -> nghỉ -> slide sau hiện ra
     function nextSlide() {
       if (isAnimating || currentIndex >= slideImages.length - 1) return;
       isAnimating = true;
 
-      const { leftPiece, rightPiece } = currentSlideObj;
+      const cur = currentSlideObj;
+      const nxt = nextSlideObj;
       const hitX = Math.round((innerWidth * 0.5 + (Math.random() - 0.5) * innerWidth * 0.15) / PX);
       const hitY = Math.round(innerHeight * 0.42 / PX);
 
       // 0ms: vệt chém từ trên xuống
-      startSlash(hitX);
+      const rows = startSlash(hitX);
 
-      // 320ms: vết pixel dính vào slide + số damage ngẫu nhiên 1-100
+      // 320ms: vết máu dính vào slide + số damage ngẫu nhiên 1-100
       setTimeout(() => {
-        startSplat(hitX, hitY);
+        startSplat(rows);
         showDamage(hitX * PX, hitY * PX, 1 + Math.floor(Math.random() * 100));
       }, 320);
 
-      // 500ms: slide tan thành bụi
+      // 500ms: slide tan thành bụi từ từ
       setTimeout(() => {
-        dustUntil = performance.now() + 1300;
-        gsap.to([leftPiece.material.uniforms.uProgress, rightPiece.material.uniforms.uProgress], {
-          value: 1.2, duration: 1.1, ease: 'none', onComplete: finishSlide
+        dustUntil = performance.now() + 1500;
+        tweenProgress(cur, 1.2, 1.5, 'none', () => {
+          splat = null;
+          disposeSlide(cur);
+          // Nghỉ một lúc rồi slide sau mới trượt lên
+          gsap.to(nxt.group.position, {
+            z: 0, duration: 0.8, delay: 0.4, ease: 'power2.out',
+            onComplete: () => finishSlide(nxt)
+          });
         });
       }, 500);
+    }
 
-      // Slide sau tiến lên khi slide trước đang tan
-      if (nextSlideObj) {
-        gsap.to(nextSlideObj.group.position, { z: 0, duration: 0.9, delay: 0.7, ease: 'power2.out' });
-      }
+    // Lùi: slide trước tụ lại từ bụi, slide hiện tại tan đi
+    function prevSlide() {
+      if (isAnimating || currentIndex <= 0) return;
+      isAnimating = true;
+      splat = null;
+
+      const cur = currentSlideObj;
+      const ahead = nextSlideObj;
+      const back = createSlicedSlide(slideImages[currentIndex - 1], -0.05);
+      setProgress(back, 1.2);
+      scene.add(back.group);
+
+      tweenProgress(back, 0, 1.2, 'power1.out');
+      tweenProgress(cur, 1.2, 1.0, 'power1.in', () => {
+        disposeSlide(cur);
+        if (ahead) disposeSlide(ahead);
+        back.group.position.z = 0;
+        currentSlideObj = back;
+        currentIndex--;
+        nextSlideObj = createSlicedSlide(slideImages[currentIndex + 1], -1.5);
+        scene.add(nextSlideObj.group);
+        isAnimating = false;
+      });
     }
 
     window.addEventListener('click', nextSlide);
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); prevSlide(); }
     });
 
     window.addEventListener('resize', () => {
