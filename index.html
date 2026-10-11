@@ -9,37 +9,16 @@
     body { overflow: hidden; background-color: #030303; font-family: 'Courier New', Courier, monospace; }
     #canvas-container { width: 100vw; height: 100vh; position: relative; }
     
-    /* Vệt chém Pixel đổi shape theo từng frame chính xác như video mẫu */
-    .slash-effect {
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 42px; /* Tăng độ rộng vệt chém */
-      height: 140vh; /* Tăng độ cao vệt chém */
-      background: #ff3344;
-      border: 5px solid #000000;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 10;
-      opacity: 0;
+    /* Sân khấu 200x198 giống hệt khung gif mẫu, phóng to theo màn hình (JS đặt scale) */
+    #fx {
+      position: absolute; top: 50%; left: 50%;
+      width: 200px; height: 198px;
+      transform-origin: 0 0;
+      pointer-events: none; z-index: 10;
     }
-
-    /* Khung số 99999 chuẩn kiểu Game RPG Pixel */
-    .damage-text {
-      position: absolute;
-      top: 40%; left: 50%;
-      transform: translate(-50%, -50%) scale(0);
-      background-color: #ff3344;
-      color: #000000;
-      border: 5px solid #000000;
-      padding: 10px 24px;
-      font-size: 65px;
-      font-weight: 900;
-      letter-spacing: 4px;
-      box-shadow: 6px 6px 0px #000000;
-      pointer-events: none;
-      z-index: 20;
-      white-space: nowrap;
-    }
+    #fx img { position: absolute; display: none; image-rendering: pixelated; pointer-events: none; }
+    .slash-effect { z-index: 10; }
+    .damage-text { z-index: 20; }
 
     .ui-layer {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -53,8 +32,10 @@
 
   <div class="ui-layer">Click chuột hoặc bấm Space để tung chiêu Chém Slide!</div>
   <div id="canvas-container">
-    <div id="slash" class="slash-effect"></div>
-    <div id="damage" class="damage-text">99999</div>
+    <div id="fx">
+      <img id="slash" class="slash-effect" alt="">
+      <img id="damage" class="damage-text" alt="">
+    </div>
   </div>
 
   <script>
@@ -121,49 +102,56 @@
       : null;
     if (nextSlideObj) scene.add(nextSlideObj.group);
 
-    // Chuỗi các Frame clip-path tạo hiệu ứng pixel xuất hiện giật cục đúng chuẩn video mẫu
-    // Bạn sẽ thấy từng mảng pixel xuất hiện theo thời gian
-    const pixelSlashFrames = [
-      'polygon(40% 0%, 60% 0%, 60% 15%, 40% 15%)', // Frame 1: Mảng pixel đầu tiên (30ms)
-      'polygon(35% 0%, 65% 0%, 65% 35%, 40% 35%, 40% 15%, 55% 15%)', // Frame 2: Kéo dài xuống, có nấc (30ms)
-      'polygon(25% 0%, 75% 0%, 75% 65%, 45% 65%, 45% 35%, 60% 35%)', // Frame 3: Cán xuống giữa, thêm nấc (30ms)
-      'polygon(15% 0%, 85% 0%, 85% 100%, 35% 100%, 35% 65%, 65% 65%)', // Frame 4: Dài hết màn hình, nhiều nấc (30ms)
-      'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)' // Frame 5: Phủ toàn bộ, kết thúc (30ms)
-    ];
+    // Frame lấy trực tiếp từ gif mẫu (x, y là toạ độ trong khung 200x198, ms là thời gian mỗi frame)
+    const slashFrames = [{"x": 81, "y": 38, "w": 15, "h": 19, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAATBAMAAAC97EqZAAAAMFBMVEVqZGQjHx/X19dkMjKfn5/oX1+gS0uMOjr/hYUAAAAKAwP8eXlvLS3ZWlrl5eUvFxcKnWY0AAAAEHRSTlP///////////8A////////Xxf4pAAAALBJREFUeNolxiEPAQEYgOH3vjszEtMUhwlmkpnCpip+gnjq/QDhEhNsVwRdkkxQBDaCYm4j2M5GIpjt2hm3ETzpUUbQe3f7bYEhkENgrs+y86lA1Y8nio7QSC/de8TWQq03OKBkUs6tpbgXCBuddUmr860tzkmvaasF8SZGdXVkUl6cY828LQCaayIAAfxzBYT6ztIB8VclC0CdPkP7zeEUKJmnV3l9TF8dPKLjbYzgB5xmOKMPvcGZAAAAAElFTkSuQmCC"}, {"x": 81, "y": 38, "w": 15, "h": 57, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAA5BAMAAAAb22zJAAAAMFBMVEXeW1sqISHe3t5iXl6jo6NnLi6cQECIODj/goIHAQH8aWkAAAD/dXV3NDS7TExHHBxQ7FAMAAAAEHRSTlP//////////////wD/////B0V1GAAAANpJREFUeNrN0CFLQwEYheFnHzd4DQsziIg6ZxRkYBJWRH+C+guEJcFoNhkvGASTUbSYLBvMKDKzICg3icWBIro2w/WCUUy2lxfO9x2OTqezMHW4eBG0MSkh5mo3b1nCaOKsutZLmL3uv68cBSFHYKhaAHkJ9d+admliUFEn2jPPIzlJ47U1rU7cpufHcuKg1b+ijCOxdS9+mn8D46gRPsqqGo8bxYa2N8fumoHP9cvBbsBwPi3i+4PvO5U0K2D0t+8IJ91TSPZ6zZcKYnnn4WkJ8Zh0V3NEhjTjC0ztN8G3yyk7AAAAAElFTkSuQmCC"}, {"x": 81, "y": 38, "w": 24, "h": 156, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAACcBAMAAACXeHYFAAAAMFBMVEUtHx+kpKRbJibR0dHaWlqVPT2cQEBpYWH/hoYAAAD8aGj+dHQMAwNJSUnl5eW5S0uZfp2rAAAAEHRSTlP///////////8A////////Xxf4pAAAAhJJREFUeNrtlTFoE2EYhp+cl0Bto4kYlUJLjNqComRos7i0ohmqliMlIIjlEImLQsGhFGcHJxEUjNgYkCwZSoviYtwcanAIrkIwUIs0YmJDbJvUnMPd/+ePWNAOgtDx4f3e/3+/u+/ucyUB1s8vPR8ADaBhAGMOpCPRq63ToAPMfQsZpbgDhKPRhP+RXQa7oIAAwqYmYR6QYKiwHQVoSfhRSIclaOEpkSAWOHbu4BkHzPyCqxEEVxIy9dYFc/S2rTw7O/JgKADokEm99XpONG2ojfZrvYumfenyi+/ruU/YykbXzc0bIo73Y60bmW1NxLPjVFXw8UsLf1D275VeRcksK0ptwpKK+8uTdgu34geOy7J33lBAKHrlw3TF4rdt5yu42PKBSPD4FWhUtirb8fx3nqbqaYwpZZNGG3ruldPCUx8ITbgdj+VZPbk5LH5CTFuR0qLwVNV7LKbUbNWOOBpoRHwquyToQ0dXPKZQ/OPF3XJg36dWXknPy8Nv1tpDrl1U5joBHePfMfE7ynaUWpd4wxoQ9Dnzp8Pg17tc3+so2dVi6anwxILF2QUBiWzfSPvoK/uVxXLZVFeO8RfLqAPSKpiPJRQ4VZY7C6y4M72FkLGHuX06QGypG691KejsrPFsPVd+6EoCuGfq/ZN9g/YB9fy1BrPYCu6ZQ4XaHedbqOfvH3H3OOB5ncoNfxYJmsD8T1iRu0P0/+vOAAAAAElFTkSuQmCC"}, {"x": 81, "y": 116, "w": 38, "h": 80, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAABQBAMAAACHaBpBAAAAMFBMVEVfKSkqHh5fWlqmpqbZ2dnmXl7/hoaRV1cAAAD7aGj+dHQNAwPo6OiuSEiRPDzRVlaz6X6QAAAAEHRSTlP//////////wD/////////62q0cgAAAoxJREFUeNqNlE1IFGEYx3/vOH5tpjNThKsEuit4SroEQgPtYaOCiAg8dAiti3TIQgILDHehw3qICqIugdHHOeoSiNYe5hSGSx20aN3tYGtRMyOVZQ07HXbVnQ+i9zY//u//fd7n+/u+/ucyUB1s8vPR8ADaBhAGMOpCPRq63ToAPMfQsZpbgDhKPRhP+RXQa7oIAAwqYmYR6QYKiwHQVoSfhRSIclaOEpkSAWOHbu4BkHzPyCqxEEVxIy9dYFc/S2rTw7O/JgKADokEm99XpONG2ojfZrvYumfenyi+/ruU/YykbXzc0bIo73Y60bmW1NxLPjVFXw8UsLf1D275VeRcksK0ptwpKK+8uTdgu34geOy7J33lBAKHrlw3TF4rdt5yu42PKBSPD4FWhUtirb8fx3nqbqaYwpZZNGG3ruldPCUx8ITbgdj+VZPbk5LH5CTFuR0qLwVNV7LKbUbNWOOBpoRHwquyToQ0dXPKZQ/OPF3XJg36dWXknPy8Nv1tpDrl1U5joBHePfMfE7ynaUWpd4wxoQ9Dnzp8Pg17tc3+so2dVi6anwxILF2QUBiWzfSPvoK/uVxXLZVFeO8RfLqAPSKpiPJRQ4VZY7C6y4M72FkLGHuX06QGypG691KejsrPFsPVd+6EoCuGfq/ZN9g/YB9fy1BrPYCu6ZQ4XaHedbqOfvH3H3OOB5ncoNfxYJmsD8T1iRu0P0/+vOAAAAAElFTkSuQmCC"}, {"x": 86, "y": 165, "w": 38, "h": 33, "ms": 100, "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAhBAMAAABHFsQlAAAAMFBMVEWbm5sqHx9hKytiWVnh4eGjRkb/hoaOOzvdW1sAAAD4aGjX19fo6Oj+d3cGAwPQVlY/XaLEAAAAEHRSTlP///////////8A////////Xxf4pAAAAddJREFUeNpV0c9r03AYx/F3km+3Om3agQpFsHVhqBS72MyrOrtBRQa9FE+iuwiCyg5CCzJQxJMrzIPi/gNBt4OoF6ft5sCJRjuh/qrtsg1RFGnGFKqxrYfVaZ7ji4fn88BHGuf/ka8/PHRKdpGzG83ucpv3QNtJZcBttegu43in235bjSnKbhPhOsO4DbkxPqQJd4bvvSZVZSfWFfmXsfFl1fdUePexKfvXPId/5J2C6NlraZHi+uYVe0NRImarpf1JV1AsXta6L7iSpKXzgcvbe9OoBXB2ohZAwE84mtgTTEJ7Qt+aBFl3+k+Et6iLMxGUbrUyEwHJENuWnykh1M2pW7kQ6ocs8sVfuWbe//rMyhPjtP9tdqUHxOdXeiG+MFny+XuVhduzx+6DqM3ZiSifzs4uGg2stf88Lzqb1sBwez8V6+C7a3ffgMA5Z4S7Jri0DPXHmtoHAu90NAXcS4HzfPVLEARNmEqbKDrUVkPBJMhIkK5D3TQpBEoAAuS2TMcRwJOp+29YgExt2jTnLCBuzpfGAGQ8xb7qA0XHIPdtMrlmMGITVgyQv4/RusfoHf3rBNx8lC+u26BvR2YpXJl3WrUIgNGRISB09WOrD4DBgK9cLtMi/gBa250EjF3eUAAAAABJRU5ErkJggg=="}];
+    const DMG_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKEAAAAhBAMAAABDz9ZdAAAAMFBMVEX8Pj4CAAD/REQuDg7HMTGXPj53Hh5rKyupKyvVWFhOExM0FRWIIiIAAAAAAAAAAADFUnuSAAAAEHRSTlP/////////////////AAAAzZ+UhgAAAodJREFUeNq1lr1rFEEYh5/bW+/Ok6BCQIIiy4uIHwT/hFyRVkxhaYgBtRHkGgutAlY2IdiIjdgJHoT8CYJgIR5YWQ6DIElhwMqPfEwsZudj95LVYt3umX1n9vf+5n1ntiU0+1gaf1qNa2wByaLWlFlzyHuVlwIqiORNKhShBf3LceT6ygQrOZmY9BFkeSNw9z28GwZsf9Nkufmty9+psDVTEdqAtjFArQ1lPWLnhOjM0KvJQgmoKRM4q27kEP09ZU2Wm9qd05DNRt7T9T5qyAzQv+VSeu6V3UlY5XBxAMCVYbH1xxfd+i9R5w10bgOw8wopNO6O3ELBrcBKrDGznHUDS16HdZyBNQIzDre6QaOrM1WpOyVgNSp3yU/WqboAoOc89wka0aUypRW40Jh+DCkv7j4gwFb0sRpwIMnOqHzSfV8sOB/jfK9xf97Z8roYj1xovDkNQA7i8nUB++vOx80bAOxuBI2F0dHFUUXjfUcj0CDwM5mg59gZJRpVfVsrya05MutD61EZftVWuFG1PVBRJJDlpivpUQUpK7HGXEsUCNBPAqwRlaDz8cc9v8WPUII1CVsNe5/XioFLC2jg4Qu/xGNAb/rXb0yx1/LUZ+BKOWUANeMHlorUPPcBCK9DzwSns6mS8z6bcHhJZWtcz8T5oWdCeaptlFgj9eYn9dwpY+iZLwPffNtYTYmVgA1TBmuZkAR0vpLi8mqh8WBc6cFx5Xw87ctnwZ2PT1ZL8Yv+khj7euw1eMm7euRvt8JRNv5zz/RKPaO1MTVd+CznVHKxOY3H5uPQ23jyeFbn7n4KfHUF5EwMaD+A6QQ/iG6Vq8OaenY/DeXLV/if/xTQ8HLFv5k1jWr8A9oHAHGFf/CnAAAAAElFTkSuQmCC";
+    const damageFrames = [{"x": 29, "y": 76, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 40, "y": 68, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 37, "y": 57, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 15, "y": 60, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 6, "y": 73, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 21, "y": 84, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}, {"x": 24, "y": 68, "w": 161, "h": 33, "ms": 200, "src": DMG_SRC}];
 
+    const fxEl = document.getElementById('fx');
+    function layoutFx() {
+      const s = Math.max(1, Math.floor(Math.min(window.innerHeight * 0.9 / 198, window.innerWidth * 0.95 / 200)));
+      fxEl.style.transform = 'scale(' + s + ') translate(-100px, -99px)';
+    }
+    layoutFx();
+
+    let fxToken = 0;
+    function showFrame(el, f) {
+      el.src = f.src;
+      el.style.left = f.x + 'px'; el.style.top = f.y + 'px';
+      el.style.width = f.w + 'px'; el.style.height = f.h + 'px';
+      el.style.display = 'block';
+    }
+
+    // Phát đúng chuỗi gif: vệt máu rơi + bắn tung (5 frame x 100ms), sau đó số 99999 rung (7 frame x 200ms)
     function playPixelSlashAnimation(callback) {
       const slashEl = document.getElementById('slash');
-      slashEl.style.opacity = '1';
-      let frameIndex = 0;
-
-      // Tốc độ chuyển frame cực nhanh (30ms/frame) tạo độ giật cục đặc trưng
-      const interval = setInterval(() => {
-        if (frameIndex < pixelSlashFrames.length) {
-          slashEl.style.clipPath = pixelSlashFrames[frameIndex];
-          frameIndex++;
-        } else {
-          clearInterval(interval);
-          slashEl.style.opacity = '0';
-          if (callback) callback();
-        }
-      }, 30);
+      const damageEl = document.getElementById('damage');
+      const token = ++fxToken;
+      slashEl.style.display = 'none';
+      damageEl.style.display = 'none';
+      let t = 0;
+      slashFrames.forEach((f) => {
+        setTimeout(() => { if (token === fxToken) showFrame(slashEl, f); }, t);
+        t += f.ms;
+      });
+      setTimeout(() => { if (token === fxToken) slashEl.style.display = 'none'; }, t);
+      damageFrames.forEach((f) => {
+        setTimeout(() => { if (token === fxToken) showFrame(damageEl, f); }, t);
+        t += f.ms;
+      });
+      setTimeout(() => {
+        if (token === fxToken) { damageEl.style.display = 'none'; if (callback) callback(); }
+      }, t);
     }
 
     function nextSlide() {
       if (isAnimating || currentIndex >= slideImages.length - 1) return;
       isAnimating = true;
 
-      const damageEl = document.getElementById('damage');
-
       // 1. Chạy hiệu ứng chém frame-by-frame pixel (lúc này bạn sẽ thấy vệt chém giật cục)
       playPixelSlashAnimation(() => {});
 
-      // 2. Nảy số damage 99999 đồng bộ
-      gsap.timeline()
-        .set(damageEl, { scale: 0.2, opacity: 1, y: 0 })
-        .to(damageEl, { scale: 1.4, duration: 0.12, ease: "back.out(3)" })
-        .to(damageEl, { scale: 1, duration: 0.08 })
-        .to(damageEl, { y: -60, opacity: 0, duration: 0.35, delay: 0.2, ease: "power2.in" });
+      // 2. Số damage 99999 đã được phát cùng chuỗi frame ở bước 1
 
       // 3. Tách đôi slide và rơi xuống
       const { leftPiece, rightPiece, group } = currentSlideObj;
@@ -214,6 +202,7 @@
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      layoutFx();
     });
 
     function animate() {
