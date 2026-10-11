@@ -19,6 +19,7 @@
     .ui-layer {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
       color: rgba(255, 255, 255, 0.4); font-size: 14px; pointer-events: none; z-index: 30;
+      white-space: nowrap;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -37,8 +38,9 @@
       'slide1.png', 'slide2.png', 'slide3.png', 'slide4.png', 'slide5.png',
       'slide6.png', 'slide7.png', 'slide8.png', 'slide9.png', 'slide10.png'
     ];
-    const PX = 8;                 // kích thước 1 "pixel" trên màn hình
-    const DUST_GRID = [72, 40];   // độ chi tiết khi slide tan thành bụi
+    const PX = 8;                     // kích thước 1 "pixel" trên màn hình
+    const MOSAIC = [80, 45];          // số ô mosaic khi slide vỡ (ngang x dọc)
+    const BREAK_END = 1.3;            // mốc uProgress để slide vỡ hết
     let currentIndex = 0;
     let isAnimating = false;
 
@@ -56,48 +58,55 @@
     // Cache texture: mỗi ảnh chỉ load 1 lần
     const texCache = {};
     function getTex(path) {
-      if (!texCache[path]) texCache[path] = new THREE.TextureLoader().load(path);
+      if (!texCache[path]) {
+        const t = new THREE.TextureLoader().load(path);
+        t.minFilter = THREE.LinearFilter;
+        texCache[path] = t;
+      }
       return texCache[path];
     }
 
-    // Shader tan thành bụi: mỗi ô pixel có số ngẫu nhiên, khi uProgress vượt qua thì ô đó bay lên và biến mất
-    const DUST_VERT = `
+    // Shader vỡ mosaic: mỗi ô có số ngẫu nhiên d = r - uProgress.
+    // d > 0: còn nguyên | -0.25 < d < 0: ô đen/trắng kiểu mosaic | d < -0.25: biến mất
+    const BREAK_VERT = `
       uniform float uProgress;
       varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
         vUv = uv;
-        vec2 cell = floor(uv * vec2(${DUST_GRID[0]}.0, ${DUST_GRID[1]}.0));
-        float r2 = hash(cell + 17.31);
-        float r3 = hash(cell + 41.70);
+        vec2 cell = floor(uv * vec2(${MOSAIC[0]}.0, ${MOSAIC[1]}.0));
         float k = uProgress * uProgress;
         vec3 p = position;
-        p.x += (r2 - 0.5) * 1.8 * k;
-        p.y += (0.6 + r3) * 2.4 * k;
+        p.x += (hash(cell + 17.31) - 0.5) * 1.6 * k;
+        p.y += (0.5 + hash(cell + 41.70)) * 2.2 * k;
         p.z += hash(cell) * 0.4 * k;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }`;
 
-    const DUST_FRAG = `
+    const BREAK_FRAG = `
       uniform sampler2D map;
       uniform float uProgress;
       varying vec2 vUv;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
-        vec2 cell = floor(vUv * vec2(${DUST_GRID[0]}.0, ${DUST_GRID[1]}.0));
-        float r1 = hash(cell);
-        if (r1 < uProgress - 0.12) discard;
+        vec2 cell = floor(vUv * vec2(${MOSAIC[0]}.0, ${MOSAIC[1]}.0));
+        float d = hash(cell) - uProgress;
+        if (d < -0.25) discard;
+        if (d < 0.0) {
+          float bw = step(0.5, hash(cell + 3.3));
+          gl_FragColor = vec4(vec3(bw), 1.0 + d / 0.25);
+          return;
+        }
         vec4 c = texture2D(map, vUv);
         if (c.a < 0.01) discard;
-        float fade = clamp((r1 - (uProgress - 0.12)) / 0.12, 0.0, 1.0);
-        gl_FragColor = vec4(c.rgb, c.a * fade);
+        gl_FragColor = vec4(c.rgb, c.a * clamp(d / 0.08, 0.0, 1.0));
       }`;
 
-    function makeDustMat(tex) {
+    function makeBreakMat(tex) {
       return new THREE.ShaderMaterial({
         uniforms: { map: { value: tex }, uProgress: { value: 0 } },
-        vertexShader: DUST_VERT,
-        fragmentShader: DUST_FRAG,
+        vertexShader: BREAK_VERT,
+        fragmentShader: BREAK_FRAG,
         transparent: true,
         depthWrite: false,
         side: THREE.DoubleSide
@@ -110,19 +119,19 @@
       const width = 7.5, height = 4.2;
       const texture = getTex(texturePath);
 
-      // Nửa trái: UV 0 → 0.5, nằm bên trái tâm
+      // Nửa trái: UV 0 → 0.5
       const leftGeo = new THREE.PlaneGeometry(width / 2, height);
       leftGeo.translate(-width / 4, 0, 0);
       const lu = leftGeo.attributes.uv;
       for (let i = 0; i < lu.count; i++) lu.setX(i, lu.getX(i) * 0.5);
-      const leftPiece = new THREE.Mesh(leftGeo, makeDustMat(texture));
+      const leftPiece = new THREE.Mesh(leftGeo, makeBreakMat(texture));
 
-      // Nửa phải: UV 0.5 → 1, nằm bên phải tâm
+      // Nửa phải: UV 0.5 → 1
       const rightGeo = new THREE.PlaneGeometry(width / 2, height);
       rightGeo.translate(width / 4, 0, 0);
       const ru = rightGeo.attributes.uv;
       for (let i = 0; i < ru.count; i++) ru.setX(i, 0.5 + ru.getX(i) * 0.5);
-      const rightPiece = new THREE.Mesh(rightGeo, makeDustMat(texture));
+      const rightPiece = new THREE.Mesh(rightGeo, makeBreakMat(texture));
 
       group.add(leftPiece, rightPiece);
       return { group, leftPiece, rightPiece };
@@ -174,6 +183,7 @@
 
     // Vệt chém: build sẵn hình dạng từng hàng, mở dần từ trên xuống theo bước 40ms (giật cục)
     let slash = null;
+    let flashUntil = 0;
     function startSlash(hitX) {
       const rows = new Array(ROWS);
       let x = hitX, half = 2, left = 0;
@@ -203,14 +213,21 @@
       return m;
     }
 
-    // Vết máu dính vào slide đúng chỗ chém: cùng chiều rộng với vệt chém, dài bằng vùng nội dung slide
+    // Vết máu nhỏ kiểu Undertale: vệt đỏ méo, có vài giọt chảy xuống, nằm đúng chỗ chém
     let splat = null;
-    function startSplat(rows) {
+    function startSplat(hitX, hitY) {
       const mask = new Uint8Array(COLS * ROWS);
-      const y0 = Math.round(ROWS * 0.18), y1 = Math.round(ROWS * 0.78);
-      for (let y = y0; y < y1; y++) {
-        const [a, b] = rows[y];
-        for (let x = Math.max(0, a); x <= Math.min(COLS - 1, b); x++) mask[y * COLS + x] = 1;
+      const set = (x, y) => { if (x >= 0 && y >= 0 && x < COLS && y < ROWS) mask[y * COLS + x] = 1; };
+      const len = Math.round(ROWS * 0.16) + ((Math.random() * ROWS * 0.06) | 0);
+      let x = hitX, w = 1;
+      const top = hitY - ((len * 0.4) | 0);
+      for (let i = 0; i < len; i++) {
+        const y = top + i;
+        if (Math.random() < 0.3) x += Math.random() < 0.5 ? -1 : 1;
+        if (Math.random() < 0.25) w = Math.max(1, Math.min(2, w + (Math.random() < 0.5 ? -1 : 1)));
+        const taper = i > len * 0.75 ? 0 : 1;   // đuôi nhọn dần
+        for (let dx = -w * taper; dx <= w * taper; dx++) set(x + dx, y);
+        if (Math.random() < 0.05) for (let k = 1; k <= 3; k++) set(x, y + k);  // giọt chảy
       }
       splat = { mask };
     }
@@ -235,11 +252,15 @@
 
     function fxLoop(now) {
       fx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+      if (now < flashUntil) {
+        fx.fillStyle = 'rgba(255, 40, 60, 0.12)';
+        fx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
+      }
       if (slash) {
         const m = slashMask(now);
         if (m) drawMask(m, '#ff3344');
       }
-      if (splat) drawMask(splat.mask, '#ff3344');
+      if (splat) drawMask(splat.mask, '#c8102e');
       if (now < dustUntil) spawnDust(6);
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -253,6 +274,16 @@
       requestAnimationFrame(fxLoop);
     }
     requestAnimationFrame(fxLoop);
+
+    // Rung màn hình khi chém
+    function shake() {
+      gsap.fromTo('#canvas-container', { x: 0, y: 0 }, {
+        x: () => (Math.random() - 0.5) * 16,
+        y: () => (Math.random() - 0.5) * 10,
+        duration: 0.05, repeat: 5, yoyo: true, ease: 'none',
+        onComplete: () => gsap.set('#canvas-container', { x: 0, y: 0 })
+      });
+    }
 
     // ================= SỐ DAMAGE (pixel font 3x5) =================
     const GLYPHS = {
@@ -298,7 +329,15 @@
     }
 
     // ================= CHUYỂN SLIDE =================
-    // Sau khi slide cũ tan xong: slide mới đã được đưa lên sẵn ở nxt, chỉ cần cập nhật trạng thái
+    // Slide sau trồi lên từ dưới, hiện ra theo mosaic ngược lại với lúc vỡ
+    function revealNext(nxt) {
+      nxt.group.position.z = 0;
+      nxt.group.position.y = -4;
+      setProgress(nxt, BREAK_END);
+      gsap.to(nxt.group.position, { y: 0, duration: 1.0, ease: 'power3.out' });
+      tweenProgress(nxt, 0, 0.9, 'power1.out', () => finishSlide(nxt));
+    }
+
     function finishSlide(nxt) {
       currentSlideObj = nxt;
       currentIndex++;
@@ -308,7 +347,7 @@
       isAnimating = false;
     }
 
-    // Tiến: chém -> vết máu -> slide tan dần -> nghỉ -> slide sau hiện ra
+    // Tiến: chém -> vết máu -> slide vỡ mosaic -> slide sau trồi lên
     function nextSlide() {
       if (isAnimating || currentIndex >= slideImages.length - 1) return;
       isAnimating = true;
@@ -321,28 +360,27 @@
       // 0ms: vệt chém từ trên xuống
       const rows = startSlash(hitX);
 
-      // 320ms: vết máu dính vào slide + số damage ngẫu nhiên 1-100
+      // 260ms: chạm đích: rung + nháy đỏ
+      setTimeout(() => { shake(); flashUntil = performance.now() + 90; }, 260);
+
+      // 320ms: vết máu nhỏ dính vào slide + số damage ngẫu nhiên 1-100
       setTimeout(() => {
-        startSplat(rows);
+        startSplat(hitX, hitY);
         showDamage(hitX * PX, hitY * PX, 1 + Math.floor(Math.random() * 100));
       }, 320);
 
-      // 500ms: slide tan thành bụi từ từ
+      // 500ms: slide vỡ thành mosaic rồi bay lên thành bụi
       setTimeout(() => {
         dustUntil = performance.now() + 1500;
-        tweenProgress(cur, 1.2, 1.5, 'none', () => {
+        tweenProgress(cur, BREAK_END, 1.5, 'none', () => {
           splat = null;
           disposeSlide(cur);
-          // Nghỉ một lúc rồi slide sau mới trượt lên
-          gsap.to(nxt.group.position, {
-            z: 0, duration: 0.8, delay: 0.4, ease: 'power2.out',
-            onComplete: () => finishSlide(nxt)
-          });
+          revealNext(nxt);
         });
       }, 500);
     }
 
-    // Lùi: slide trước tụ lại từ bụi, slide hiện tại tan đi
+    // Lùi: slide trước hiện lại từ mosaic, slide hiện tại vỡ đi
     function prevSlide() {
       if (isAnimating || currentIndex <= 0) return;
       isAnimating = true;
@@ -351,11 +389,11 @@
       const cur = currentSlideObj;
       const ahead = nextSlideObj;
       const back = createSlicedSlide(slideImages[currentIndex - 1], -0.05);
-      setProgress(back, 1.2);
+      setProgress(back, BREAK_END);
       scene.add(back.group);
 
       tweenProgress(back, 0, 1.2, 'power1.out');
-      tweenProgress(cur, 1.2, 1.0, 'power1.in', () => {
+      tweenProgress(cur, BREAK_END, 1.0, 'power1.in', () => {
         disposeSlide(cur);
         if (ahead) disposeSlide(ahead);
         back.group.position.z = 0;
