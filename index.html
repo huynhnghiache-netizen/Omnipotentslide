@@ -24,22 +24,116 @@
         radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.6) 100%),
         repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px);
     }
-    .ui-layer {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.45); font-size: 14px; pointer-events: none; z-index: 30;
-      white-space: nowrap; letter-spacing: 1px; text-shadow: 2px 2px 0 #000;
+
+    /* ===== Frame 1: START ===== */
+    #start {
+      position: fixed; inset: 0; z-index: 40;
+      display: flex; align-items: center; justify-content: center;
+      background: #050205;
+    }
+    .start-btn {
+      position: relative; z-index: 1;
+      font-family: 'Press Start 2P', monospace; font-size: clamp(22px, 5vw, 48px);
+      letter-spacing: 4px; color: #fff; background: none; border: none; cursor: pointer;
+      text-shadow: 4px 4px 0 #8a0016, 8px 8px 0 #000;
+      animation: pulse 1.6s ease-in-out infinite;
+      transition: color 0.15s, transform 0.15s;
+    }
+    .start-btn:hover { color: #ff3344; transform: scale(1.05); }
+    .start-btn:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 14px; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ===== Frame 2: DANH SÁCH 10 SLIDE ===== */
+    #grid {
+      position: fixed; inset: 0; z-index: 5; display: none;
+      overflow-y: auto; padding: 56px 40px 40px;
+      background: radial-gradient(ellipse at 50% 0%, #2a0810 0%, #0b0304 60%, #000 100%);
+    }
+    .grid-head {
+      max-width: 1200px; margin: 0 auto 28px;
+      display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    .grid-head h2 {
+      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(16px, 2.6vw, 26px);
+      color: #fff; text-shadow: 4px 4px 0 #8a0016, 8px 8px 0 #000;
+    }
+    .grid-head span { font-size: 12px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.5); text-shadow: 2px 2px 0 #000; }
+    .cards {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px;
+    }
+    .card {
+      position: relative; padding: 0; text-align: left; cursor: pointer;
+      font: inherit; color: #fff; background: #111;
+      border: 3px solid #000; box-shadow: 0 6px 0 #000;
+      transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    }
+    .card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+    .card-meta {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 10px 12px; background: #0a0a0a; border-top: 3px solid #000;
+    }
+    .card-num { font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ff3344; }
+    .card-title { font-size: 13px; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card:hover { transform: translateY(-4px); border-color: #ff3344; box-shadow: 0 10px 0 #000, 0 0 18px rgba(255, 51, 68, 0.45); }
+    .card:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+    .card:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
+
+    /* ===== Chi tiết slide: thông tin nằm dưới màn hình ===== */
+    .detail {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; pointer-events: none;
+      padding: 90px 48px 40px; color: #fff;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.6) 55%, transparent 100%);
+      opacity: 0; transform: translateY(30px); transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .detail.show { opacity: 1; transform: none; }
+    .info { max-width: 720px; text-shadow: 3px 3px 0 #000; }
+    .info-num { font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 2px; color: #ff3344; }
+    .info h2 {
+      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(18px, 3vw, 32px);
+      line-height: 1.3; margin: 14px 0 12px;
+    }
+    .info p { font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.75); }
+    .info-hint {
+      margin-top: 18px; font-family: 'Press Start 2P', monospace; font-size: 9px;
+      letter-spacing: 1px; color: rgba(255, 255, 255, 0.4);
     }
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
 
-  <div class="ui-layer">Click / Space: chém slide tiếp &nbsp;·&nbsp; ← : quay lại slide trước</div>
   <div id="canvas-container"></div>
   <canvas id="fx"></canvas>
   <canvas id="dmg"></canvas>
   <div id="overlay"></div>
+
+  <!-- Frame 1: chỉ có chữ START -->
+  <div id="start">
+    <button id="startBtn" class="start-btn" type="button">START</button>
+  </div>
+
+  <!-- Frame 2: 10 slide, click để xem -->
+  <div id="grid">
+    <header class="grid-head">
+      <h2>CHỌN SLIDE</h2>
+      <span>CLICK để xem · BACKSPACE để thoát</span>
+    </header>
+    <div id="cards" class="cards"></div>
+  </div>
+
+  <!-- Thông tin của slide đang xem -->
+  <div id="detail" class="detail">
+    <div class="info">
+      <div id="info-num" class="info-num"></div>
+      <h2 id="info-title"></h2>
+      <p id="info-desc"></p>
+      <div class="info-hint">BACKSPACE · VỀ DANH SÁCH</div>
+    </div>
+  </div>
 
   <script>
     // ================= CẤU HÌNH =================
@@ -47,14 +141,17 @@
       'slide1.png', 'slide2.png', 'slide3.png', 'slide4.png', 'slide5.png',
       'slide6.png', 'slide7.png', 'slide8.png', 'slide9.png', 'slide10.png'
     ];
+    // Thông tin hiển thị khi click từng slide: sửa title / desc ở đây
+    const SLIDE_INFO = slideImages.map((_, i) => ({
+      title: 'Slide ' + (i + 1),
+      desc: 'Thông tin chi tiết của slide ' + (i + 1) + '. Sửa nội dung này trong SLIDE_INFO ở đầu file.'
+    }));
     const PX = 8;                     // kích thước 1 "pixel" của vệt chém và bụi
     const BLOOD_PX = PX * 2.5;        // kích thước 1 "pixel" của vết máu
     const SLIDE_W = 7.5, SLIDE_H = 4.2;
     const TILES = [80, 45];           // số ô vỡ của slide (ngang x dọc)
     const DISSOLVE_MS = 1500;         // thời gian slide tan xong
-    const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau slide mới tan
-    let currentIndex = 0;
-    let isAnimating = false;
+    const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
 
     // ================= THREE.JS =================
     const scene = new THREE.Scene();
@@ -161,15 +258,6 @@
       return { group, mesh };
     }
 
-    // Slide chưa tới lượt: tạo sẵn nhưng ẩn, để không lộ qua slide đang tan
-    function makeNext(index) {
-      if (index >= slideImages.length) return null;
-      const o = createSlide(slideImages[index], -1.5);
-      o.group.visible = false;
-      scene.add(o.group);
-      return o;
-    }
-
     function setProgress(obj, v) { obj.mesh.material.uniforms.uProgress.value = v; }
     function tweenProgress(obj, to, dur, ease, onComplete) {
       return gsap.to(obj.mesh.material.uniforms.uProgress, { value: to, duration: dur, ease: ease, onComplete: onComplete });
@@ -180,9 +268,7 @@
       scene.remove(obj.group);
     }
 
-    let currentSlideObj = createSlide(slideImages[currentIndex], 0);
-    scene.add(currentSlideObj.group);
-    let nextSlideObj = makeNext(currentIndex + 1);
+    let currentSlideObj = null;   // slide đang xem ở frame chi tiết
 
     // ================= LỚP PIXEL (canvas 2D) =================
     const fxCanvas = document.getElementById('fx');
@@ -376,8 +462,8 @@
         .set(dmgEl, { display: 'none' });
     }
 
-    // ================= CHUYỂN SLIDE =================
-    // Slide mới bay vào từ 1 trong 4 hướng ngẫu nhiên:
+    // ================= SLIDE BAY VÀO =================
+    // Slide bay vào từ 1 trong 4 hướng ngẫu nhiên:
     // từ dưới lên, từ trên xuống, từ trái sang phải, từ phải sang trái
     const ENTRY = [
       { x: 0,  y: -4.5 },   // từ dưới lên
@@ -394,72 +480,120 @@
       gsap.to(obj.group.position, { x: 0, y: 0, duration: 0.95, ease: 'power3.out', onComplete: onDone });
     }
 
-    function finishSlide(nxt) {
-      currentSlideObj = nxt;
-      currentIndex++;
-      nextSlideObj = makeNext(currentIndex + 1);
-      isAnimating = false;
+    // ================= ĐIỀU HƯỚNG: START → DANH SÁCH → CHI TIẾT =================
+    // view: 'start' | 'grid' | 'detail' | 'busy' (đang chuyển, bỏ qua phím và click)
+    let view = 'start';
+    const startEl = document.getElementById('start');
+    const startBtn = document.getElementById('startBtn');
+    const gridEl = document.getElementById('grid');
+    const cardsEl = document.getElementById('cards');
+    const detailEl = document.getElementById('detail');
+    const infoNum = document.getElementById('info-num');
+    const infoTitle = document.getElementById('info-title');
+    const infoDesc = document.getElementById('info-desc');
+
+    // Tạo 10 thẻ slide
+    const cards = slideImages.map((src, i) => {
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'card';
+      c.innerHTML = '<img src="' + src + '" alt="">' +
+        '<div class="card-meta"><span class="card-num">' + String(i + 1).padStart(2, '0') + '</span><span class="card-title"></span></div>';
+      c.querySelector('.card-title').textContent = SLIDE_INFO[i].title;
+      c.addEventListener('click', () => openWithSlash(i));
+      cardsEl.appendChild(c);
+      return c;
+    });
+
+    // Hiện danh sách: nền mờ dần, các thẻ bay lên lần lượt
+    function showGrid() {
+      gsap.killTweensOf(gridEl);
+      gridEl.style.display = 'block';
+      gsap.fromTo(gridEl, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', onComplete: () => { view = 'grid'; } });
+      gsap.fromTo(cards, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, stagger: 0.05, ease: 'power2.out', clearProps: 'transform,opacity' });
     }
 
-    // Tiến: chém -> vết máu hiện -> 1 giây sau slide tan khắp nơi -> slide sau bay vào
-    function nextSlide() {
-      if (isAnimating || currentIndex >= slideImages.length - 1) return;
-      isAnimating = true;
-
-      const cur = currentSlideObj;
-      const nxt = nextSlideObj;
-      const hitX = Math.round((innerWidth * 0.5 + (Math.random() - 0.5) * innerWidth * 0.15) / PX);
-      const hitY = Math.round(innerHeight * 0.42 / PX);
-
-      // 0ms: vệt chém từ trên xuống
-      startSlash(hitX);
-
-      // 260ms: chạm đích: rung + nháy đỏ
-      setTimeout(() => { shake(); flashUntil = performance.now() + 90; }, 260);
-
-      // 320ms: vết máu chạy dọc màn hình + số damage ngẫu nhiên 1-100
-      setTimeout(() => {
-        startSplat(hitX * PX, hitY * PX);
-        showDamage(hitX * PX, hitY * PX, 1 + Math.floor(Math.random() * 100));
-      }, 320);
-
-      // 320ms + 1s: slide tan khắp nơi, vết máu mờ dần theo
-      setTimeout(() => {
-        dustUntil = performance.now() + DISSOLVE_MS;
-        gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
-        tweenProgress(cur, 1.0, DISSOLVE_MS / 1000, 'none', () => {
-          disposeSlide(cur);
-          enterFrom(nxt, () => finishSlide(nxt));
-        });
-      }, 320 + BLOOD_TO_DISSOLVE_MS);
+    function hideGrid(onDone) {
+      gsap.killTweensOf(gridEl);
+      gsap.to(gridEl, { opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { gridEl.style.display = 'none'; if (onDone) onDone(); } });
     }
 
-    // Lùi: slide hiện tại tan đi, slide trước bay vào
-    function prevSlide() {
-      if (isAnimating || currentIndex <= 0) return;
-      isAnimating = true;
-      splat = null;
+    // START → danh sách
+    function enterGrid() {
+      if (view !== 'start') return;
+      view = 'busy';
+      gsap.to(startEl, { opacity: 0, duration: 0.35, ease: 'power2.in', onComplete: () => { startEl.style.display = 'none'; } });
+      showGrid();
+    }
 
-      const cur = currentSlideObj;
-      const ahead = nextSlideObj;
-      const back = createSlide(slideImages[currentIndex - 1], 0);
-      back.group.visible = false;
-      scene.add(back.group);
-
-      tweenProgress(cur, 1.0, 1.2, 'none', () => {
-        disposeSlide(cur);
-        if (ahead) disposeSlide(ahead);
-        currentSlideObj = back;
-        currentIndex--;
-        nextSlideObj = makeNext(currentIndex + 1);
-        enterFrom(back, () => { isAnimating = false; });
+    // Danh sách → START (Backspace)
+    function backToStart() {
+      if (view !== 'grid') return;
+      view = 'busy';
+      hideGrid(() => {
+        startEl.style.display = 'flex';
+        gsap.fromTo(startEl, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', onComplete: () => { view = 'start'; } });
       });
     }
 
-    window.addEventListener('click', nextSlide);
+    // Click 1 slide: chém ngay trên thẻ → vết máu + số damage → 1 giây sau mở slide đó
+    function openWithSlash(i) {
+      if (view !== 'grid') return;
+      view = 'busy';
+      const r = cards[i].getBoundingClientRect();
+      const hitX = Math.round((r.left + r.width / 2) / PX);
+      const hitYpx = r.top + r.height / 2;
+
+      startSlash(hitX);
+      setTimeout(() => { shake(); flashUntil = performance.now() + 90; }, 260);
+      setTimeout(() => {
+        startSplat(hitX * PX, hitYpx);
+        showDamage(hitX * PX, hitYpx, 1 + Math.floor(Math.random() * 100));
+      }, 320);
+      setTimeout(() => {
+        dustUntil = performance.now() + DISSOLVE_MS;
+        gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
+        hideGrid(() => openDetail(i));
+      }, 320 + BLOOD_TO_DISSOLVE_MS);
+    }
+
+    // Mở frame chi tiết: slide bay vào, thông tin trượt lên
+    function openDetail(i) {
+      currentSlideObj = createSlide(slideImages[i], 0);
+      scene.add(currentSlideObj.group);
+      infoNum.textContent = 'SLIDE ' + String(i + 1).padStart(2, '0') + ' / ' + String(slideImages.length).padStart(2, '0');
+      infoTitle.textContent = SLIDE_INFO[i].title;
+      infoDesc.textContent = SLIDE_INFO[i].desc;
+      enterFrom(currentSlideObj, () => {
+        view = 'detail';
+        detailEl.classList.add('show');
+      });
+    }
+
+    // Backspace trong chi tiết: slide tan đi (mosaic), rồi quay về danh sách
+    function closeDetail() {
+      if (view !== 'detail') return;
+      view = 'busy';
+      detailEl.classList.remove('show');
+      const cur = currentSlideObj;
+      tweenProgress(cur, 1.0, DISSOLVE_MS / 1000, 'none', () => {
+        disposeSlide(cur);
+        currentSlideObj = null;
+        showGrid();
+      });
+    }
+
+    startBtn.addEventListener('click', (e) => { e.stopPropagation(); enterGrid(); });
+
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
-      else if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); prevSlide(); }
+      if (e.repeat) return;
+      if (view === 'start') {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterGrid(); }
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (view === 'grid') backToStart();
+        else if (view === 'detail') closeDetail();
+      }
     });
 
     window.addEventListener('resize', () => {
