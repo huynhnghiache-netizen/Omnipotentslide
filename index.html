@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,11 +12,6 @@
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       pointer-events: none; z-index: 10; image-rendering: pixelated;
     }
-    #dmg {
-      position: fixed; display: none; pointer-events: none; z-index: 20;
-      image-rendering: pixelated; transform-origin: 50% 50%;
-      filter: drop-shadow(4px 4px 0 #000);
-    }
     /* Lớp đồ họa phủ: vignette tối 4 góc + scanline mờ kiểu màn hình retro */
     #overlay {
       position: fixed; inset: 0; pointer-events: none; z-index: 25;
@@ -24,6 +19,19 @@
         radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.6) 100%),
         repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px);
     }
+    .dmg {
+      position: fixed; display: block; pointer-events: none; z-index: 22;
+      image-rendering: pixelated; transform-origin: 50% 50%;
+      filter: drop-shadow(4px 4px 0 #000);
+    }
+    /* Slide đang được phóng từ thẻ lên toàn màn hình */
+    .fly {
+      position: fixed; z-index: 36; pointer-events: none;
+      background-size: 100% 100%; background-repeat: no-repeat;
+      box-shadow: 0 0 0 3px #000;
+    }
+    @keyframes blink { to { visibility: hidden; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     /* ===== Frame 1: START ===== */
     #start {
@@ -41,43 +49,76 @@
     }
     .start-btn:hover { color: #ff3344; transform: scale(1.05); }
     .start-btn:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 14px; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     /* ===== Frame 2: DANH SÁCH 10 SLIDE ===== */
     #grid {
-      position: fixed; inset: 0; z-index: 5; display: none;
-      overflow-y: auto; padding: 56px 40px 40px;
+      position: fixed; inset: 0; z-index: 5; display: none; flex-direction: column;
+      padding: 36px 48px 0; overflow: hidden;
       background: radial-gradient(ellipse at 50% 0%, #2a0810 0%, #0b0304 60%, #000 100%);
     }
+    #deco { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+    .frame { position: absolute; inset: 14px; border: 2px solid rgba(255, 51, 68, 0.22); pointer-events: none; z-index: 0; }
+    .frame::before, .frame::after { content: ''; position: absolute; width: 36px; height: 36px; border: 4px solid #ff3344; }
+    .frame::before { left: -4px; top: -4px; border-right: none; border-bottom: none; }
+    .frame::after { right: -4px; bottom: -4px; border-left: none; border-top: none; }
+    .grid-inner {
+      position: relative; z-index: 1; flex: 1; min-height: 0;
+      display: flex; flex-direction: column; width: 100%; max-width: 1400px; margin: 0 auto;
+      padding-bottom: 24px;
+    }
     .grid-head {
-      max-width: 1200px; margin: 0 auto 28px;
-      display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+      margin-bottom: 26px;
     }
     .grid-head h2 {
-      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(16px, 2.6vw, 26px);
+      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(16px, 2.6vw, 28px);
       color: #fff; text-shadow: 4px 4px 0 #8a0016, 8px 8px 0 #000;
+      animation: jitter 3.2s steps(1) infinite;
     }
-    .grid-head span { font-size: 12px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.5); text-shadow: 2px 2px 0 #000; }
+    @keyframes jitter {
+      0%, 88%, 100% { transform: none; }
+      90% { transform: translateX(-4px); text-shadow: -3px 0 0 #00e5ff, 4px 4px 0 #8a0016; }
+      92% { transform: translateX(3px); text-shadow: 3px 0 0 #ff3344, 6px 6px 0 #000; }
+      94% { transform: none; }
+    }
+    .cursor { animation: blink 1s steps(2, start) infinite; }
+    .grid-head span { font-size: 12px; letter-spacing: 2px; color: rgba(255, 255, 255, 0.55); text-shadow: 2px 2px 0 #000; }
     .cards {
-      max-width: 1200px; margin: 0 auto;
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 18px;
+      flex: 1; min-height: 0;
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 18px;
     }
     .card {
-      position: relative; padding: 0; text-align: left; cursor: pointer;
-      font: inherit; color: #fff; background: #111;
+      position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+      padding: 0; text-align: left; cursor: pointer; font: inherit; color: #fff; background: #111;
       border: 3px solid #000; box-shadow: 0 6px 0 #000;
       transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
     }
-    .card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+    .card img { flex: 1; min-height: 0; width: 100%; object-fit: cover; display: block; }
     .card-meta {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 10px 12px; background: #0a0a0a; border-top: 3px solid #000;
+      flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: #0a0a0a; border-top: 3px solid #000;
     }
     .card-num { font-family: 'Press Start 2P', monospace; font-size: 10px; color: #ff3344; }
     .card-title { font-size: 13px; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card::after {
+      content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none;
+      background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+      transition: left 0.6s ease;
+    }
+    .card:hover::after { left: 120%; }
     .card:hover { transform: translateY(-4px); border-color: #ff3344; box-shadow: 0 10px 0 #000, 0 0 18px rgba(255, 51, 68, 0.45); }
     .card:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
     .card:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
+    .ticker {
+      flex: 0 0 auto; position: relative; z-index: 1; overflow: hidden; white-space: nowrap;
+      margin: 0 -48px; padding: 12px 0; background: #000; border-top: 3px solid #000;
+    }
+    .ticker-track {
+      display: inline-block; animation: ticker 24s linear infinite;
+      font-family: 'Press Start 2P', monospace; font-size: 10px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.55);
+    }
+    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
     /* ===== Chi tiết slide: thông tin nằm dưới màn hình ===== */
     .detail {
@@ -98,6 +139,35 @@
       margin-top: 18px; font-family: 'Press Start 2P', monospace; font-size: 9px;
       letter-spacing: 1px; color: rgba(255, 255, 255, 0.4);
     }
+
+    /* ===== Bảng chọn slide cầm kiếm (khi bị Sans chặn) ===== */
+    #choose {
+      position: fixed; top: 36px; left: 50%; z-index: 32; text-align: center;
+      transform: translate(-50%, -20px); opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    #choose.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+    #choose h3 {
+      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: 13px; color: #fff;
+      text-shadow: 3px 3px 0 #8a0016, 6px 6px 0 #000; margin-bottom: 10px;
+    }
+    #choose p { font-size: 12px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.6); margin-bottom: 14px; text-shadow: 2px 2px 0 #000; }
+    #picks { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 92vw; }
+    .pick {
+      font-family: 'Press Start 2P', monospace; font-size: 11px; color: #fff;
+      background: #ff3344; border: 3px solid #000; padding: 10px 12px; cursor: pointer;
+      box-shadow: 0 5px 0 #000; transition: transform 0.1s, background 0.15s;
+    }
+    .pick:hover:not(:disabled) { background: #ff5566; transform: translateY(-2px); }
+    .pick:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+    .pick:disabled { background: #2a2a2a; color: #666; cursor: not-allowed; box-shadow: 0 5px 0 #000; }
+
+    @media (max-width: 760px) {
+      #grid { padding: 24px 16px 0; overflow-y: auto; }
+      .grid-inner { flex: none; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 180px; }
+      .ticker { margin: 0 -16px; }
+    }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -108,7 +178,6 @@
 
   <div id="canvas-container"></div>
   <canvas id="fx"></canvas>
-  <canvas id="dmg"></canvas>
   <div id="overlay"></div>
 
   <!-- Frame 1: chỉ có chữ START -->
@@ -116,13 +185,18 @@
     <button id="startBtn" class="start-btn" type="button">START</button>
   </div>
 
-  <!-- Frame 2: 10 slide, click để xem -->
+  <!-- Frame 2: 10 slide, click để chém / mở -->
   <div id="grid">
-    <header class="grid-head">
-      <h2>CHỌN SLIDE</h2>
-      <span>CLICK để xem · BACKSPACE để thoát</span>
-    </header>
-    <div id="cards" class="cards"></div>
+    <canvas id="deco"></canvas>
+    <div class="frame"></div>
+    <div class="grid-inner">
+      <header class="grid-head">
+        <h2>SELECT A SLIDE<span class="cursor">_</span></h2>
+        <span>CLICK TO SLASH · BACKSPACE TO EXIT</span>
+      </header>
+      <div id="cards" class="cards"></div>
+    </div>
+    <div class="ticker"><div id="ticker-track" class="ticker-track"></div></div>
   </div>
 
   <!-- Thông tin của slide đang xem -->
@@ -131,8 +205,15 @@
       <div id="info-num" class="info-num"></div>
       <h2 id="info-title"></h2>
       <p id="info-desc"></p>
-      <div class="info-hint">BACKSPACE · VỀ DANH SÁCH</div>
+      <div class="info-hint">BACKSPACE · BACK TO LIST</div>
     </div>
+  </div>
+
+  <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
+  <div id="choose">
+    <h3>SANS BLOCKED THE SLASH</h3>
+    <p>PICK A SLIDE TO WIELD THE SWORD</p>
+    <div id="picks"></div>
   </div>
 
   <script>
@@ -141,17 +222,198 @@
       'slide1.png', 'slide2.png', 'slide3.png', 'slide4.png', 'slide5.png',
       'slide6.png', 'slide7.png', 'slide8.png', 'slide9.png', 'slide10.png'
     ];
-    // Thông tin hiển thị khi click từng slide: sửa title / desc ở đây
+    // Thông tin hiển thị khi mở từng slide: sửa title / desc ở đây
     const SLIDE_INFO = slideImages.map((_, i) => ({
       title: 'Slide ' + (i + 1),
-      desc: 'Thông tin chi tiết của slide ' + (i + 1) + '. Sửa nội dung này trong SLIDE_INFO ở đầu file.'
+      desc: 'Details for slide ' + (i + 1) + '. Edit SLIDE_INFO at the top of this file.'
     }));
-    const PX = 8;                     // kích thước 1 "pixel" của vệt chém và bụi
-    const BLOOD_PX = PX * 2.5;        // kích thước 1 "pixel" của vết máu
+    const PX = 8;                      // kích thước 1 "pixel" của vệt chém và bụi
+    const BLOOD_PX = PX * 2.5;         // kích thước 1 "pixel" của vết máu
     const SLIDE_W = 7.5, SLIDE_H = 4.2;
-    const TILES = [80, 45];           // số ô vỡ của slide (ngang x dọc)
-    const DISSOLVE_MS = 1500;         // thời gian slide tan xong
+    const TILES = [80, 45];            // số ô vỡ của slide (ngang x dọc)
+    const DISSOLVE_MS = 1500;          // thời gian slide tan xong
     const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
+    const BLOCK_CHANCE = 0.3;          // xác suất vệt chém bị xương của Sans chặn
+
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    // ================= SPRITE (vẽ sẵn từ ảnh tham chiếu) =================
+    // W = trắng, K = đen (viền), '.' = trong suốt
+    const SANS_ROWS = [
+      "....................WWWWWWWWWWWW....................",
+      ".................WWWWWWWWWWWWWWWWWW.................",
+      "...............WWWWWWWWWWWWWWWWWWWWWW...............",
+      "..............WWWWWWWWWWWWWWWWWWWWWWWW..............",
+      ".............WWWWWWWWWWWWWWWWWWWWWWWWWW.............",
+      "............WWWWWWWWWWWWWWWWWWWWWWWWWWWW............",
+      "............WWWWWWWWWWWWWWWWWWWWWWWWWWWW............",
+      "...........WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW...........",
+      "...........WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW...........",
+      "...........WWWWW......WWWWWWWW......WWWWW...........",
+      "...........WWW.........WWWWWW.........WWW...........",
+      "...........WW..........WWWWWW..........WW...........",
+      "...........WW.....WW...WWWWWW...WW.....WW...........",
+      "...........WW.....WW...WWWWWW...WW.....WW...........",
+      "............WW........WWW..WWW........WW............",
+      "............WWWW......WWW..WWW......WWWW............",
+      ".............WWWWWWW.WWW....WWW.WWWWWWW.............",
+      ".............WWWWW..WWWW....WWWW..WWWWW.............",
+      "............WWWW.WWWWWWW....WWWWWWW.WWWW............",
+      "............WWWW..WWWWWWWWWWWWWWWWW..WWW............",
+      "............WW...W..WWWWWWWWWWWWW.....WW............",
+      "............WWWW.W.W.............W..WWWW............",
+      ".............WWWW..WWW.WW.WWW.WW.W.WWWW.............",
+      ".............WWWWW..WW.WW.WWW.WW..WWWWW..WWW........",
+      "........WWW...WWWWWW...WW.WWW.W..WWWWW..WWWWW.......",
+      ".......WWWWW...WWWWWWW.........WWWWWW..WWWW.........",
+      ".......WWWWWW....WWWWWWWWWWWWWWWWWW...WWWW..W.......",
+      "......W...WWWWW.....WWWWWWWWWWWW......WWW....W......",
+      ".............WWW.....................WWW.....WW.....",
+      "..............WWW.....W.....W......WWWW.......WW....",
+      ".....W..........WWW...WWWWWWW.....WWWW....W....W....",
+      "....W.....W......WWWW..WWWWW...WWWW......W......W...",
+      "...W......W......W..WW..WWWW.WWWW........W......WW..",
+      "..W.......W......W..W.........W.W........W.......WW.",
+      "..W.......W......W..W..WWWW...W.W.......WW........W.",
+      ".W........W......WWWW..WWWWW.WWWW......WWW........WW",
+      ".W........WW.WWWWW..W..WWWWW.WW.W....WWW.W........WW",
+      "WW........WWW.....W..W.WWWWW.W..W..WWW...W.........W",
+      "WW........W.......W.WW.WWWWW.WWWW.W......WW........W",
+      "WW.......W........WW.W.WWWWW.W..W.W.......W........W",
+      ".WW......W........W..W.WWWWW.W..W.W.......W........W",
+      "..WW.....W........W.WW.WWWWW.WWW.W........W.......WW",
+      "...WW....W.........W.W.WWWWW.W.W.W........W......WW.",
+      "....WWW..W.........W.W.WWWWW.W.WW.........W.....WW..",
+      ".....WW..W.........W.W.......W.W.........WW....WW...",
+      "......W..WWW.......WWWWWWWWWWWWW........WWW.WWW.....",
+      "........WWWWW......WWWWW......WWWWWWWWWWWW..WW......",
+      "..........WWWWWWWWW.....................WW..........",
+      "....................................................",
+      ".................................WW......W..........",
+      "...........W..WW.................WW......W..........",
+      "..........W...WW.................WW.......W.........",
+      "..........W..WW..........W.......WW.......W.........",
+      "..........W..WW.........W.W......WW.......W.........",
+      "..........W..WW.........W.W......WWW......W.........",
+      "..........W..WW.........W.W......WWW.......W........",
+      ".........W..WW..........W..W.....WWW.......W........",
+      ".........W..WW.........WW..W.....WWW.......W........",
+      ".........W..WW.........W...W......WW.......W........",
+      ".........W..WW.........W...W......WW.......W........",
+      ".........W..WW.........W...W......WW.......W........",
+      ".........WWWWW.........W...W......WWW..WWWWW........",
+      "..............WWWWWWWWW.....WWWWWWWWWWW.............",
+      "....................................................",
+      "................................W...................",
+      "........WWWW..WWWW..............WWWWWWW...WWW.......",
+      ".......WWWWWWW.WWW.............WWWWWWW..WWWWWWW.....",
+      "......WWWWWWWWW.WW.............WWWWWW.WWWWWWWWWW....",
+      "......WWWWWWWWW......................WWWWWWWWWWW....",
+      "......WWWWWWWWWW.WW...........WWWWWW.WWWWWWWWWW....."
+    ];
+    const BONE_ROWS = [
+      "......................................WWWW..",
+      "..WKKKK...............................KKKK.W",
+      "WWKWWW..............................WK.WWWK.",
+      "WKWWWWW.............................KWWWWWWK",
+      "WKWWWWWWK..........................KWWWWWWWK",
+      "WKWWWWWWK..........................KWWWWWWWK",
+      ".KWWWWWWWKKKKKKKKKKKKKKKKKKKKKKKKKK.WWWWWWWK",
+      "..KWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWK",
+      "..WKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWK..",
+      "..WKWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWK..",
+      "....WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW...",
+      "WK.WWWWWWKKKKKKKKKKKKKKKKKKKKKKKKKK.WWWWWW.K",
+      "WKWWWWWWK..........................KWWWWWWWK",
+      "WKWWWWWWK..........................KWWWWWWWK",
+      "WKWWWWWK.W.........................WKWWWWWWK",
+      "..KWWW...............................K.WWWKW",
+      "..WKKKKW..............................KKKKW.",
+      "..WWW..................................WWW.."
+    ];
+    const SWORD_ROWS = [
+      "..........K..........",
+      ".........KDK.........",
+      ".........KDK.........",
+      "........KKDKK........",
+      ".......KKDWWKK.......",
+      ".......KDDWhWK.......",
+      "......KKDDWhWKK......",
+      "......KDDRWhHWK......",
+      "......KDDRWhhWK......",
+      "......KDDRWhHWK......",
+      "......KDDRRhhWK......",
+      "......KDDRRhHWK......",
+      "......KDDRWhHHK......",
+      "......KDDRRhHHK......",
+      "......KDDRWhHWK......",
+      "......KDRRWhhHK......",
+      "......KDRRWhhHK......",
+      "......KDDRWhhHK......",
+      "......KDDRWhHHK......",
+      "......KDRRWhhHK......",
+      "......KDRRRhhHK......",
+      "......KDRRRhHHK......",
+      "......KDDRhhHHK......",
+      "......KDRRWhhHK......",
+      "......KDDRRhhHK......",
+      "......KDRRRhHHK......",
+      "......KDRRRhhHK......",
+      "......KDrRRhHHK......",
+      "......KDDRRhhHK......",
+      "......KDDRRhHHK......",
+      "......KDDRRhHHK......",
+      "......KDRRRhHHK......",
+      "......KDDRRhHHK......",
+      "......KDrRRhHHK......",
+      "......KDRRRhHHK......",
+      "......KDRRRhHHK......",
+      "......KDDRDhgHK......",
+      ".KKKKKKKDDDggKKKKKKK.",
+      "KKHHKggKKKDKKKggKHHKK",
+      "KgGGKKgggKKKggKKGgGgK",
+      "KgggggKKgKhKgKKgggggK",
+      "KgKKKKggKKRKKggKKKKgK",
+      "KgK..KKKgKDKgKKK..KgK",
+      "KgK....KKKKKKK....KgK",
+      "KKK....KQQQQQK....KKK",
+      ".......KKKKKKK.......",
+      ".......KQQQQQK.......",
+      ".......KKKKKKK.......",
+      ".......KKDDDKK.......",
+      ".......KKKKKKK.......",
+      ".......KgWGWgK.......",
+      ".......KKKKKKK.......",
+      ".......KgggggK.......",
+      ".......KKWGWKK.......",
+      "........KKKKK........",
+      ".........KgK.........",
+      ".........KKK........."
+    ];
+    const SWORD_COLORS = {
+      K: '#000000', D: '#6c0c00', R: '#e4240c', r: '#d82400', h: '#fc7860',
+      H: '#fcd8cc', W: '#fcfcfc', G: '#fcd848', g: '#786c30', Q: '#302424'
+    };
+
+    // Chuyển bitmap thành canvas sẵn để vẽ mỗi frame nhanh
+    function makeSprite(rows, colorOf, cell) {
+      const w = Math.max(...rows.map(r => r.length));
+      const c = document.createElement('canvas');
+      c.width = w * cell; c.height = rows.length * cell;
+      const g = c.getContext('2d');
+      rows.forEach((row, r) => {
+        for (let x = 0; x < row.length; x++) {
+          const col = colorOf(row[x]);
+          if (!col) continue;
+          g.fillStyle = col;
+          g.fillRect(x * cell, r * cell, cell, cell);
+        }
+      });
+      return c;
+    }
+    const SANS_IMG = makeSprite(SANS_ROWS, (ch) => (ch === 'W' ? '#f2f2f2' : null), 4);
+    const BONE_IMG = makeSprite(BONE_ROWS, (ch) => ({ W: '#f2f2f2', K: '#0b0b0b' }[ch] || null), 5);
+    const SWORD_IMG = makeSprite(SWORD_ROWS, (ch) => SWORD_COLORS[ch] || null, 6);
 
     // ================= THREE.JS =================
     const scene = new THREE.Scene();
@@ -175,6 +437,7 @@
       }
       return texCache[path];
     }
+    slideImages.forEach(getTex);   // tải sẵn ảnh slide
 
     // Geometry dùng chung cho mọi slide: mỗi ô là 1 quad riêng, có thuộc tính aCell = tâm ô
     // => mỗi ô bay/thu nhỏ độc lập, không làm méo cả tấm slide
@@ -268,15 +531,18 @@
       scene.remove(obj.group);
     }
 
-    let currentSlideObj = null;   // slide đang xem ở frame chi tiết
+    let currentSlideObj = null;   // slide đang mở ở frame chi tiết
+    let currentIndex = 0;         // số thứ tự slide đang mở
 
     // ================= LỚP PIXEL (canvas 2D) =================
     const fxCanvas = document.getElementById('fx');
     const fx = fxCanvas.getContext('2d');
+    fx.imageSmoothingEnabled = false;
     let COLS = 0, ROWS = 0;
     function resizeFx() {
       fxCanvas.width = innerWidth;
       fxCanvas.height = innerHeight;
+      fx.imageSmoothingEnabled = false;
       COLS = Math.ceil(innerWidth / PX);
       ROWS = Math.ceil(innerHeight / PX);
     }
@@ -289,10 +555,11 @@
       }
     }
 
-    // Vệt chém: build sẵn hình dạng từng hàng, mở dần từ trên xuống theo bước 40ms (giật cục)
+    // Vệt chém thẳng: build sẵn hình dạng từng hàng, mở dần từ trên xuống (giật cục).
+    // stopRow: hàng mà vệt chém dừng lại (khi bị xương chặn)
     let slash = null;
     let flashUntil = 0;
-    function startSlash(hitX) {
+    function startSlash(hitX, stopRow = ROWS) {
       const rows = new Array(ROWS);
       let x = hitX, half = 2, left = 0;
       for (let y = 0; y < ROWS; y++) {
@@ -304,7 +571,7 @@
         left--;
         rows[y] = [x - half, x + half];
       }
-      slash = { start: performance.now(), rows };
+      slash = { start: performance.now(), rows, stop: Math.max(0, Math.min(ROWS, stopRow)) };
       return rows;
     }
 
@@ -312,7 +579,7 @@
       const e = now - slash.start;
       if (e > 450) { slash = null; return null; }
       const step = Math.floor(e / 40) * 40;
-      const grow = Math.min(ROWS, Math.ceil(ROWS * Math.min(1, step / 280)));
+      const grow = Math.min(slash.stop, Math.ceil(ROWS * Math.min(1, step / 280)));
       const m = new Uint8Array(COLS * ROWS);
       for (let y = 0; y < grow; y++) {
         const [a, b] = slash.rows[y];
@@ -321,30 +588,24 @@
       return m;
     }
 
-    // Vết máu: vệt đỏ chạy từ mép trên tới mép dưới màn hình, hơi nghiêng như ảnh mẫu, có lõi sáng và giọt chảy
+    // Vết máu: lấy đúng hình của vệt chém rồi phóng to 2.5 lần (BLOOD_PX = PX * 2.5)
     let splat = null;
     const bloodFade = { a: 1 };
-    function startSplat(hitXpx, hitYpx) {
+    function startSplat(rows) {
       const bc = Math.ceil(innerWidth / BLOOD_PX), br = Math.ceil(innerHeight / BLOOD_PX);
       const body = new Uint8Array(bc * br), core = new Uint8Array(bc * br);
       const set = (m, x, y) => { if (x >= 0 && y >= 0 && x < bc && y < br) m[y * bc + x] = 1; };
 
-      const hx = hitXpx / BLOOD_PX, hy = hitYpx / BLOOD_PX;
-      const top = -1, len = br + 2;                      // bắt đầu ngoài mép trên, kết thúc ngoài mép dưới
-      const lean = -(0.25 + Math.random() * 0.2);        // nghiêng: trên lệch phải, dưới lệch trái
-      let xf = hx + lean * (top - hy), w = 2;            // đi qua điểm chém
-
-      for (let i = 0; i < len; i++) {
-        const y = top + i;
-        xf += lean;
-        if (Math.random() < 0.2) w = Math.max(1, Math.min(3, w + (Math.random() < 0.5 ? -1 : 1)));
-        const x = Math.round(xf + (Math.random() < 0.15 ? (Math.random() < 0.5 ? -1 : 1) : 0));
-        const taper = i > len * 0.92 ? 0 : 1;            // chỉ nhọn đuôi ở rất cuối
-        for (let dx = -w * taper; dx <= w * taper; dx++) {
-          set(body, x + dx, y);
-          if (dx === 0) set(core, x + dx, y);
+      for (let j = 0; j < br; j++) {
+        const s = Math.min(rows.length - 1, Math.floor((j * BLOOD_PX + BLOOD_PX / 2) / PX));
+        const [a, b] = rows[s];
+        const cx = Math.round(((a + b) / 2) * PX / BLOOD_PX);
+        const half = (b - a) / 2;
+        for (let dx = -half; dx <= half; dx++) {
+          set(body, cx + dx, j);
+          if (dx === 0) set(core, cx, j);
         }
-        if (Math.random() < 0.05) for (let k = 1; k <= 4; k++) set(body, x, y + k);   // giọt chảy
+        if (Math.random() < 0.05) for (let k = 1; k <= 4; k++) set(body, cx, j + k);   // giọt chảy
       }
       splat = { body, core, bc, br };
       bloodFade.a = 1;
@@ -365,7 +626,7 @@
       fx.globalAlpha = 1;
     }
 
-    // Bụi bay lên
+    // ================= BỤI / MẢNH VỠ =================
     const particles = [];
     let dustUntil = 0;
     function spawnDust(n) {
@@ -383,6 +644,113 @@
       }
     }
 
+    // Vỡ thành mảnh pixel trong một hình chữ nhật (dùng cho thẻ bị giết)
+    function shatterRect(r, colors) {
+      const cols = colors || ['#e8dcc4', '#7a6a52', '#ff3344', '#f2f2f2'];
+      for (let i = 0; i < 70 && particles.length < 500; i++) {
+        particles.push({
+          x: r.left + Math.random() * r.width,
+          y: r.top + Math.random() * r.height,
+          vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6,
+          life: 40 + Math.random() * 40, age: 0,
+          c: cols[(Math.random() * cols.length) | 0],
+          s: PX * (0.5 + Math.random() * 0.5)
+        });
+      }
+    }
+
+    // ================= SANS & XƯƠNG (khi vệt chém bị chặn) =================
+    let block = null;   // { x, y, side, start, breakAt, end, broke }
+    function drawBlock(now) {
+      const e = now - block.start;
+      if (e > block.end) { block = null; return; }
+      const broken = e >= block.breakAt;
+      const bx = block.x - BONE_IMG.width / 2, by = block.y - BONE_IMG.height / 2;
+      if (!broken) {
+        fx.globalAlpha = 1;
+        fx.drawImage(BONE_IMG, Math.round(bx + (Math.random() - 0.5) * 6), Math.round(by));
+      } else if (!block.broke) {
+        block.broke = true;
+        shatterRect({ left: bx, top: by, width: BONE_IMG.width, height: BONE_IMG.height }, ['#f2f2f2', '#0b0b0b']);
+      }
+      const sx = block.side > 0 ? bx + BONE_IMG.width + 30 : bx - 30 - SANS_IMG.width;
+      const sy = block.y - SANS_IMG.height + 40 + Math.sin(e / 110) * 4;
+      let a = Math.min(1, e / 180);
+      if (broken) a = Math.max(0, 1 - (e - block.breakAt) / 300);
+      fx.globalAlpha = a;
+      fx.drawImage(SANS_IMG, Math.round(sx), Math.round(sy));
+      fx.globalAlpha = 1;
+    }
+
+    // ================= VỆT CHÉM HÌNH TRĂNG KHUYẾT (cú chém của kiếm) =================
+    // Đường cong đi qua tâm (cx, cy), cong về 1 phía; mỏng 2 đầu, dày giữa
+    let cuts = [];
+    function arcPoint(c, t) {
+      const nx = -c.dy, ny = c.dx;
+      return [c.cx + c.dx * c.L * t - nx * c.bend * t * t, c.cy + c.dy * c.L * t - ny * c.bend * t * t];
+    }
+    function drawCut(c, now) {
+      const e = now - c.start;
+      if (e > c.dur + 220) return false;
+      const prog = Math.min(1, e / c.dur);
+      const tEnd = -1 + 2 * prog;
+      const nx = -c.dy, ny = c.dx;
+      fx.globalAlpha = e > c.dur ? 1 - (e - c.dur) / 220 : 1;
+      const N = 48;
+      // 3 lớp như sprite tham chiếu: viền đỏ sẫm → thân đỏ → lõi sáng trắng hồng (lệch về 1 phía)
+      const layers = [
+        { wf: 1.00, off: 0,                   col: '#6e0012' },
+        { wf: 0.78, off: -c.width * 0.06,     col: c.color },
+        { wf: 0.30, off: -c.width * 0.16,     col: '#ffd0d8' }
+      ];
+      for (const Ly of layers) {
+        const outer = [], inner = [];
+        for (let k = 0; k <= N; k++) {
+          const t = -1 + (tEnd + 1) * k / N;
+          const [bx0, by0] = arcPoint(c, t);
+          const bx = bx0 + nx * Ly.off, by = by0 + ny * Ly.off;
+          const w = c.width * Ly.wf * Math.pow(Math.max(0, 1 - t * t), 0.6) + 2;
+          outer.push([bx + nx * w / 2, by + ny * w / 2]);
+          inner.push([bx - nx * w / 2, by - ny * w / 2]);
+        }
+        fx.fillStyle = Ly.col;
+        fx.beginPath();
+        outer.concat(inner.reverse()).forEach(([x, y], i) => {
+          const qx = Math.round(x / PX) * PX, qy = Math.round(y / PX) * PX;
+          if (i === 0) fx.moveTo(qx, qy); else fx.lineTo(qx, qy);
+        });
+        fx.closePath();
+        fx.fill();
+      }
+      fx.globalAlpha = 1;
+      return true;
+    }
+    // Vệt chém có trúng hình chữ nhật (thẻ) không
+    function arcHits(c, r) {
+      for (let k = 0; k <= 60; k++) {
+        const [x, y] = arcPoint(c, -1 + 2 * k / 60);
+        if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 20 && y <= r.bottom + 20) return true;
+      }
+      return false;
+    }
+
+    // ================= KIẾM ĐỎ =================
+    let sword = null;   // { holder, start, endAt }
+    function drawSword(now) {
+      if (sword.endAt && now - sword.endAt > 250) { sword = null; return; }
+      const e = now - sword.start;
+      let a = Math.min(1, e / 200);
+      if (sword.endAt) a = Math.max(0, 1 - (now - sword.endAt) / 250);
+      const r = cards[sword.holder].getBoundingClientRect();
+      const rise = Math.max(0, 1 - e / 300) * 160;
+      const bob = Math.sin(now / 160) * 4;
+      fx.globalAlpha = a;
+      fx.drawImage(SWORD_IMG,
+        Math.round(r.left + r.width / 2 - SWORD_IMG.width / 2),
+        Math.round(r.top + r.height / 2 - SWORD_IMG.height * 0.45 + rise + bob));
+      fx.globalAlpha = 1;
+    }
+
     function fxLoop(now) {
       fx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
       if (now < flashUntil) {
@@ -394,6 +762,9 @@
         if (m) drawMask(m, '#ff3344');
       }
       if (splat) drawBlood(splat);
+      if (block) drawBlock(now);
+      cuts = cuts.filter(c => drawCut(c, now));
+      if (sword) drawSword(now);
       if (now < dustUntil) spawnDust(6);
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -426,19 +797,20 @@
       '6': ['111','100','111','101','111'], '7': ['111','001','010','010','010'],
       '8': ['111','101','111','101','111'], '9': ['111','101','111','001','111']
     };
-    const dmgEl = document.getElementById('dmg');
-    function showDamage(px, py, num) {
-      const cell = Math.max(4, Math.round(innerHeight / 160)); // kích thước 1 pixel font
+    // Mỗi số là 1 canvas riêng, để nhiều số có thể hiện cùng lúc (999 ở nhiều thẻ)
+    function popDamage(px, py, num) {
+      const cell = Math.max(4, Math.round(innerHeight / 160));
       const s = String(num);
       const pad = 2, border = 1, gap = 1;
       const W = s.length * 3 + (s.length - 1) * gap + (pad + border) * 2;
       const H = 5 + (pad + border) * 2;
-      dmgEl.width = W; dmgEl.height = H;
-      const g = dmgEl.getContext('2d');
-      g.clearRect(0, 0, W, H);
+      const el = document.createElement('canvas');
+      el.className = 'dmg';
+      el.width = W; el.height = H;
+      const g = el.getContext('2d');
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
       g.fillStyle = '#ff3344'; g.fillRect(border, border, W - border * 2, H - border * 2);
-      g.fillStyle = '#ffb3b9'; g.fillRect(border, border, W - border * 2, 1);   // viền sáng trên
+      g.fillStyle = '#ffb3b9'; g.fillRect(border, border, W - border * 2, 1);
       g.fillStyle = '#000';
       let x = pad + border;
       for (const ch of s) {
@@ -448,23 +820,19 @@
         }
         x += 3 + gap;
       }
-      dmgEl.style.width = W * cell + 'px';
-      dmgEl.style.height = H * cell + 'px';
-      dmgEl.style.left = (px - W * cell / 2) + 'px';
-      dmgEl.style.top = (py - H * cell / 2) + 'px';
-
-      gsap.killTweensOf(dmgEl);
-      gsap.timeline()
-        .set(dmgEl, { display: 'block', opacity: 1, scale: 0.2, y: 0 })
-        .to(dmgEl, { scale: 1.25, duration: 0.12, ease: 'back.out(3)' })
-        .to(dmgEl, { scale: 1, duration: 0.08 })
-        .to(dmgEl, { y: -40, opacity: 0, duration: 0.35, delay: 0.25, ease: 'power2.in' })
-        .set(dmgEl, { display: 'none' });
+      el.style.width = W * cell + 'px';
+      el.style.height = H * cell + 'px';
+      el.style.left = (px - W * cell / 2) + 'px';
+      el.style.top = (py - H * cell / 2) + 'px';
+      document.body.appendChild(el);
+      gsap.timeline({ onComplete: () => el.remove() })
+        .fromTo(el, { scale: 0.2 }, { scale: 1.25, duration: 0.12, ease: 'back.out(3)' })
+        .to(el, { scale: 1, duration: 0.08 })
+        .to(el, { y: -40, opacity: 0, duration: 0.35, delay: 0.25, ease: 'power2.in' });
     }
 
-    // ================= SLIDE BAY VÀO =================
-    // Slide bay vào từ 1 trong 4 hướng ngẫu nhiên:
-    // từ dưới lên, từ trên xuống, từ trái sang phải, từ phải sang trái
+    // ================= SLIDE BAY VÀO / PHÓNG TO =================
+    // Slide bay vào từ 1 trong 4 hướng ngẫu nhiên
     const ENTRY = [
       { x: 0,  y: -4.5 },   // từ dưới lên
       { x: 0,  y:  4.5 },   // từ trên xuống
@@ -480,35 +848,129 @@
       gsap.to(obj.group.position, { x: 0, y: 0, duration: 0.95, ease: 'power3.out', onComplete: onDone });
     }
 
-    // ================= ĐIỀU HƯỚNG: START → DANH SÁCH → CHI TIẾT =================
-    // view: 'start' | 'grid' | 'detail' | 'busy' (đang chuyển, bỏ qua phím và click)
+    // Thẻ được chọn phóng từ vị trí thẻ lên toàn màn hình
+    function flyTo(i, done) {
+      const r = cards[i].getBoundingClientRect();
+      const el = document.createElement('div');
+      el.className = 'fly';
+      el.style.backgroundImage = 'url("' + slideImages[i] + '")';
+      el.style.left = r.left + 'px';
+      el.style.top = r.top + 'px';
+      el.style.width = r.width + 'px';
+      el.style.height = r.height + 'px';
+      document.body.appendChild(el);
+      gsap.to(el, {
+        left: 0, top: 0, width: innerWidth, height: innerHeight, duration: 0.7, ease: 'power3.inOut',
+        onComplete: () => { done(); el.remove(); }
+      });
+    }
+
+    // ================= MÀN START / DANH SÁCH / CHI TIẾT =================
+    // view: 'start' | 'grid' | 'busy' | 'choose' (bị chặn, chọn slide cầm kiếm) | 'detail'
     let view = 'start';
+    const dead = new Set();   // các thẻ đã bị giết trong lượt chém hiện tại
     const startEl = document.getElementById('start');
     const startBtn = document.getElementById('startBtn');
     const gridEl = document.getElementById('grid');
     const cardsEl = document.getElementById('cards');
     const detailEl = document.getElementById('detail');
+    const chooseEl = document.getElementById('choose');
+    const picksEl = document.getElementById('picks');
     const infoNum = document.getElementById('info-num');
     const infoTitle = document.getElementById('info-title');
     const infoDesc = document.getElementById('info-desc');
+    const tickerTrack = document.getElementById('ticker-track');
 
-    // Tạo 10 thẻ slide
+    const TICKER_LINE = [
+      "IT'S A BEAUTIFUL DAY OUTSIDE.", "SLASH A SLIDE, SEE WHAT'S INSIDE.", "ONE BONE. ONE SOUL.", "TEN SLIDES."
+    ].map(t => t + "   *   ").join('');
+    tickerTrack.textContent = TICKER_LINE + TICKER_LINE;
+
+    // 10 thẻ slide
     const cards = slideImages.map((src, i) => {
       const c = document.createElement('button');
       c.type = 'button';
       c.className = 'card';
       c.innerHTML = '<img src="' + src + '" alt="">' +
-        '<div class="card-meta"><span class="card-num">' + String(i + 1).padStart(2, '0') + '</span><span class="card-title"></span></div>';
+        '<div class="card-meta"><span class="card-num">' + pad2(i + 1) + '</span><span class="card-title"></span></div>';
       c.querySelector('.card-title').textContent = SLIDE_INFO[i].title;
-      c.addEventListener('click', () => openWithSlash(i));
+      c.addEventListener('click', () => chemFromCard(i));
       cardsEl.appendChild(c);
       return c;
     });
 
-    // Hiện danh sách: nền mờ dần, các thẻ bay lên lần lượt
+    // 10 nút chọn slide cầm kiếm
+    const picks = slideImages.map((_, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pick';
+      b.textContent = pad2(i + 1);
+      b.addEventListener('click', (e) => { e.stopPropagation(); pickSword(i); });
+      picksEl.appendChild(b);
+      return b;
+    });
+
+    // ----- Hạt trang trí nền: tim đỏ và xương bay lên -----
+    const HEART_SPR = [
+      ".XX.XX.",
+      "XXXXXXX",
+      "XXXXXXX",
+      ".XXXXX.",
+      "..XXX..",
+      "...X..."
+    ];
+    const decoCanvas = document.getElementById('deco');
+    const dctx = decoCanvas.getContext('2d');
+    function makeDeco(initial) {
+      const bone = Math.random() < 0.4;
+      return {
+        bone,
+        x: Math.random() * innerWidth,
+        y: initial ? Math.random() * innerHeight : innerHeight + 40,
+        vy: -(0.25 + Math.random() * 0.6),
+        sway: Math.random() * 6.28,
+        s: bone ? 0.3 + Math.random() * 0.2 : 4,
+        a: 0.2 + Math.random() * 0.4
+      };
+    }
+    const decos = [];
+    for (let i = 0; i < 28; i++) decos.push(makeDeco(true));
+    function decoLoop(t) {
+      if (gridEl.style.display === 'flex') {
+        dctx.clearRect(0, 0, decoCanvas.width, decoCanvas.height);
+        for (const d of decos) {
+          d.y += d.vy;
+          d.x += Math.sin(t / 900 + d.sway) * 0.35;
+          if (d.y < -40) Object.assign(d, makeDeco(false));
+          dctx.globalAlpha = d.a;
+          if (d.bone) {
+            dctx.drawImage(BONE_IMG, Math.round(d.x), Math.round(d.y), BONE_IMG.width * d.s, BONE_IMG.height * d.s);
+          } else {
+            drawHeart(d.x, d.y, d.s);
+          }
+        }
+        dctx.globalAlpha = 1;
+      }
+      requestAnimationFrame(decoLoop);
+    }
+    function drawHeart(x, y, cell) {
+      for (let r = 0; r < HEART_SPR.length; r++) for (let c = 0; c < HEART_SPR[r].length; c++) {
+        if (HEART_SPR[r][c] !== 'X') continue;
+        dctx.fillStyle = '#ff3344';
+        dctx.fillRect(Math.round(x + c * cell), Math.round(y + r * cell), cell, cell);
+      }
+    }
+    requestAnimationFrame(decoLoop);
+
+    // Hiện danh sách: thẻ bay lên lần lượt, mọi thẻ đều hiện lại
     function showGrid() {
       gsap.killTweensOf(gridEl);
-      gridEl.style.display = 'block';
+      gsap.killTweensOf(cards);
+      dead.clear();
+      cards.forEach(c => { c.style.visibility = ''; });
+      gridEl.style.display = 'flex';
+      decoCanvas.width = innerWidth;
+      decoCanvas.height = innerHeight;
       gsap.fromTo(gridEl, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', onComplete: () => { view = 'grid'; } });
       gsap.fromTo(cards, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, stagger: 0.05, ease: 'power2.out', clearProps: 'transform,opacity' });
     }
@@ -518,59 +980,153 @@
       gsap.to(gridEl, { opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { gridEl.style.display = 'none'; if (onDone) onDone(); } });
     }
 
-    // START → danh sách
+    // START: nhấp nháy, tối hẳn, rồi hiện danh sách
     function enterGrid() {
       if (view !== 'start') return;
       view = 'busy';
-      gsap.to(startEl, { opacity: 0, duration: 0.35, ease: 'power2.in', onComplete: () => { startEl.style.display = 'none'; } });
-      showGrid();
+      gsap.timeline()
+        .to(startEl, { opacity: 0.15, duration: 0.06, repeat: 7, yoyo: true, ease: 'steps(1)' })
+        .to(startEl, { opacity: 0, duration: 0.3, ease: 'power1.in' })
+        .call(() => {
+          startEl.style.display = 'none';
+          startEl.style.opacity = 1;
+          showGrid();
+        });
     }
 
-    // Danh sách → START (Backspace)
+    // Danh sách (hoặc bảng chọn) → START
     function backToStart() {
-      if (view !== 'grid') return;
+      if (view !== 'grid' && view !== 'choose') return;
       view = 'busy';
+      chooseEl.classList.remove('show');
       hideGrid(() => {
         startEl.style.display = 'flex';
         gsap.fromTo(startEl, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', onComplete: () => { view = 'start'; } });
       });
     }
 
-    // Click 1 slide: chém ngay trên thẻ → vết máu + số damage → 1 giây sau mở slide đó
-    function openWithSlash(i) {
+    function updateInfo(i) {
+      infoNum.textContent = 'SLIDE ' + pad2(i + 1) + ' / ' + pad2(slideImages.length);
+      infoTitle.textContent = SLIDE_INFO[i].title;
+      infoDesc.textContent = SLIDE_INFO[i].desc;
+    }
+
+    // Mở slide đã phóng toàn màn hình: xem thông tin, Backspace để về danh sách
+    function openSlide(i) {
+      currentIndex = i;
+      currentSlideObj = createSlide(slideImages[i], 0);
+      scene.add(currentSlideObj.group);
+      updateInfo(i);
+      detailEl.classList.add('show');
+      view = 'detail';
+    }
+
+    // Giết 1 thẻ: vỡ thành mảnh, (tuỳ chọn) hiện 999
+    function killCard(j, withDmg) {
+      if (dead.has(j)) return;
+      dead.add(j);
+      const r = cards[j].getBoundingClientRect();
+      shatterRect(r);
+      if (withDmg) popDamage(r.left + r.width / 2, r.top + r.height / 2, 999);
+      gsap.to(cards[j], {
+        opacity: 0, scale: 0.85, duration: 0.25, ease: 'power2.in',
+        onComplete: () => { cards[j].style.visibility = 'hidden'; }
+      });
+    }
+
+    // Chém từ thẻ được click: vệt chém dọc giữa màn hình
+    function chemFromCard(i) {
       if (view !== 'grid') return;
       view = 'busy';
-      const r = cards[i].getBoundingClientRect();
-      const hitX = Math.round((r.left + r.width / 2) / PX);
-      const hitYpx = r.top + r.height / 2;
+      const hitX = Math.round((innerWidth * 0.5 + (Math.random() - 0.5) * innerWidth * 0.1) / PX);
+      const cx = hitX * PX, cy = innerHeight * 0.5;
+      const blocked = Math.random() < BLOCK_CHANCE;
+      const rows = startSlash(hitX, blocked ? Math.floor(cy / PX) : ROWS);
 
-      startSlash(hitX);
+      if (blocked) {
+        block = { x: cx, y: cy, side: cx < innerWidth / 2 ? 1 : -1, start: performance.now(), breakAt: 1000, end: 1400, broke: false };
+        setTimeout(showChoose, 1500);
+        return;
+      }
+
+      // Không bị chặn: máu + 1 số damage ngẫu nhiên ở giữa, các thẻ khác tan, thẻ này phóng to
       setTimeout(() => { shake(); flashUntil = performance.now() + 90; }, 260);
       setTimeout(() => {
-        startSplat(hitX * PX, hitYpx);
-        showDamage(hitX * PX, hitYpx, 1 + Math.floor(Math.random() * 100));
+        startSplat(rows);
+        popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       }, 320);
       setTimeout(() => {
         dustUntil = performance.now() + DISSOLVE_MS;
         gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
-        hideGrid(() => openDetail(i));
+        cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
+        flyTo(i, () => openSlide(i));
+        hideGrid(() => {});
       }, 320 + BLOOD_TO_DISSOLVE_MS);
     }
 
-    // Mở frame chi tiết: slide bay vào, thông tin trượt lên
-    function openDetail(i) {
-      currentSlideObj = createSlide(slideImages[i], 0);
-      scene.add(currentSlideObj.group);
-      infoNum.textContent = 'SLIDE ' + String(i + 1).padStart(2, '0') + ' / ' + String(slideImages.length).padStart(2, '0');
-      infoTitle.textContent = SLIDE_INFO[i].title;
-      infoDesc.textContent = SLIDE_INFO[i].desc;
-      enterFrom(currentSlideObj, () => {
-        view = 'detail';
-        detailEl.classList.add('show');
-      });
+    // Bị chặn: hiện bảng chọn slide cầm kiếm
+    function showChoose() {
+      block = null;
+      picks.forEach((b) => { b.disabled = false; });
+      chooseEl.classList.add('show');
+      view = 'choose';
     }
 
-    // Backspace trong chi tiết: slide tan đi (mosaic), rồi quay về danh sách
+    // Slide được chọn cầm kiếm, rồi chém vòng quanh màn hình cho tới khi không còn slide nào sống
+    function pickSword(t) {
+      if (view !== 'choose') return;
+      view = 'busy';
+      chooseEl.classList.remove('show');
+      sword = { holder: t, start: performance.now(), endAt: null };
+      setTimeout(swordRound, 500);
+    }
+
+    // Một vòng chém: mỗi slide còn sống có khả năng bị nhắm tới (ít nhất 1 slide)
+    function swordRound() {
+      if (!sword || sword.endAt) return;
+      const alive = cards.map((_, k) => k).filter(k => k !== sword.holder && !dead.has(k));
+      if (alive.length === 0) { finishSword(); return; }
+      let targets = alive.filter(() => Math.random() < 0.7);
+      if (targets.length === 0) targets = [alive[Math.floor(Math.random() * alive.length)]];
+      let t = 0;
+      targets.forEach((k) => { setTimeout(() => slashCard(k), t); t += 280; });
+      setTimeout(swordRound, t + 150);
+    }
+
+    // Một cú chém đi qua tâm thẻ k; thẻ nào bị vệt chém trúng cũng bị giết (999)
+    function slashCard(k) {
+      if (!sword || sword.endAt || dead.has(k)) return;
+      const r = cards[k].getBoundingClientRect();
+      const cut = {
+        cx: r.left + r.width / 2, cy: r.top + r.height / 2,
+        dx: 0, dy: 0,
+        L: Math.hypot(innerWidth, innerHeight) * 0.55,
+        bend: (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 120),
+        width: 46 + Math.random() * 26,
+        color: '#ff1f3d',
+        start: performance.now(), dur: 200
+      };
+      const ang = Math.random() * Math.PI;
+      cut.dx = Math.cos(ang); cut.dy = Math.sin(ang);
+      cuts.push(cut);
+      setTimeout(() => {
+        for (let j = 0; j < cards.length; j++) {
+          if (!sword || j === sword.holder || dead.has(j)) continue;
+          if (arcHits(cut, cards[j].getBoundingClientRect())) killCard(j, true);
+        }
+      }, 200);
+    }
+
+    // Hết slide sống: kiếm biến mất, slide cầm kiếm phóng to toàn màn hình
+    function finishSword() {
+      const holder = sword.holder;
+      sword.endAt = performance.now();
+      flyTo(holder, () => openSlide(holder));
+      hideGrid(() => {});
+    }
+
+    // Bảng chọn: đóng thì quay về START, không cho chém dở
+    // Backspace trong slide: slide tan đi (mosaic), rồi quay về danh sách
     function closeDetail() {
       if (view !== 'detail') return;
       view = 'busy';
@@ -589,9 +1145,11 @@
       if (e.repeat) return;
       if (view === 'start') {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterGrid(); }
-      } else if (e.key === 'Backspace') {
+        return;
+      }
+      if (e.key === 'Backspace') {
         e.preventDefault();
-        if (view === 'grid') backToStart();
+        if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
       }
     });
