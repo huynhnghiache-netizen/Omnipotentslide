@@ -120,26 +120,6 @@
     }
     @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-    /* ===== Chi tiết slide: thông tin nằm dưới màn hình ===== */
-    .detail {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; pointer-events: none;
-      padding: 90px 48px 40px; color: #fff;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.6) 55%, transparent 100%);
-      opacity: 0; transform: translateY(30px); transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-    .detail.show { opacity: 1; transform: none; }
-    .info { max-width: 720px; text-shadow: 3px 3px 0 #000; }
-    .info-num { font-family: 'Press Start 2P', monospace; font-size: 11px; letter-spacing: 2px; color: #ff3344; }
-    .info h2 {
-      font-family: 'Press Start 2P', monospace; font-weight: 400; font-size: clamp(18px, 3vw, 32px);
-      line-height: 1.3; margin: 14px 0 12px;
-    }
-    .info p { font-size: 15px; line-height: 1.6; color: rgba(255, 255, 255, 0.75); }
-    .info-hint {
-      margin-top: 18px; font-family: 'Press Start 2P', monospace; font-size: 9px;
-      letter-spacing: 1px; color: rgba(255, 255, 255, 0.4);
-    }
-
     /* ===== Bảng chọn slide cầm kiếm (khi bị Sans chặn) ===== */
     #choose {
       position: fixed; top: 36px; left: 50%; z-index: 32; text-align: center;
@@ -197,16 +177,6 @@
       <div id="cards" class="cards"></div>
     </div>
     <div class="ticker"><div id="ticker-track" class="ticker-track"></div></div>
-  </div>
-
-  <!-- Thông tin của slide đang xem -->
-  <div id="detail" class="detail">
-    <div class="info">
-      <div id="info-num" class="info-num"></div>
-      <h2 id="info-title"></h2>
-      <p id="info-desc"></p>
-      <div class="info-hint">BACKSPACE · BACK TO LIST</div>
-    </div>
   </div>
 
   <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
@@ -881,12 +851,8 @@
     const startBtn = document.getElementById('startBtn');
     const gridEl = document.getElementById('grid');
     const cardsEl = document.getElementById('cards');
-    const detailEl = document.getElementById('detail');
     const chooseEl = document.getElementById('choose');
     const picksEl = document.getElementById('picks');
-    const infoNum = document.getElementById('info-num');
-    const infoTitle = document.getElementById('info-title');
-    const infoDesc = document.getElementById('info-desc');
     const tickerTrack = document.getElementById('ticker-track');
 
     const TICKER_LINE = [
@@ -1013,19 +979,11 @@
       });
     }
 
-    function updateInfo(i) {
-      infoNum.textContent = 'SLIDE ' + pad2(i + 1) + ' / ' + pad2(slideImages.length);
-      infoTitle.textContent = SLIDE_INFO[i].title;
-      infoDesc.textContent = SLIDE_INFO[i].desc;
-    }
-
     // Mở slide đã phóng toàn màn hình: xem thông tin, Backspace để về danh sách
     function openSlide(i) {
       currentIndex = i;
       currentSlideObj = createSlide(slideImages[i], 0);
       scene.add(currentSlideObj.group);
-      updateInfo(i);
-      detailEl.classList.add('show');
       view = 'detail';
     }
 
@@ -1138,7 +1096,6 @@
     function closeDetail() {
       if (view !== 'detail') return;
       view = 'busy';
-      detailEl.classList.remove('show');
       const cur = currentSlideObj;
       tweenProgress(cur, 1.0, DISSOLVE_MS / 1000, 'none', () => {
         disposeSlide(cur);
