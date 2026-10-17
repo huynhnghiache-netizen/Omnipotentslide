@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 3 - animated</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    body { background: #1b1412; padding: 16px; }
+    .deck { zoom: var(--zoom); }
+    /* Khung ảnh: xoay quanh điểm treo phía trên (tape giữ). Tape và ảnh cùng nằm trong .pic */
+    .pic { position: absolute; left: 670px; top: 230px; width: 822px; height: 518px; transform-origin: 50% 0; will-change: transform; }
+    .pic .photo { position: absolute; inset: 0; box-shadow: 0 10px 22px rgba(60,30,10,.28); }
+    .pic .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ptape { position: absolute; image-rendering: pixelated; transform-origin: 50% 50%; }
+    #tapeTL { left: 26px; top: -20px; }
+    #tapeTR { right: 26px; top: -20px; transform: rotate(38deg); }
+    #tapeBL { left: 6px; top: 470px; transform: rotate(-28deg); }
+  </style>
+</head>
+<body>
+<main class="deck" style="position:relative">
+  <section class="slide s3" id="slide3">
+    <h2 class="title">A Glimpse into the Past</h2>
+    <hr class="rule">
+    <article class="card c1"><h3>Simple Lifestyle</h3><p>Life moved at a slower pace, connected to nature and family</p></article>
+    <article class="card c2"><h3>Tight-Knit Community</h3><p>Neighbours shared close bonds and supported each other</p></article>
+
+    <div class="pic" id="pic">
+      <figure class="photo"><img src="assets/s3-street.jpg" alt="Old street with bicycles"></figure>
+      <canvas class="ptape" id="tapeTL" width="150" height="48"></canvas>
+      <canvas class="ptape" id="tapeTR" width="150" height="48"></canvas>
+      <canvas class="ptape" id="tapeBL" width="150" height="48"></canvas>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Vừa khung màn hình như slides.html
+  const fit = () => document.documentElement.style.setProperty('--zoom', Math.min(1, (innerWidth - 32) / 1536));
+  addEventListener('resize', fit); fit();
+
+  // ---- Tape kiểu pixel: vẽ bằng ô vuông lớn, mép răng cưa ----
+  function drawPixelTape(cv, seed) {
+    const g = cv.getContext('2d');
+    const W = cv.width, H = cv.height, C = 6;           // C = kích thước 1 pixel
+    let r = seed;
+    const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+    g.clearRect(0, 0, W, H);
+    for (let y = 0; y < H; y += C) {
+      const edge = 1 + Math.floor(rnd() * 2);             // mép răng cưa ngẫu nhiên
+      for (let x = C * edge; x < W - C * edge; x += C) {
+        const band = y < H * 0.3 ? '#e9d9a0' : (y > H * 0.7 ? '#b89a5a' : '#d4b878');
+        g.fillStyle = band;
+        g.globalAlpha = 0.9;
+        g.fillRect(x, y, C, C);
+      }
+    }
+    g.globalAlpha = 1;
+    // vài pixel sáng và vết nhăn
+    for (let i = 0; i < 9; i++) {
+      g.fillStyle = 'rgba(255,255,240,0.55)';
+      g.fillRect(Math.floor(rnd() * (W / C)) * C, Math.floor(rnd() * (H / C)) * C, C, C);
+    }
+    // viền đen pixel mỏng phía trên và dưới
+    g.fillStyle = 'rgba(70,50,20,0.35)';
+    for (let x = 0; x < W; x += C) { g.fillRect(x, 0, C, 2); g.fillRect(x, H - 2, C, 2); }
+  }
+  drawPixelTape(document.getElementById('tapeTL'), 11);
+  drawPixelTape(document.getElementById('tapeTR'), 23);
+  drawPixelTape(document.getElementById('tapeBL'), 37);
+
+  // ---- Vật lý: con lắc có gió và gió giật ----
+  const pic = document.getElementById('pic');
+  const tapeTL = document.getElementById('tapeTL');
+  const tapeBL = document.getElementById('tapeBL');
+  const TAPE_W = 150 * 1.6;            // chiều dài hiển thị của tape (px slide)
+  let theta = 0, omega = 0, drop = 0, dropV = 0;   // theta/omega: radian
+  let released = false, peelStart = 0, lastGust = 0, tPrev = performance.now(), t0 = performance.now();
+  const CYCLE_MS = 16000;
+
+  function loop(now) {
+    const dt = Math.min(0.033, (now - tPrev) / 1000); tPrev = now;
+    const t = (now - t0) / 1000;
+    if (now - t0 > CYCLE_MS) { reset(now); }
+
+    // gió: sóng chậm + rung nhanh + gió giật ngẫu nhiên
+    const wind = 3.0 * Math.sin(t * 0.9) + 1.4 * Math.sin(t * 2.7 + 1.3);
+    if (now - lastGust > 3200 && Math.random() < 0.05) { omega += (Math.random() < 0.5 ? -1 : 1) * 0.9; lastGust = now; }
+
+    // con lắc: lực kéo về, tắt dần, cộng gió
+    const k = released ? 4.2 : 9.0;
+    const damp = released ? 1.0 : 1.6;
+    // theta, omega tính bằng radian; wind là gia tốc góc (rad/s^2)
+    const alpha = -k * Math.sin(theta) - damp * omega + (wind * 0.02);
+    omega += alpha * dt;
+    theta += omega * dt;
+    theta = Math.max(-0.31, Math.min(0.31, theta));   // giới hạn ±18 độ
+
+    // tape góc trên trái bị bóc từng bước (pixel steps)
+    if (!released && t > 4.0) {
+      const p = Math.min(1, (t - 4.0) / 2.6);
+      const step = Math.floor(p * 8) / 8;
+      tapeTL.style.transform = `rotate(${step * 70}deg) scale(${1 - step * 0.5})`;
+      tapeTL.style.opacity = String(1 - step * 0.9);
+      if (step >= 1) { released = true; omega += 1.2; }
+    }
+
+    // sau khi bóc, khung sa xuống và đung đưa
+    if (released) {
+      dropV += (60 - drop * 9) * dt * 0.5;
+      drop += dropV * dt;
+      drop = Math.max(0, Math.min(24, drop));
+      tapeBL.style.transform = `rotate(${-28 + Math.sin(t * 6) * 4}deg)`;
+    }
+
+    pic.style.transform = `translateY(${drop.toFixed(2)}px) rotate(${(theta * 180 / Math.PI + (released ? 6 : 0)).toFixed(2)}deg)`;
+    requestAnimationFrame(loop);
+  }
+
+  function reset(now) {
+    t0 = now; theta = 0; omega = 0; drop = 0; dropV = 0; released = false; lastGust = 0;
+    tapeTL.style.transform = ''; tapeTL.style.opacity = '1';
+    tapeBL.style.transform = '';
+  }
+
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>
