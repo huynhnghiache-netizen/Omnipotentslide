@@ -491,9 +491,17 @@
       });
     }
 
+    // Phóng slide vừa khít màn hình (phủ kín, không còn viền đen) theo tỉ lệ cửa sổ
+    function coverScale() {
+      const h = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const w = h * innerWidth / innerHeight;
+      return Math.max(w / SLIDE_W, h / SLIDE_H) * 1.01;
+    }
+
     function createSlide(texturePath, zIndex) {
       const group = new THREE.Group();
       group.position.z = zIndex;
+      group.scale.setScalar(coverScale());
       const mesh = new THREE.Mesh(SLIDE_GEO, makeDissolveMat(getTex(texturePath)));
       group.add(mesh);
       return { group, mesh };
@@ -1123,6 +1131,8 @@
       camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(innerWidth, innerHeight);
+      const k = coverScale();
+      scene.children.forEach((g) => { if (g.isGroup) g.scale.setScalar(k); });
       resizeFx();
     });
 
