@@ -223,10 +223,18 @@
       'slide6.png', 'slide7.png', 'slide8.png', 'slide9.png', 'slide10.png'
     ];
     // Thông tin hiển thị khi mở từng slide: sửa title / desc ở đây
-    const SLIDE_INFO = slideImages.map((_, i) => ({
-      title: 'Slide ' + (i + 1),
-      desc: 'Details for slide ' + (i + 1) + '. Edit SLIDE_INFO at the top of this file.'
-    }));
+    const SLIDE_INFO = [
+      { title: 'Life in My Neighbourhood',   desc: 'Unit 4: Remembering the Past - what our neighbourhood was like 40 years ago.' },
+      { title: 'Group Members',              desc: 'Presenter, Researcher, Slide Designer and Image Collector.' },
+      { title: 'A Glimpse into the Past',    desc: 'A simple lifestyle and a tight-knit community.' },
+      { title: 'How People Moved Around',    desc: 'Bicycles and walking; quiet, traffic-free streets.' },
+      { title: 'Daily Living Conditions',    desc: 'Basic household tools and traditional cooking on wood, straw or charcoal.' },
+      { title: 'Water & Electricity Supply', desc: 'Public water sources and limited power (kerosene lamps).' },
+      { title: 'How People Spent Free Time', desc: 'Outdoor folk games and communal radio / TV evenings.' },
+      { title: 'Key Changes Over 40 Years',  desc: 'From the 1980s (simple, peaceful) to the 2020s (modern, fast-paced).' },
+      { title: 'Preserving Our Memories',    desc: 'Valuing history and keeping tradition alive.' },
+      { title: 'Thank You for Listening!',   desc: 'Q&A session - we hope you enjoyed our journey back to the past.' }
+    ];
     const PX = 8;                      // kích thước 1 "pixel" của vệt chém và bụi
     const BLOOD_PX = PX * 2.5;         // kích thước 1 "pixel" của vết máu
     const SLIDE_W = 7.5, SLIDE_H = 4.2;

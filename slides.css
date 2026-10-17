@@ -1,0 +1,131 @@
+/* ===== Nguồn thiết kế của 10 slide (kích thước chuẩn 1536 x 864) ===== */
+:root {
+  --ink: #3a2214;          /* chữ tiêu đề nâu đậm */
+  --body: #3a2a1f;         /* chữ nội dung */
+  --line: #c99468;         /* đường kẻ / viền thẻ */
+  --paper-1: #f9ecdd;
+  --paper-2: #f3e0cb;
+  --card: rgba(255, 244, 232, .55);
+  --serif: 'Tinos', 'Liberation Serif', 'Times New Roman', Times, serif;
+  --sans: 'Public Sans', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --display: 'Prompt', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --zoom: 1;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #1b1412; padding: 16px; }
+.deck { display: flex; flex-direction: column; align-items: center; gap: 24px; zoom: var(--zoom); }
+
+.slide {
+  position: relative; width: 1536px; height: 864px; overflow: hidden; flex: none;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.45), transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(214,170,130,.28), transparent 55%),
+    linear-gradient(160deg, var(--paper-1), var(--paper-2));
+  color: var(--body); font-family: var(--sans);
+}
+.slide > * { position: absolute; }
+
+/* ----- thành phần dùng chung ----- */
+.title { left: 66px; top: 44px; font: 700 94px/1.05 var(--serif); color: var(--ink); white-space: nowrap; }
+.rule  { left: 66px; right: 66px; top: 183px; height: 0; border: 0; border-top: 2px solid var(--line); }
+.card  { border: 2px solid var(--line); border-radius: 26px; background: var(--card);
+         display: flex; flex-direction: column; justify-content: center; padding: 0 24px 0 44px; }
+.card h3 { font: 700 46px/1.15 var(--serif); color: var(--ink); margin-bottom: 14px; white-space: nowrap; }
+.card p  { font: 400 29px/1.28 var(--sans); max-width: 440px; }
+.photo   { margin: 0; overflow: hidden; box-shadow: 0 6px 18px rgba(60,30,10,.18); }
+.photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+figure.photo { }
+img.photo { object-fit: cover; }
+.tape { display: block; width: 330px; height: 78px;
+        background: linear-gradient(180deg, rgba(216,196,112,.92), rgba(196,172,92,.92));
+        box-shadow: 0 2px 6px rgba(60,40,10,.25);
+        clip-path: polygon(0 8%, 4% 0, 9% 10%, 14% 0, 20% 9%, 100% 0, 96% 20%, 100% 44%, 95% 62%, 100% 86%, 100% 100%, 0 100%, 3% 70%, 0 46%, 4% 24%); }
+
+/* ===== 1. Tiêu đề ===== */
+.s1 h1 { left: 52px; top: 216px; width: 640px; font: 400 98px/1.12 var(--serif); color: var(--ink); }
+.s1 .rule { left: 54px; right: auto; width: 604px; top: 577px; }
+.s1 .subtitle { left: 57px; top: 606px; font: 400 36px/1.2 var(--serif); color: var(--ink); }
+.s1 .photo { left: 697px; top: 38px; width: 801px; height: 788px; box-shadow: none; }
+
+/* ===== 2. Thành viên ===== */
+.s2 .title { left: 72px; top: 40px; font-size: 100px; }
+.s2 .rule { left: 75px; right: 96px; top: 185px; }
+.member { width: 672px; height: 282px; border: 2px solid var(--line); border-radius: 26px; background: var(--card);
+          display: flex; align-items: center; padding-left: 44px; gap: 48px; }
+.member img { width: 228px; height: 228px; object-fit: cover; border-radius: 50%; flex: none; }
+.member h3 { font: 700 46px/1.2 var(--serif); color: var(--ink); white-space: nowrap; }
+.member p  { font: 700 44px/1.2 var(--serif); color: var(--ink); margin-top: 22px; }
+.m1 { left: 78px;  top: 222px; }  .m2 { left: 785px; top: 222px; }
+.m3 { left: 78px;  top: 531px; }  .m4 { left: 785px; top: 531px; }
+
+/* ===== 3 - 7: tiêu đề + 2 thẻ trái + ảnh phải ===== */
+.s3 .title { top: 50px; font-size: 90px; }  .s3 .rule { top: 177px; right: auto; width: 592px; }
+.s3 .c1 { left: 66px; top: 212px; width: 550px; height: 298px; }
+.s3 .c2 { left: 66px; top: 532px; width: 550px; height: 288px; }
+.s3 .photo { left: 670px; top: 230px; width: 822px; height: 518px; }
+.s3 .t-tr { left: 1210px; top: 262px; transform: rotate(45deg); }
+.s3 .t-bl { left: 620px;  top: 650px; transform: rotate(45deg); }
+.s3 .t-tr, .s3 .t-bl { width: 320px; height: 80px; }
+
+.s4 .title { top: 62px; font-size: 94px; left: 62px; }
+.s4 .rule { top: 184px; left: 238px; right: 54px; }
+.s4 .c1 { left: 64px; top: 222px; width: 593px; height: 286px; }
+.s4 .c2 { left: 64px; top: 530px; width: 593px; height: 286px; }
+.s4 .photo { left: 679px; top: 218px; width: 801px; height: 608px; }
+.s4 .card p { max-width: 420px; }
+.s4 .t-tl { left: 0; top: 0; width: 400px; height: 440px;
+            background: linear-gradient(135deg, rgba(214,178,128,.95), rgba(196,158,106,.95));
+            clip-path: polygon(78% 0, 100% 0, 0 100%, 0 82%); box-shadow: none; }
+
+.s5 .title { top: 46px; font-size: 96px; }
+.s5 .rule { top: 177px; right: 66px; }
+.s5 .c1 { left: 66px; top: 222px; width: 510px; height: 288px; }
+.s5 .c2 { left: 66px; top: 525px; width: 510px; height: 278px; }
+.s5 .photo { left: 603px; top: 200px; width: 875px; height: 608px; }
+.s5 .card p { max-width: 360px; }
+
+.s6 .title { top: 58px; font-size: 94px; left: 68px; }
+.s6 .rule { top: 171px; left: 68px; right: 56px; }
+.s6 .c1 { left: 69px; top: 212px; width: 571px; height: 292px; }
+.s6 .c2 { left: 69px; top: 520px; width: 571px; height: 288px; }
+.s6 .photo { left: 679px; top: 200px; width: 801px; height: 608px; }
+.s6 .card p { max-width: 440px; }
+
+.s7 .title { top: 50px; font-size: 90px; }
+.s7 .rule { top: 160px; right: 66px; }
+.s7 .c1 { left: 69px; top: 222px; width: 550px; height: 278px; }
+.s7 .c2 { left: 69px; top: 525px; width: 550px; height: 280px; }
+.s7 .p1 { left: 855px; top: 218px; width: 450px; height: 265px; }
+.s7 .p2 { left: 855px; top: 524px; width: 450px; height: 284px; }
+.s7 .card p { max-width: 380px; font-size: 28px; }
+
+/* ===== 8. So sánh quá khứ - hiện tại ===== */
+.s8 .title { left: 88px; top: 28px; font-size: 90px; }
+.s8 .rule { left: 90px; right: 160px; top: 140px; }
+.s8 .p1 { left: 66px;  top: 148px; width: 659px; height: 393px; box-shadow: none; }
+.s8 .p2 { left: 807px; top: 148px; width: 640px; height: 393px; box-shadow: none; }
+.s8 .card { align-items: stretch; padding: 24px 76px 0; justify-content: flex-start; }
+.s8 .card h3 { text-align: center; font-size: 46px; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid var(--line); }
+.s8 .card ul { list-style: none; }
+.s8 .card li { font: 400 28px/1.55 var(--sans); }
+.s8 .c1 { left: 107px; top: 550px; width: 588px; height: 300px; }
+.s8 .c2 { left: 828px; top: 550px; width: 588px; height: 300px; }
+.s8 .arrow { left: 714px; top: 718px; width: 96px; height: 38px; color: #a8643a; }
+
+/* ===== 9. Preserving Our Memories ===== */
+.s9 .title { top: 46px; font-size: 100px; font-family: var(--serif); }
+.s9 .rule { top: 186px; left: 68px; right: 78px; }
+.s9 .vline { top: 233px; width: 3px; height: 577px; background: var(--line); }
+.s9 .vline.l { left: 83px; }  .s9 .vline.r { left: 1401px; }
+.s9 .item h3 { font: 700 46px/1.2 var(--serif); color: var(--ink); }
+.s9 .item p  { font: 400 28px/1.3 var(--sans); margin-top: 22px; }
+.s9 .i1 { left: 180px; top: 292px; }  .s9 .i2 { left: 180px; top: 578px; }
+
+/* ===== 10. Cảm ơn ===== */
+.s10 { background: #f7e6d3; }
+.s10 .boat { left: 650px; top: 106px; width: 257px;
+             -webkit-mask-image: linear-gradient(#000 62%, transparent); mask-image: linear-gradient(#000 62%, transparent); }
+.s10 h1 { left: 0; right: 0; top: 166px; text-align: center; font: 700 100px/92px var(--display); color: #2f2b27; letter-spacing: -1px; }
+.s10 .rule { left: 424px; right: 419px; top: 421px; border-top: 3px solid #c98a4d; }
+.s10 h2 { left: 0; right: 0; top: 436px; text-align: center; font: 500 50px/1.2 var(--display); color: #2f2b27; }
+.s10 p  { left: 0; right: 0; top: 500px; text-align: center; font: 400 29px/1.3 var(--display); color: #2f2b27; letter-spacing: .5px; }
