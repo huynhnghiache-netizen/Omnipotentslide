@@ -40,7 +40,17 @@
 
 <script>
   // Vừa khung màn hình như slides.html
-  const fit = () => document.documentElement.style.setProperty('--zoom', Math.min(1, (innerWidth - 32) / 1536));
+  const EMBED = location.search.includes('embed');   // chế độ nhúng trong index.html: phủ kín khung
+  const fit = () => {
+    if (EMBED) {
+      const k = Math.max(innerWidth / 1536, innerHeight / 864), d = document.querySelector('.deck');
+      Object.assign(d.style, { position: 'absolute', transformOrigin: '0 0', zoom: '1', transform: `scale(${k})`,
+        left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+      return;
+    }
+    document.documentElement.style.setProperty('--zoom', Math.min(1, (innerWidth - 32) / 1536));
+  };
+  if (EMBED) { document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden'; }
   addEventListener('resize', fit); fit();
 
   // ---- Tape kiểu pixel: vẽ bằng ô vuông lớn, mép răng cưa ----
