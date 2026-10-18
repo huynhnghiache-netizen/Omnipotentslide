@@ -83,6 +83,34 @@
       92% { transform: translateX(3px); text-shadow: 3px 0 0 #ff3344, 6px 6px 0 #000; }
       94% { transform: none; }
     }
+    /* Hai nút ở giữa phía trên: bánh răng (mở bảng cài đặt trống) và trái tim xanh Undertale (chỉ để bấm) */
+    .tools { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); display: flex; gap: 22px; align-items: center; z-index: 2; }
+    .tool {
+      width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
+      background: #111; border: 3px solid #000; box-shadow: 0 5px 0 #000;
+      transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    }
+    .tool canvas { width: 32px; height: 32px; display: block; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #000); }
+    .tool:hover { transform: translateY(-3px); border-color: #ff3344; box-shadow: 0 8px 0 #000, 0 0 14px rgba(255, 51, 68, 0.45); }
+    .tool.heart:hover { border-color: #3d66ff; box-shadow: 0 8px 0 #000, 0 0 14px rgba(0, 60, 255, 0.55); }
+    .tool:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+    .tool:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
+
+    /* Bảng cài đặt: để trống */
+    #settings {
+      position: fixed; inset: 0; z-index: 34; display: flex; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.72); opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    }
+    #settings.show { opacity: 1; pointer-events: auto; }
+    .settings-box {
+      position: relative; width: min(560px, 88vw); height: min(340px, 62vh);
+      background: #000; border: 4px solid #fff; box-shadow: 0 0 0 4px #000, 8px 8px 0 4px rgba(255, 51, 68, 0.5);
+    }
+    .settings-title { position: absolute; left: 20px; top: 18px; font-family: 'Press Start 2P', monospace; font-size: 14px; color: #fff; text-shadow: 3px 3px 0 #8a0016; }
+    .settings-close { position: absolute; right: 12px; top: 10px; padding: 8px; background: none; border: none; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 14px; color: #fff; }
+    .settings-close:hover { color: #ff3344; }
+    .settings-hint { position: absolute; left: 20px; bottom: 14px; font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.4); }
+
     .cursor { animation: blink 1s steps(2, start) infinite; }
     .grid-head span { font-size: 12px; letter-spacing: 2px; color: rgba(255, 255, 255, 0.55); text-shadow: 2px 2px 0 #000; }
     .cards {
@@ -173,6 +201,10 @@
     <canvas id="deco"></canvas>
     <div class="frame"></div>
     <div class="grid-inner">
+      <div class="tools">
+        <button id="gearBtn" class="tool" type="button" aria-label="Settings"></button>
+        <button id="heartBtn" class="tool heart" type="button" aria-label="Soul"></button>
+      </div>
       <header class="grid-head">
         <h2>SELECT A SLIDE<span class="cursor">_</span></h2>
         <span>CLICK TO SLASH · BACKSPACE TO EXIT</span>
@@ -180,6 +212,15 @@
       <div id="cards" class="cards"></div>
     </div>
     <div class="ticker"><div id="ticker-track" class="ticker-track"></div></div>
+  </div>
+
+  <!-- Bảng cài đặt (trống) -->
+  <div id="settings" aria-hidden="true">
+    <div class="settings-box" role="dialog" aria-label="Settings">
+      <div class="settings-title">SETTINGS</div>
+      <button id="settingsClose" class="settings-close" type="button" aria-label="Close">X</button>
+      <div class="settings-hint">BACKSPACE · CLOSE</div>
+    </div>
   </div>
 
   <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
@@ -1126,6 +1167,60 @@
       });
     }
 
+    // ----- Nút bánh răng (mở bảng cài đặt trống) và trái tim xanh Undertale (chỉ để bấm, không dẫn tới đâu) -----
+    const gearBtn = document.getElementById('gearBtn');
+    const heartBtn = document.getElementById('heartBtn');
+    const settingsEl = document.getElementById('settings');
+    const GEAR_ROWS = (() => {
+      const N = 15, c = 7, q = Math.PI / 4, out = [];
+      for (let y = 0; y < N; y++) {
+        let row = '';
+        for (let x = 0; x < N; x++) {
+          const r = Math.hypot(x - c, y - c), a = ((Math.atan2(y - c, x - c) % q) + q) % q;
+          const tooth = r <= 7.2 && Math.min(a, q - a) < 0.26;
+          row += ((r <= 5.2 || tooth) && r > 2.3) ? 'W' : '.';
+        }
+        out.push(row);
+      }
+      return out;
+    })();
+    const SOUL_ROWS = [
+      ".HXX.XXX.",
+      "XHXXXXXXX",
+      "XXXXXXXXX",
+      "XXXXXXXXX",
+      ".XXXXXXX.",
+      "..XXXXX..",
+      "...XXX...",
+      "....X...."
+    ];
+    const gearCv = makeSprite(GEAR_ROWS, (ch) => (ch === 'W' ? '#f2f2f2' : null), 1);
+    const heartCv = makeSprite(SOUL_ROWS, (ch) => ({ X: '#003cff', H: '#7b97ff' }[ch] || null), 1);
+    gearBtn.appendChild(gearCv);
+    heartBtn.appendChild(heartCv);
+
+    function openSettings() {
+      if (view !== 'grid') return;
+      view = 'settings';
+      settingsEl.classList.add('show');
+      settingsEl.setAttribute('aria-hidden', 'false');
+      gsap.fromTo(gearCv, { rotation: 0 }, { rotation: 90, duration: 0.35, ease: 'steps(4)' });
+    }
+    function closeSettings() {
+      if (view !== 'settings') return;
+      settingsEl.classList.remove('show');
+      settingsEl.setAttribute('aria-hidden', 'true');
+      view = 'grid';
+    }
+    gearBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+    document.getElementById('settingsClose').addEventListener('click', closeSettings);
+    settingsEl.addEventListener('click', (e) => { if (e.target === settingsEl) closeSettings(); });
+    // Trái tim: bấm được (nhịp đập nhỏ) nhưng không mở gì cả
+    heartBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gsap.fromTo(heartCv, { scale: 1 }, { scale: 1.35, duration: 0.09, yoyo: true, repeat: 1, ease: 'steps(2)' });
+    });
+
     startBtn.addEventListener('click', (e) => { e.stopPropagation(); enterGrid(); });
 
     window.addEventListener('keydown', (e) => {
@@ -1134,9 +1229,11 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); enterGrid(); }
         return;
       }
+      if (e.key === 'Escape' && view === 'settings') { closeSettings(); return; }
       if (e.key === 'Backspace') {
         e.preventDefault();
-        if (view === 'grid' || view === 'choose') backToStart();
+        if (view === 'settings') closeSettings();
+        else if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
       }
     });
