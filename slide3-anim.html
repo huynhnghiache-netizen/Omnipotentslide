@@ -131,10 +131,10 @@
   function spawnSways(t) {
     const sr = document.getElementById('slide3').getBoundingClientRect(), k = sr.width / 1536;
     const pool = WORDS.filter((w) => !sways.some((s) => s.el === w));
-    for (let i = 0, n = 3 + Math.floor(Math.random() * 3); i < n && pool.length; i++) {
+    for (let i = 0, n = 6 + Math.floor(Math.random() * 4); i < n && pool.length; i++) {
       const el = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
       const r = el.getBoundingClientRect(), x = (r.left + r.width / 2 - sr.left) / k;
-      sways.push({ el, t0: t + 0.2 + Math.min(2.2, Math.max(0, x) / 650) + rnd(0, 0.4), dur: rnd(1.9, 2.7), A: rnd(3, 5.5), R: rnd(1.5, 3) });
+      sways.push({ el, t0: t + 0.2 + Math.min(2.2, Math.max(0, x) / 650) + rnd(0, 0.4), dur: rnd(2.4, 3.2), A: rnd(6, 10), R: rnd(3, 6) });
     }
   }
   function updateSways(t) {
@@ -143,7 +143,7 @@
       if (u < 0) return true;
       if (u >= 1) { s.el.style.transform = ''; return false; }
       const e = Math.sin(u * Math.PI * 2 * 1.15) * Math.pow(1 - u, 2);   // nghiêng theo gió rồi đung đưa tắt dần
-      s.el.style.transform = `translateX(${(e * s.A).toFixed(2)}px) rotate(${(e * s.R).toFixed(2)}deg)`;
+      s.el.style.transform = `translate(${(e * s.A).toFixed(2)}px, ${(-Math.abs(e) * 1.6).toFixed(2)}px) rotate(${(e * s.R).toFixed(2)}deg)`;
       return true;
     });
   }
@@ -196,6 +196,13 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // Khi nhúng trong index.html: chuyển phím (Backspace) lên trang chính để quay lại danh sách
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
 </script>
 </body>
 </html>

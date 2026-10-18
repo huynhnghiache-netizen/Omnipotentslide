@@ -31,7 +31,7 @@
       box-shadow: 0 0 0 3px #000;
     }
     /* Slide 3: bản có chuyển động (slide3-anim.html) phủ lên khi mở */
-    #anim3 { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 20; display: none; background: transparent; }
+    #anim3 { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; z-index: 20; display: none; background: transparent; pointer-events: none; }
     @keyframes blink { to { visibility: hidden; } }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
@@ -998,6 +998,7 @@
         anim3.src = 'slide3-anim.html?embed';
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
+        window.focus();
       }
       currentSlideObj = createSlide(slideImages[i], 0);
       scene.add(currentSlideObj.group);
@@ -1138,6 +1139,13 @@
         if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
       }
+    });
+
+    // Phím bấm trong slide 3 (iframe) được chuyển lên đây: Backspace quay lại danh sách
+    window.addEventListener('message', (ev) => {
+      const d = ev.data;
+      if (ev.source !== anim3.contentWindow || !d || d.type !== 'slide-key') return;
+      if (d.key === 'Backspace' && view === 'detail') closeDetail();
     });
 
     window.addEventListener('resize', () => {
