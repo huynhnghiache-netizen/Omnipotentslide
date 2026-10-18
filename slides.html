@@ -55,8 +55,11 @@
     <hr class="rule">
     <article class="card c1"><h3>Simple Lifestyle</h3><p>Life moved at a slower pace, connected to nature and family</p></article>
     <article class="card c2"><h3>Tight-Knit Community</h3><p>Neighbours shared close bonds and supported each other</p></article>
-    <figure class="photo"><img src="assets/s3-street.jpg" alt="Old street with bicycles"></figure>
-    <i class="tape t-tr"></i><i class="tape t-bl"></i>
+    <div class="pic">
+      <figure class="photo"><img src="assets/s3-tram.jpg" alt="Tram and bicycles on an old street"></figure>
+      <canvas class="ptape tl" width="120" height="40"></canvas>
+      <canvas class="ptape tr" width="120" height="40"></canvas>
+    </div>
   </section>
 
   <!-- 4. How People Moved Around -->
@@ -133,6 +136,7 @@
   </section>
 
 </main>
+<script src="tape.js"></script>
 <script>
   // Xem trên màn hình nhỏ: thu nhỏ slide cho vừa chiều ngang. Khi xuất ảnh (?render) thì giữ nguyên cỡ 1536x864.
   if (!location.search.includes('render')) {

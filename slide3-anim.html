@@ -10,36 +10,33 @@
   <link rel="stylesheet" href="slides.css">
   <style>
     body { background: #1b1412; padding: 16px; }
-    .deck { zoom: var(--zoom); }
-    /* Khung ảnh: xoay quanh điểm treo phía trên (tape giữ). Tape và ảnh cùng nằm trong .pic */
-    .pic { position: absolute; left: 670px; top: 230px; width: 822px; height: 518px; transform-origin: 50% 0; will-change: transform; }
-    .pic .photo { position: absolute; inset: 0; box-shadow: 0 10px 22px rgba(60,30,10,.28); }
-    .pic .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .ptape { position: absolute; image-rendering: pixelated; transform-origin: 50% 50%; }
-    #tapeTL { left: 26px; top: -20px; }
-    #tapeTR { right: 26px; top: -20px; transform: rotate(38deg); }
-    #tapeBL { left: 6px; top: 470px; transform: rotate(-28deg); }
+    .deck { zoom: var(--zoom); position: relative; }
+    .pic { will-change: transform; }
+    #wind { position: absolute; left: 0; top: 0; width: 1536px; height: 864px; pointer-events: none; z-index: 5; image-rendering: pixelated; }
   </style>
 </head>
 <body>
-<main class="deck" style="position:relative">
+<main class="deck">
   <section class="slide s3" id="slide3">
     <h2 class="title">A Glimpse into the Past</h2>
     <hr class="rule">
     <article class="card c1"><h3>Simple Lifestyle</h3><p>Life moved at a slower pace, connected to nature and family</p></article>
     <article class="card c2"><h3>Tight-Knit Community</h3><p>Neighbours shared close bonds and supported each other</p></article>
 
+    <!-- Ảnh dán bằng 2 miếng keo ở 2 góc trên; gió thổi làm ảnh đung đưa nhẹ -->
     <div class="pic" id="pic">
-      <figure class="photo"><img src="assets/s3-street.jpg" alt="Old street with bicycles"></figure>
-      <canvas class="ptape" id="tapeTL" width="150" height="48"></canvas>
-      <canvas class="ptape" id="tapeTR" width="150" height="48"></canvas>
-      <canvas class="ptape" id="tapeBL" width="150" height="48"></canvas>
+      <figure class="photo"><img src="assets/s3-tram.jpg" alt="Tram and bicycles on an old street"></figure>
+      <canvas class="ptape tl" width="120" height="40"></canvas>
+      <canvas class="ptape tr" width="120" height="40"></canvas>
     </div>
+
+    <canvas id="wind" width="1536" height="864"></canvas>
   </section>
 </main>
 
+<script src="tape.js"></script>
 <script>
-  // Vừa khung màn hình như slides.html
+  // ---------- Khung hiển thị ----------
   const EMBED = location.search.includes('embed');   // chế độ nhúng trong index.html: phủ kín khung
   const fit = () => {
     if (EMBED) {
@@ -50,94 +47,120 @@
     }
     document.documentElement.style.setProperty('--zoom', Math.min(1, (innerWidth - 32) / 1536));
   };
-  if (EMBED) { document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden'; }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
   addEventListener('resize', fit); fit();
 
-  // ---- Tape kiểu pixel: vẽ bằng ô vuông lớn, mép răng cưa ----
-  function drawPixelTape(cv, seed) {
-    const g = cv.getContext('2d');
-    const W = cv.width, H = cv.height, C = 6;           // C = kích thước 1 pixel
-    let r = seed;
-    const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
-    g.clearRect(0, 0, W, H);
-    for (let y = 0; y < H; y += C) {
-      const edge = 1 + Math.floor(rnd() * 2);             // mép răng cưa ngẫu nhiên
-      for (let x = C * edge; x < W - C * edge; x += C) {
-        const band = y < H * 0.3 ? '#e9d9a0' : (y > H * 0.7 ? '#b89a5a' : '#d4b878');
-        g.fillStyle = band;
-        g.globalAlpha = 0.9;
-        g.fillRect(x, y, C, C);
-      }
+  // ---------- Gió: lịch các cơn gió ----------
+  const FIRST_GUST = 1.2, PERIOD = 6.0, GUST_LEN = 3.2;
+  // độ mạnh cơn gió 0..1 theo thời gian t (giây)
+  function gust(t) {
+    if (t < FIRST_GUST) return 0;
+    const u = ((t - FIRST_GUST) % PERIOD) / GUST_LEN;
+    return u >= 1 ? 0 : Math.pow(Math.sin(Math.PI * u), 2);
+  }
+  const gustIndex = (t) => Math.floor((t - FIRST_GUST) / PERIOD);
+
+  // ---------- Ảnh: dao động nhẹ (lò xo giảm chấn), gió thổi từ trái sang phải ----------
+  const pic = document.getElementById('pic');
+  let theta = 0, omega = 0;              // radian
+  const K = 9, DAMP = 2.8, PUSH = 0.36;  // lò xo mềm, ma sát vừa: đung đưa chậm, ít dội lại (đỉnh ≈ 2 độ)
+
+  // ---------- Pixel: lá bay + vệt gió ----------
+  const wind = document.getElementById('wind'), g = wind.getContext('2d');
+  const CELL = 6;
+  const LEAF = [
+    "......RRRR......",
+    "....RRLLLGRR....",
+    "..RRLLLGGGGGRR..",
+    "RRDDDDDDDDDDGRRR",
+    "..RRGGGGGGGGRR..",
+    "....RRGGGGRR....",
+    "......RRRR......"
+  ];
+  const LEAF_COL = { R: '#1d5a2c', L: '#8fe07a', G: '#3fb04f', D: '#2c8a3c' };
+  function drawLeaf(x, y, ang, s, a) {
+    g.save(); g.globalAlpha = a; g.translate(x, y); g.rotate(ang);
+    const w = LEAF[0].length, h = LEAF.length;
+    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+      const col = LEAF_COL[LEAF[r][c]]; if (!col) continue;
+      g.fillStyle = col; g.fillRect((c - w / 2) * CELL * s, (r - h / 2) * CELL * s, CELL * s + .5, CELL * s + .5);
+    }
+    g.restore();
+  }
+
+  // Vệt gió: dải điểm trắng chạy dọc theo một đường cong (có bóng xanh nhạt để thấy được trên nền be)
+  function drawStreak(s, t) {
+    const age = t - s.t0; if (age < 0 || age > s.life) return;
+    const p = age / s.life, head = p * (s.len + s.tail), tail = head - s.tail;
+    const fade = Math.sin(Math.PI * p);
+    for (let d = Math.max(0, tail); d <= Math.min(head, s.len); d += CELL * 1.0) {
+      const x = s.x0 + d, y = s.y0 + Math.sin(d / s.wl + s.ph) * s.amp + d * s.slope;
+      const px = Math.round(x / CELL) * CELL, py = Math.round(y / CELL) * CELL;
+      g.globalAlpha = fade * 0.75; g.fillStyle = '#8fb4d6'; g.fillRect(px, py + CELL, CELL, CELL * 0.6);
+      g.globalAlpha = fade * 0.95; g.fillStyle = '#ffffff'; g.fillRect(px, py, CELL, CELL);
+    }
+  }
+  // Xoáy gió nhỏ (đường xoắn ốc pixel)
+  function drawSwirl(s, t) {
+    const age = t - s.t0; if (age < 0 || age > s.life) return;
+    const p = age / s.life, fade = Math.sin(Math.PI * p), cx = s.x + age * s.drift, cy = s.y;
+    const turns = Math.min(1, p * 2) * 2.4 * Math.PI * 2;
+    for (let a = 0; a < turns; a += 0.28) {
+      const r = 6 + a * 4.2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.85;
+      const px = Math.round(x / CELL) * CELL, py = Math.round(y / CELL) * CELL;
+      g.globalAlpha = fade * 0.75; g.fillStyle = '#8fb4d6'; g.fillRect(px, py + CELL, CELL, CELL * 0.6);
+      g.globalAlpha = fade * 0.95; g.fillStyle = '#fff'; g.fillRect(px, py, CELL, CELL);
+    }
+  }
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  let leaves = [], streaks = [], swirls = [], lastSpawnIdx = -1, lastT = 0;
+
+  // Mỗi cơn gió sinh ra vệt gió, xoáy và lá bay ngang màn hình (đủ để thấy rõ nhưng không rối)
+  function spawnGust(t) {
+    for (let i = 0; i < 6; i++) {
+      streaks.push({ t0: t + rnd(0, 1.1), life: rnd(1.1, 1.7), x0: rnd(-120, 500), y0: rnd(210, 800), len: rnd(520, 900),
+                     tail: rnd(260, 420), wl: rnd(80, 150), ph: rnd(0, 6.3), amp: rnd(8, 22), slope: rnd(-0.03, 0.05) });
+    }
+    for (let i = 0; i < 2; i++) swirls.push({ t0: t + rnd(0.3, 1.4), life: rnd(1.4, 1.9), x: rnd(150, 1300), y: rnd(230, 780), drift: rnd(60, 140) });
+    const n = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      leaves.push({ t0: t + rnd(0, 1.5), x0: -80, y0: rnd(200, 760), v: rnd(420, 640), amp: rnd(30, 70), f: rnd(2.2, 3.6),
+                    ph: rnd(0, 6.3), s: rnd(0.8, 1.35), spin: rnd(-1.2, 1.2), a: rnd(-0.3, 0.3) });
+    }
+  }
+
+  const t0 = performance.now();
+  function frame(now) {
+    const t = (now - t0) / 1000, dt = Math.min(0.033, t - lastT); lastT = t;
+
+    // vật lý ảnh: lực gió đẩy sang phải (xoay ngược chiều kim đồng hồ), ảnh đàn hồi quay về
+    const breeze = 0.004 * Math.sin(t * 1.1);                       // gió nhẹ liên tục
+    const alpha = -K * theta - DAMP * omega - PUSH * gust(t);
+    omega += alpha * dt; theta += omega * dt;
+    const a = theta + breeze;
+    pic.style.transform = `translateX(${(-a * 90).toFixed(2)}px) rotate(${(a * 180 / Math.PI).toFixed(3)}deg)`;
+
+    // sinh hiệu ứng khi bắt đầu cơn gió mới
+    const gi = gustIndex(t);
+    if (t >= FIRST_GUST && gi !== lastSpawnIdx) { lastSpawnIdx = gi; spawnGust(t); }
+
+    // vẽ lớp pixel
+    g.clearRect(0, 0, 1536, 864);
+    streaks = streaks.filter(s => t - s.t0 <= s.life); streaks.forEach(s => drawStreak(s, t));
+    swirls = swirls.filter(s => t - s.t0 <= s.life); swirls.forEach(s => drawSwirl(s, t));
+    leaves = leaves.filter(l => (t - l.t0) * l.v + l.x0 < 1700);
+    for (const l of leaves) {
+      const age = t - l.t0; if (age < 0) continue;
+      const x = l.x0 + age * l.v, y = l.y0 + Math.sin(age * l.f + l.ph) * l.amp;
+      const ang = l.a + Math.sin(age * l.f + l.ph + 1.2) * 0.55 + age * l.spin * 0.4;
+      const edge = Math.min(1, x / 120, (1700 - x) / 120);
+      drawLeaf(Math.round(x / 2) * 2, Math.round(y / 2) * 2, ang, l.s, Math.max(0, edge));
     }
     g.globalAlpha = 1;
-    // vài pixel sáng và vết nhăn
-    for (let i = 0; i < 9; i++) {
-      g.fillStyle = 'rgba(255,255,240,0.55)';
-      g.fillRect(Math.floor(rnd() * (W / C)) * C, Math.floor(rnd() * (H / C)) * C, C, C);
-    }
-    // viền đen pixel mỏng phía trên và dưới
-    g.fillStyle = 'rgba(70,50,20,0.35)';
-    for (let x = 0; x < W; x += C) { g.fillRect(x, 0, C, 2); g.fillRect(x, H - 2, C, 2); }
+    requestAnimationFrame(frame);
   }
-  drawPixelTape(document.getElementById('tapeTL'), 11);
-  drawPixelTape(document.getElementById('tapeTR'), 23);
-  drawPixelTape(document.getElementById('tapeBL'), 37);
-
-  // ---- Vật lý: con lắc có gió và gió giật ----
-  const pic = document.getElementById('pic');
-  const tapeTL = document.getElementById('tapeTL');
-  const tapeBL = document.getElementById('tapeBL');
-  const TAPE_W = 150 * 1.6;            // chiều dài hiển thị của tape (px slide)
-  let theta = 0, omega = 0, drop = 0, dropV = 0;   // theta/omega: radian
-  let released = false, peelStart = 0, lastGust = 0, tPrev = performance.now(), t0 = performance.now();
-  const CYCLE_MS = 16000;
-
-  function loop(now) {
-    const dt = Math.min(0.033, (now - tPrev) / 1000); tPrev = now;
-    const t = (now - t0) / 1000;
-    if (now - t0 > CYCLE_MS) { reset(now); }
-
-    // gió: sóng chậm + rung nhanh + gió giật ngẫu nhiên
-    const wind = 3.0 * Math.sin(t * 0.9) + 1.4 * Math.sin(t * 2.7 + 1.3);
-    if (now - lastGust > 3200 && Math.random() < 0.05) { omega += (Math.random() < 0.5 ? -1 : 1) * 0.9; lastGust = now; }
-
-    // con lắc: lực kéo về, tắt dần, cộng gió
-    const k = released ? 4.2 : 9.0;
-    const damp = released ? 1.0 : 1.6;
-    // theta, omega tính bằng radian; wind là gia tốc góc (rad/s^2)
-    const alpha = -k * Math.sin(theta) - damp * omega + (wind * 0.02);
-    omega += alpha * dt;
-    theta += omega * dt;
-    theta = Math.max(-0.31, Math.min(0.31, theta));   // giới hạn ±18 độ
-
-    // tape góc trên trái bị bóc từng bước (pixel steps)
-    if (!released && t > 4.0) {
-      const p = Math.min(1, (t - 4.0) / 2.6);
-      const step = Math.floor(p * 8) / 8;
-      tapeTL.style.transform = `rotate(${step * 70}deg) scale(${1 - step * 0.5})`;
-      tapeTL.style.opacity = String(1 - step * 0.9);
-      if (step >= 1) { released = true; omega += 1.2; }
-    }
-
-    // sau khi bóc, khung sa xuống và đung đưa
-    if (released) {
-      dropV += (60 - drop * 9) * dt * 0.5;
-      drop += dropV * dt;
-      drop = Math.max(0, Math.min(24, drop));
-      tapeBL.style.transform = `rotate(${-28 + Math.sin(t * 6) * 4}deg)`;
-    }
-
-    pic.style.transform = `translateY(${drop.toFixed(2)}px) rotate(${(theta * 180 / Math.PI + (released ? 6 : 0)).toFixed(2)}deg)`;
-    requestAnimationFrame(loop);
-  }
-
-  function reset(now) {
-    t0 = now; theta = 0; omega = 0; drop = 0; dropV = 0; released = false; lastGust = 0;
-    tapeTL.style.transform = ''; tapeTL.style.opacity = '1';
-    tapeBL.style.transform = '';
-  }
-
-  requestAnimationFrame(loop);
+  requestAnimationFrame(frame);
 </script>
 </body>
 </html>

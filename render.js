@@ -1,6 +1,7 @@
 // Xuất 10 slide từ slides.html ra slide1.png ... slide10.png (dùng cho index.html).
 // Cách chạy:  npm i playwright && npx playwright install chromium && node render.js
 // Tuỳ chọn:   SCALE=2 node render.js   (độ nét; mặc định 1.5 => 2304x1296)
+//             SLIDES=3,4 node render.js (chỉ xuất một vài slide)
 const { chromium } = require('playwright');
 const path = require('path');
 
@@ -11,7 +12,9 @@ const path = require('path');
   await page.goto('file://' + path.join(__dirname, 'slides.html') + '?render', { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(500);
+  const only = process.env.SLIDES ? process.env.SLIDES.split(',').map(Number) : null;
   for (let i = 1; i <= 10; i++) {
+    if (only && !only.includes(i)) continue;
     await page.locator('#slide' + i).screenshot({ path: path.join(__dirname, `slide${i}.png`) });
     console.log('slide' + i + '.png');
   }

@@ -62,10 +62,11 @@ img.photo { object-fit: cover; }
 .s3 .title { top: 50px; font-size: 90px; }  .s3 .rule { top: 177px; right: auto; width: 592px; }
 .s3 .c1 { left: 66px; top: 212px; width: 550px; height: 298px; }
 .s3 .c2 { left: 66px; top: 532px; width: 550px; height: 288px; }
-.s3 .photo { left: 670px; top: 230px; width: 822px; height: 518px; }
-.s3 .t-tr { left: 1210px; top: 262px; transform: rotate(45deg); }
-.s3 .t-bl { left: 620px;  top: 650px; transform: rotate(45deg); }
-.s3 .t-tr, .s3 .t-bl { width: 320px; height: 80px; }
+.s3 .pic { left: 670px; top: 230px; width: 822px; height: 518px; transform-origin: 50% 0; }
+.pic .photo { position: absolute; inset: 0; box-shadow: 0 8px 20px rgba(60,30,10,.25); }
+.ptape { position: absolute; image-rendering: pixelated; width: 120px; height: 40px; }
+.ptape.tl { left: -30px; top: -10px; transform: rotate(-42deg); }
+.ptape.tr { left: 730px; top: -10px; transform: rotate(42deg); }
 
 .s4 .title { top: 62px; font-size: 94px; left: 62px; }
 .s4 .rule { top: 184px; left: 238px; right: 54px; }
