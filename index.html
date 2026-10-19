@@ -836,17 +836,112 @@
       const ce = now - s.cutTime;                           // thời gian kể từ lúc chạm
       const u = Math.max(0, Math.min(1, (ce - 90) / 650));  // 90ms đầu đứng hình rồi mới tách ra
       const ease = 1 - Math.pow(1 - u, 3);
-      const sep = ease * Math.hypot(innerWidth, innerHeight) * 0.06;
+      const sep = ease * Math.hypot(innerWidth, innerHeight) * 0.1;
       const alpha = Math.max(0, 1 - (ce - 450) / 650);
+      drawRift(s, ce, sep);
       if (alpha > 0) {
         for (const sg of [1, -1]) {
-          drawHalfSprite(BONE_IMG, bx, by, s, sg, sep, ease * 0.12, alpha);
-          drawHalfSprite(SANS_IMG, sx, sy, s, sg, sep, ease * 0.12, alpha);
+          drawHalfSprite(BONE_IMG, bx, by, s, sg, sep, ease * 0.06, alpha);
+          drawHalfSprite(SANS_IMG, sx, sy, s, sg, sep, ease * 0.06, alpha);
         }
       }
-      if (ce < 560) drawCrescent(s, 1, 1 - ce / 560, 1 - 0.7 * ce / 560);     // vệt chém còn lại, mờ và thu nhỏ dần
-      if (ce > 1300) soulBlock = null;
+      drawFlyingSlash(s, ce);                                   // nhát chém lao thẳng vào hư vô phía đối diện
+      if (ce > 1650) soulBlock = null;
     }
+    // Khe hư vô: màn hình bị chém hở ra một dải đen thẳm có viền sáng và những đốm sao
+    function drawRift(sb, ce, sep) {
+      const a = Math.max(0, Math.min(1, 1 - (ce - 1000) / 600));
+      if (a <= 0 || sep < 3) return;
+      const D = Math.hypot(innerWidth, innerHeight), hw = sep * 0.7;
+      const P = (u, v) => [sb.x + sb.dx * u + sb.nx * v, sb.y + sb.dy * u + sb.ny * v];
+      const h = (k) => { const x = Math.sin(k * 127.1 + sb.seed) * 43758.5453; return x - Math.floor(x); };
+      fx.globalAlpha = a;
+      fx.fillStyle = '#05000a';
+      fx.beginPath();
+      [P(-D, -hw), P(D, -hw), P(D, hw), P(-D, hw)].forEach(([x, y], i) => i ? fx.lineTo(x, y) : fx.moveTo(x, y));
+      fx.closePath(); fx.fill();
+      for (let i = 0; i < 70; i++) {
+        if (Math.sin(ce / 90 + i * 1.7) < -0.3) continue;
+        const [x, y] = P((h(i) * 2 - 1) * D * 0.8 + ce * (h(i + 99) - 0.5) * 0.4, (h(i + 50) * 2 - 1) * hw * 0.85);
+        fx.fillStyle = h(i + 7) < 0.3 ? '#ff6677' : '#ffffff';
+        const z = PX * (0.4 + h(i + 3) * 0.6);
+        fx.fillRect(Math.round(x / PX) * PX, Math.round(y / PX) * PX, z, z);
+      }
+      for (const sg of [-1, 1]) {
+        const [x1, y1] = P(-D, sg * hw), [x2, y2] = P(D, sg * hw);
+        fx.strokeStyle = '#ff3344'; fx.lineWidth = PX * 0.7;
+        fx.beginPath(); fx.moveTo(x1, y1); fx.lineTo(x2, y2); fx.stroke();
+        fx.strokeStyle = '#ffe3e8'; fx.lineWidth = PX * 0.25;
+        fx.beginPath(); fx.moveTo(x1, y1); fx.lineTo(x2, y2); fx.stroke();
+      }
+      fx.globalAlpha = 1;
+    }
+    // Nhát chém bay đi: lao thẳng về phía đối diện, nhỏ dần như đang rơi vào chiều sâu, kéo vệt mờ phía sau
+    function drawFlyingSlash(sb, ce) {
+      const D = Math.hypot(innerWidth, innerHeight), p = Math.min(1, Math.max(0, (ce - 60) / 1000));
+      if (p <= 0) return;
+      const fwd = sb.ny <= 0 ? 1 : -1;
+      for (let i = 5; i >= 0; i--) {
+        const pp = p - i * 0.04;
+        if (pp <= 0) continue;
+        const trav = D * 1.3 * Math.pow(pp, 1.8), sc = Math.max(0.05, 1 - 0.92 * pp);
+        const al = (i ? 0.3 * (1 - i / 6) : 1) * (pp > 0.8 ? Math.max(0, (1 - pp) / 0.2) : 1);
+        if (al <= 0) continue;
+        drawCrescent({ ...sb, x: sb.x + sb.nx * fwd * trav, y: sb.y + sb.ny * fwd * trav, L: sb.L * sc, w: sb.w * sc, bend: sb.bend * sc }, 1, al, 1);
+      }
+    }
+    // Vết nứt trên "mặt kính" màn hình: đứng yên trong khi nội dung phía sau bị tách ra
+    let crack = null;
+    function makeCracks(x, y, dx, dy) {
+      const D = Math.hypot(innerWidth, innerHeight), base = Math.atan2(dy, dx);
+      const angs = [base, base + Math.PI];
+      for (let i = 0; i < 6; i++) angs.push(Math.random() * Math.PI * 2);
+      const walk = (p0, a0, len, step) => {
+        const pts = [p0]; let a = a0, d = 0;
+        while (d < len) {
+          const st = step * (0.6 + Math.random() * 0.9); a += (Math.random() - 0.5) * 0.55;
+          const q = pts[pts.length - 1]; pts.push([q[0] + Math.cos(a) * st, q[1] + Math.sin(a) * st]); d += st;
+        }
+        return pts;
+      };
+      const lines = angs.map((a0, k) => {
+        const pts = walk([x, y], a0, D * (k < 2 ? 0.9 : 0.35 + Math.random() * 0.4), 28);
+        const br = [];
+        for (let j = 2; j < pts.length; j++) if (Math.random() < 0.25) br.push(walk(pts[j], a0 + (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.6), 40 + Math.random() * 90, 16));
+        return { pts, br };
+      });
+      crack = { t0: performance.now(), lines };
+    }
+    function drawCracks(now) {
+      const e = now - crack.t0;
+      if (e > 3400) { crack = null; return; }
+      const prog = Math.min(1, e / 240), a = e > 2100 ? 1 - (e - 2100) / 1300 : 1;
+      const path = (pts) => {
+        const n = Math.max(2, Math.ceil(pts.length * prog));
+        fx.beginPath(); fx.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < n && i < pts.length; i++) fx.lineTo(pts[i][0], pts[i][1]);
+        fx.stroke();
+      };
+      fx.lineJoin = 'miter';
+      for (const [col, w, off, al] of [['#000000', 5, 2, 0.55], ['#cfe6ff', 2.5, 0, 0.95], ['#ffffff', 1, 0, 1]]) {
+        fx.strokeStyle = col; fx.lineWidth = w; fx.globalAlpha = a * al;
+        fx.save(); fx.translate(off, off);
+        for (const L of crack.lines) { path(L.pts); L.br.forEach(path); }
+        fx.restore();
+      }
+      fx.globalAlpha = 1;
+    }
+    // Rung cả lớp vẽ lẫn tim đỏ (không chỉ ảnh slide), tắt dần
+    function screenRattle(ms, amp) {
+      const t0 = performance.now(), els = [fxCanvas, soulBack];
+      (function f(now) {
+        const k = 1 - (now - t0) / ms;
+        if (k <= 0) { els.forEach((el) => { el.style.transform = ''; }); return; }
+        els.forEach((el) => { el.style.transform = 'translate(' + ((Math.random() - 0.5) * amp * k).toFixed(1) + 'px,' + ((Math.random() - 0.5) * amp * 0.6 * k).toFixed(1) + 'px)'; });
+        requestAnimationFrame(f);
+      })(t0);
+    }
+
     // Tia lửa pixel bắn ra hai phía dọc đường chém
     function sparkLine(sb, n) {
       const L = Math.hypot(innerWidth, innerHeight) * 0.5;
@@ -943,6 +1038,7 @@
       if (splat) drawBlood(splat);
       if (block) drawBlock(now);
       if (soulBlock) drawSoulBlock(now);
+      if (crack) drawCracks(now);
       cuts = cuts.filter(c => drawCut(c, now));
       if (sword) drawSword(now);
       if (now < dustUntil) spawnDust(6);
@@ -1583,7 +1679,7 @@
     function splitSlide(cur, px, py, dx, dy, path) {
       const nx = -dy, ny = dx;
       const h = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), k = h / innerHeight;
-      const dist = Math.hypot(innerWidth, innerHeight) * 0.06;
+      const dist = Math.hypot(innerWidth, innerHeight) * 0.1;
       const halves = [1, -1].map((sg) => {
         const half = createSlide(path, 0);
         half.mesh.renderOrder = 2;
@@ -1596,7 +1692,7 @@
         gsap.timeline()
           .to(half.group.position, { x: x1, y: y1, duration: 0.7, delay: 0.09, ease: 'power3.out' })
           .to(half.group.position, { x: x1 + sg * nx * 0.3, y: y1 - 1.4, duration: 0.9, ease: 'power2.in' });
-        gsap.to(half.group.rotation, { z: sg * 0.1 * (dx * dy > 0 ? 1 : -1), duration: 1.4, delay: 0.09, ease: 'power2.out' });
+        gsap.to(half.group.rotation, { z: sg * 0.045 * (dx * dy > 0 ? 1 : -1), duration: 1.4, delay: 0.09, ease: 'power2.out' });
         gsap.to(u.uProgress, { value: 1, duration: 1.0, delay: 0.45, ease: 'none' });
         return half;
       });
@@ -1612,7 +1708,7 @@
       const dx = side * Math.cos(th), dy = -Math.sin(th);            // đường chém đi lên về phía Sans
       const D = Math.hypot(innerWidth, innerHeight);
       const sb = soulBlock = {
-        start: performance.now(), cutAt: 1150, x: cx, y: cy, side, dx, dy, nx: -dy, ny: dx, cutTime: 0,
+        seed: Math.random() * 1000, start: performance.now(), cutAt: 1150, x: cx, y: cy, side, dx, dy, nx: -dy, ny: dx, cutTime: 0,
         L: D * 0.62, w: D * 0.075, bend: (Math.random() < 0.5 ? -1 : 1) * D * 0.045,
         streaks: [{ v: 0.22, t0: -0.7, t1: 0.25 }, { v: -0.15, t0: -0.3, t1: 0.8 }, { v: 0.05, t0: 0.1, t1: 0.9 }, { v: 0.32, t0: -0.9, t1: -0.2 }]
       };
@@ -1623,8 +1719,12 @@
       impact(3);
       startGlitch(900, 0.25, 0.24);                                  // nhiễu nhẹ toàn màn hình
       sparkLine(sb, 190);
+      makeCracks(cx, cy, dx, dy);                                    // nứt cả "mặt kính" màn hình
+      screenRattle(1300, 22);
+      try { navigator.vibrate && navigator.vibrate([70, 40, 140]); } catch (e) { }
+      setTimeout(() => { flash(90, 'rgba(255, 200, 210, 0.28)'); shake(1.6, 5); }, 750);   // nhát chém biến mất vào hư vô
       const halves = splitSlide(cur, cx, cy, dx, dy, slideImages[soul.i]);
-      await wait(1700);
+      await wait(1750);
       stopGlitch();
       halves.forEach(disposeSlide);
       disposeSlide(cur);
