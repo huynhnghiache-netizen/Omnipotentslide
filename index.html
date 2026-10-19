@@ -96,6 +96,23 @@
     .tool:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
     .tool:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
 
+    /* ===== Chế độ tim xanh: màn đen + tim, lớp glitch, tim đỏ để thoát ===== */
+    #soulIntro { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: #000; }
+    #soulHeart { width: clamp(96px, 17vmin, 200px); height: auto; image-rendering: pixelated; position: relative; z-index: 1; }
+    .soul-ring { position: absolute; inset: 0; margin: auto; width: clamp(96px, 17vmin, 200px); height: clamp(96px, 17vmin, 200px); border: 6px solid #3d66ff; pointer-events: none; }
+    #glitch { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 52; pointer-events: none; display: none; }
+    #soulBack {
+      position: fixed; right: 18px; top: 18px; z-index: 56; width: 48px; height: 48px; padding: 0; display: none;
+      align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(0, 0, 0, 0.6); border: 3px solid #000; box-shadow: 0 5px 0 #000;
+      transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    }
+    #soulBack canvas { width: 28px; height: auto; display: block; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #000); animation: soulBeat 1.2s steps(1) infinite; }
+    #soulBack:hover { transform: translateY(-3px); border-color: #ff3344; box-shadow: 0 8px 0 #000, 0 0 14px rgba(255, 51, 68, 0.5); }
+    #soulBack:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+    #soulBack:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
+    @keyframes soulBeat { 0%, 70%, 100% { transform: none; } 78% { transform: scale(1.18); } 86% { transform: none; } 92% { transform: scale(1.1); } }
+
     /* Bảng cài đặt: để trống */
     #settings {
       position: fixed; inset: 0; z-index: 34; display: flex; align-items: center; justify-content: center;
@@ -222,6 +239,11 @@
       <div class="settings-hint">BACKSPACE · CLOSE</div>
     </div>
   </div>
+
+  <!-- Chế độ tim xanh: màn đen + tim, lớp glitch, tim đỏ ở góc để quay về danh sách -->
+  <div id="soulIntro" aria-hidden="true"><canvas id="soulHeart"></canvas></div>
+  <canvas id="glitch" aria-hidden="true"></canvas>
+  <button id="soulBack" type="button" aria-label="Back to list"></button>
 
   <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
   <div id="choose">
@@ -488,10 +510,12 @@
       uniform float uProgress;
       attribute vec2 aCell;
       varying vec2 vUv;
+      varying vec2 vPos;
       varying float vLocal;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
         vUv = uv;
+        vPos = position.xy;
         vec2 idx = floor(aCell * vec2(${TILES[0]}.0, ${TILES[1]}.0));
         float t0 = hash(idx) * 0.7;
         float local = clamp((uProgress - t0) / 0.3, 0.0, 1.0);
@@ -506,27 +530,40 @@
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }`;
 
+    // uCutSide != 0: chỉ giữ nửa slide nằm một phía của đường thẳng (điểm uCutP, pháp tuyến uCutN, toạ độ local)
     const DISSOLVE_FRAG = `
       uniform sampler2D map;
+      uniform vec2 uCutP;
+      uniform vec2 uCutN;
+      uniform float uCutSide;
       varying vec2 vUv;
+      varying vec2 vPos;
       varying float vLocal;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
+        float edge = 0.0;
+        if (uCutSide != 0.0) {
+          float sd = dot(vPos - uCutP, uCutN) * uCutSide;
+          if (sd < 0.0) discard;
+          edge = 1.0 - smoothstep(0.0, 0.05, sd);                // mép cắt sáng trắng
+        }
         if (vLocal >= 1.0) discard;
         vec4 c = texture2D(map, vUv);
+        vec4 o;
         if (vLocal > 0.2 && vLocal < 0.45) {                    // nhấp nháy đen/trắng
           float bw = step(0.5, hash(floor(vUv * vec2(${TILES[0]}.0, ${TILES[1]}.0)) + 3.3));
-          gl_FragColor = vec4(vec3(bw), 1.0);
-          return;
+          o = vec4(vec3(bw), 1.0);
+        } else {
+          float a = vLocal <= 0.45 ? 1.0 : 1.0 - (vLocal - 0.45) / 0.55;
+          if (c.a < 0.01 || a < 0.01) discard;
+          o = vec4(c.rgb, c.a * a);
         }
-        float a = vLocal <= 0.45 ? 1.0 : 1.0 - (vLocal - 0.45) / 0.55;
-        if (c.a < 0.01 || a < 0.01) discard;
-        gl_FragColor = vec4(c.rgb, c.a * a);
+        gl_FragColor = vec4(mix(o.rgb, vec3(1.0), edge * 0.95), o.a);
       }`;
 
     function makeDissolveMat(tex) {
       return new THREE.ShaderMaterial({
-        uniforms: { map: { value: tex }, uProgress: { value: 0 } },
+        uniforms: { map: { value: tex }, uProgress: { value: 0 }, uCutP: { value: [0, 0] }, uCutN: { value: [1, 0] }, uCutSide: { value: 0 } },
         vertexShader: DISSOLVE_VERT,
         fragmentShader: DISSOLVE_FRAG,
         transparent: true,
@@ -589,6 +626,9 @@
     // stopRow: hàng mà vệt chém dừng lại (khi bị xương chặn)
     let slash = null;
     let flashUntil = 0;
+    const FLASH_DEFAULT = 'rgba(255, 40, 60, 0.12)';
+    let flashCol = FLASH_DEFAULT;
+    function flash(ms, col) { flashCol = col || FLASH_DEFAULT; flashUntil = performance.now() + ms; }
     function startSlash(hitX, stopRow = ROWS) {
       const rows = new Array(ROWS);
       let x = hitX, half = 2, left = 0;
@@ -712,6 +752,91 @@
       fx.globalAlpha = 1;
     }
 
+    // ================= CHẾ ĐỘ TIM XANH: Sans chặn rồi bị chém chéo (cắt đôi bone, Sans và cả màn hình) =================
+    // sb: { start, cutAt, x, y, side, dx, dy, nx, ny, w, cutTime }
+    //   (x, y) là điểm đường chém đi qua; (dx, dy) hướng đường chém; (nx, ny) pháp tuyến
+    let soulBlock = null;
+    function halfClip(sb, sg) {
+      const L = Math.hypot(innerWidth, innerHeight) * 2;
+      fx.beginPath();
+      fx.moveTo(sb.x - sb.dx * L, sb.y - sb.dy * L);
+      fx.lineTo(sb.x + sb.dx * L, sb.y + sb.dy * L);
+      fx.lineTo(sb.x + sb.dx * L + sb.nx * sg * L, sb.y + sb.dy * L + sb.ny * sg * L);
+      fx.lineTo(sb.x - sb.dx * L + sb.nx * sg * L, sb.y - sb.dy * L + sb.ny * sg * L);
+      fx.closePath();
+      fx.clip();
+    }
+    // Vẽ nửa sprite nằm ở phía sg của đường chém, đã dịch ra xa và xoay nhẹ
+    function drawHalfSprite(img, x, y, sb, sg, sep, rot, alpha) {
+      fx.save();
+      fx.globalAlpha = alpha;
+      fx.translate(sb.x + sb.nx * sg * sep, sb.y + sb.ny * sg * sep);
+      fx.rotate(rot * sg);
+      fx.translate(-sb.x, -sb.y);
+      halfClip(sb, sg);
+      fx.drawImage(img, Math.round(x), Math.round(y));
+      fx.restore();
+    }
+    // Vệt chém chéo: quét từ đầu này sang đầu kia (t: 0 → 1), 3 lớp đỏ / hồng / trắng
+    function drawCutLine(sb, t, alpha, wMul) {
+      const L = Math.hypot(innerWidth, innerHeight) * 0.75;
+      const a0 = -L, a1 = -L + 2 * L * t;
+      const q = (u, v) => [Math.round((sb.x + sb.dx * u + sb.nx * v) / PX) * PX, Math.round((sb.y + sb.dy * u + sb.ny * v) / PX) * PX];
+      fx.globalAlpha = alpha;
+      for (const [w, col] of [[sb.w, '#ff1f3d'], [sb.w * 0.62, '#ffe3e8'], [sb.w * 0.28, '#ffffff']]) {
+        const hw = w * wMul / 2;
+        const pts = [q(a0, hw), q(a1, hw), q(a1, -hw), q(a0, -hw)];
+        fx.fillStyle = col;
+        fx.beginPath();
+        pts.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); });
+        fx.closePath();
+        fx.fill();
+      }
+      fx.globalAlpha = 1;
+    }
+    function drawSoulBlock(now) {
+      const s = soulBlock, e = now - s.start;
+      const bx = s.x - BONE_IMG.width / 2, by = s.y - BONE_IMG.height / 2;
+      const sx = s.side > 0 ? bx + BONE_IMG.width + 30 : bx - 30 - SANS_IMG.width;
+      const sy = s.y - SANS_IMG.height + 40;
+      if (!s.cutTime) {                                     // còn nguyên: Sans đứng, bone rung mạnh dần
+        fx.globalAlpha = 1;
+        fx.drawImage(BONE_IMG, Math.round(bx + (Math.random() - 0.5) * (2 + Math.min(1, e / s.cutAt) * 8)), Math.round(by));
+        fx.globalAlpha = Math.min(1, e / 180);
+        fx.drawImage(SANS_IMG, Math.round(sx), Math.round(sy + Math.sin(e / 110) * 4));
+        fx.globalAlpha = 1;
+        const sweep = Math.max(0, Math.min(1, (e - s.cutAt) / 140));
+        if (sweep > 0) drawCutLine(s, sweep, 1, 1);
+        return;
+      }
+      const ce = now - s.cutTime;                           // thời gian kể từ lúc chạm
+      const u = Math.max(0, Math.min(1, (ce - 90) / 650));  // 90ms đầu đứng hình rồi mới tách ra
+      const ease = 1 - Math.pow(1 - u, 3);
+      const sep = ease * Math.hypot(innerWidth, innerHeight) * 0.06;
+      const alpha = Math.max(0, 1 - (ce - 450) / 650);
+      if (alpha > 0) {
+        for (const sg of [1, -1]) {
+          drawHalfSprite(BONE_IMG, bx, by, s, sg, sep, ease * 0.12, alpha);
+          drawHalfSprite(SANS_IMG, sx, sy, s, sg, sep, ease * 0.12, alpha);
+        }
+      }
+      if (ce < 520) drawCutLine(s, 1, 1 - ce / 520, 1 - 0.8 * ce / 520);   // đường cắt sáng, nhỏ dần
+      if (ce > 1300) soulBlock = null;
+    }
+    // Tia lửa pixel bắn ra hai phía dọc đường chém
+    function sparkLine(sb, n) {
+      const L = Math.hypot(innerWidth, innerHeight) * 0.5;
+      const cols = ['#ffffff', '#ffd0d8', '#ff3344', '#f2f2f2'];
+      for (let i = 0; i < n && particles.length < 700; i++) {
+        const t = (Math.random() * 2 - 1) * L * 0.9, sgn = Math.random() < 0.5 ? 1 : -1, v = 2 + Math.random() * 9;
+        particles.push({
+          x: sb.x + sb.dx * t, y: sb.y + sb.dy * t,
+          vx: sb.nx * sgn * v + sb.dx * (Math.random() - 0.5) * 3, vy: sb.ny * sgn * v + sb.dy * (Math.random() - 0.5) * 3,
+          life: 30 + Math.random() * 40, age: 0, c: cols[(Math.random() * cols.length) | 0], s: PX * (0.4 + Math.random() * 0.7)
+        });
+      }
+    }
+
     // ================= VỆT CHÉM HÌNH TRĂNG KHUYẾT (cú chém của kiếm) =================
     // Đường cong đi qua tâm (cx, cy), cong về 1 phía; mỏng 2 đầu, dày giữa
     let cuts = [];
@@ -784,15 +909,16 @@
     function fxLoop(now) {
       fx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
       if (now < flashUntil) {
-        fx.fillStyle = 'rgba(255, 40, 60, 0.12)';
+        fx.fillStyle = flashCol;
         fx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
-      }
+      } else flashCol = FLASH_DEFAULT;
       if (slash) {
         const m = slashMask(now);
         if (m) drawMask(m, '#ff3344');
       }
       if (splat) drawBlood(splat);
       if (block) drawBlock(now);
+      if (soulBlock) drawSoulBlock(now);
       cuts = cuts.filter(c => drawCut(c, now));
       if (sword) drawSword(now);
       if (now < dustUntil) spawnDust(6);
@@ -810,13 +936,23 @@
     requestAnimationFrame(fxLoop);
 
     // Rung màn hình khi chém
-    function shake() {
+    function shake(p = 1, reps = 5) {
       gsap.fromTo('#canvas-container', { x: 0, y: 0 }, {
-        x: () => (Math.random() - 0.5) * 16,
-        y: () => (Math.random() - 0.5) * 10,
-        duration: 0.05, repeat: 5, yoyo: true, ease: 'none',
+        x: () => (Math.random() - 0.5) * 16 * p,
+        y: () => (Math.random() - 0.5) * 10 * p,
+        duration: 0.05, repeat: reps, yoyo: true, ease: 'none', repeatRefresh: true,
         onComplete: () => gsap.set('#canvas-container', { x: 0, y: 0 })
       });
+    }
+    // Phóng to nhẹ rồi bật về: cảm giác "lực" của nhát chém
+    function punch(sc = 1.04) {
+      gsap.fromTo('#canvas-container', { scale: sc }, { scale: 1, duration: 0.32, ease: 'power3.out' });
+    }
+    // Cú va chạm: chớp trắng + rung + phóng nhẹ. power càng lớn càng mạnh.
+    function impact(power) {
+      flash(60 + 45 * power, 'rgba(255, 255, 255, ' + Math.min(0.85, 0.2 + 0.25 * power).toFixed(2) + ')');
+      shake(1 + power * 0.8, 5 + Math.round(power * 3));
+      punch(1 + 0.025 * power);
     }
 
     // ================= SỐ DAMAGE (pixel font 3x5) =================
@@ -1215,10 +1351,269 @@
     gearBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
     document.getElementById('settingsClose').addEventListener('click', closeSettings);
     settingsEl.addEventListener('click', (e) => { if (e.target === settingsEl) closeSettings(); });
-    // Trái tim: bấm được (nhịp đập nhỏ) nhưng không mở gì cả
+    // Trái tim xanh: đập một nhịp rồi vào chế độ tim xanh
     heartBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (view !== 'grid') return;
       gsap.fromTo(heartCv, { scale: 1 }, { scale: 1.35, duration: 0.09, yoyo: true, repeat: 1, ease: 'steps(2)' });
+      enterSoul();
+    });
+
+    // ================= CHẾ ĐỘ TIM XANH (soul mode) =================
+    // Bấm tim xanh: màn đen -> tim đỏ -> đổi xanh -> glitch -> slide 1.
+    // Click = slide kế (chém + tan), Backspace = slide trước, tim đỏ ở góc trái = về danh sách.
+    // Mỗi lượt có tối đa 1 lần Sans chặn; lần đó có thêm cú chém chéo cắt đôi cả màn hình.
+    const SOUL_BLOCK_CHANCE = 0.3;      // xác suất mỗi lần click bị Sans chặn (chỉ tới khi xảy ra 1 lần)
+    const soul = { on: false, i: 0, cur: null, blockUsed: false };
+    const soulIntro = document.getElementById('soulIntro');
+    const soulHeartCv = document.getElementById('soulHeart');
+    const soulBack = document.getElementById('soulBack');
+    const glitchCv = document.getElementById('glitch');
+    const glitchCx = glitchCv.getContext('2d');
+    const containerEl = document.getElementById('canvas-container');
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const tw = (t, v) => new Promise((res) => gsap.to(t, Object.assign({}, v, { onComplete: res })));
+    const HEART_RED = makeSprite(SOUL_ROWS, (ch) => ({ X: '#ff0000', H: '#ff9a9a' }[ch] || null), 1);
+    const HEART_BLUE = makeSprite(SOUL_ROWS, (ch) => ({ X: '#003cff', H: '#7b97ff' }[ch] || null), 1);
+    soulHeartCv.width = 9; soulHeartCv.height = 8;
+    soulBack.appendChild(makeSprite(SOUL_ROWS, (ch) => ({ X: '#ff0000', H: '#ff9a9a' }[ch] || null), 1));
+    function paintHeart(spr) {
+      const g = soulHeartCv.getContext('2d');
+      g.clearRect(0, 0, 9, 8);
+      g.drawImage(spr, 0, 0);
+    }
+
+    // ----- Glitch: dải ảnh trượt ngang + vạch màu + nhiễu hạt, vẽ chồng lên màn hình -----
+    const glitch = { on: false, t0: 0, dur: 1, hold: 0.4 };
+    function glitchK(now) {
+      const t = (now - glitch.t0) / glitch.dur;
+      if (t < 0) return 0;
+      return t < glitch.hold ? 1 : Math.max(0, 1 - (t - glitch.hold) / (1 - glitch.hold));
+    }
+    const GL_COLORS = ['#00e5ff', '#ff00aa', '#ffffff', '#000000', '#ff3344', '#3d66ff'];
+    function drawGlitch(now) {
+      const W = innerWidth, H = innerHeight, g = glitchCx, k = glitchK(now);
+      g.clearRect(0, 0, W, H);
+      if (k <= 0.02) { containerEl.style.transform = ''; containerEl.style.filter = ''; return; }
+      const src = renderer.domElement, sc = src.width / W;
+      for (let i = 0, n = 3 + Math.floor(k * 9); i < n; i++) {                 // dải ảnh bị trượt ngang
+        const h = 6 + Math.random() * 80 * k, y = Math.random() * (H - h), dx = (Math.random() - 0.5) * 220 * k;
+        g.drawImage(src, 0, y * sc, src.width, h * sc, dx, y, W, h);
+      }
+      for (let i = 0, m = 2 + Math.floor(k * 7); i < m; i++) {                 // vạch màu
+        g.globalAlpha = 0.35 + Math.random() * 0.55;
+        g.fillStyle = GL_COLORS[(Math.random() * GL_COLORS.length) | 0];
+        g.fillRect(Math.random() * W * 0.5, Math.random() * H, W * (0.2 + Math.random() * 0.8), 2 + Math.random() * 26 * k);
+      }
+      for (let i = 0, m = 40 * k; i < m; i++) {                                 // nhiễu hạt
+        g.globalAlpha = 0.9;
+        g.fillStyle = Math.random() < 0.5 ? '#fff' : '#000';
+        g.fillRect(Math.round(Math.random() * W / PX) * PX, Math.round(Math.random() * H / PX) * PX, PX, PX);
+      }
+      g.globalAlpha = 1;
+      containerEl.style.transform = k > 0.3 ? 'translate(' + ((Math.random() - 0.5) * 30 * k).toFixed(1) + 'px,' + ((Math.random() - 0.5) * 10 * k).toFixed(1) + 'px)' : '';
+      containerEl.style.filter = (k > 0.5 && Math.random() < 0.35) ? 'hue-rotate(' + ((Math.random() * 360) | 0) + 'deg) saturate(2.2)' : '';
+    }
+    function startGlitch(ms, hold) {
+      glitchCv.width = innerWidth; glitchCv.height = innerHeight;
+      glitchCv.style.display = 'block';
+      Object.assign(glitch, { on: true, t0: performance.now(), dur: ms, hold });
+    }
+    function stopGlitch() {
+      glitch.on = false;
+      glitchCx.clearRect(0, 0, glitchCv.width, glitchCv.height);
+      glitchCv.style.display = 'none';
+      containerEl.style.transform = ''; containerEl.style.filter = '';
+    }
+
+    // ----- Slide 3 có bản động (iframe) -----
+    function showAnim3() {
+      anim3.src = 'slide3-anim.html?embed';
+      anim3.style.display = 'block';
+      anim3.style.opacity = '0';
+      gsap.to(anim3, { opacity: 1, duration: 0.35, ease: 'none' });
+      window.focus();
+    }
+    function hideAnim3Now() {
+      gsap.killTweensOf(anim3);
+      anim3.style.display = 'none';
+      anim3.src = 'about:blank';
+    }
+
+    // ----- Màn mở đầu -----
+    async function enterSoul() {
+      if (view !== 'grid') return;
+      view = 'busy';
+      Object.assign(soul, { on: true, i: 0, cur: null, blockUsed: false });
+      gsap.killTweensOf(gridEl);
+      // 1. màn hình tối đen
+      soulIntro.style.display = 'flex';
+      soulIntro.style.background = '#000';
+      soulIntro.style.opacity = '0';
+      soulHeartCv.style.visibility = 'hidden';
+      paintHeart(HEART_RED);
+      await tw(soulIntro, { opacity: 1, duration: 0.5, ease: 'steps(6)' });
+      gridEl.style.display = 'none';
+      await wait(500);
+      // 2. tim đỏ hiện giữa màn hình, đập 2 nhịp
+      soulHeartCv.style.visibility = 'visible';
+      gsap.fromTo(soulHeartCv, { scale: 0.25, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'steps(4)' });
+      await wait(750);
+      for (let b = 0; b < 2; b++) {
+        await tw(soulHeartCv, { scale: 1.3, duration: 0.09, yoyo: true, repeat: 1, ease: 'steps(2)' });
+        await wait(b === 0 ? 420 : 700);
+      }
+      // 3. đổi đỏ -> xanh: chớp trắng, tim rung, vòng sóng lan ra
+      soulIntro.style.background = '#fff';
+      paintHeart(HEART_BLUE);
+      await wait(70);
+      soulIntro.style.background = '#000';
+      const ring = document.createElement('div');
+      ring.className = 'soul-ring';
+      soulIntro.appendChild(ring);
+      gsap.fromTo(ring, { scale: 1, opacity: 1 }, { scale: 6, opacity: 0, duration: 0.6, ease: 'power2.out', onComplete: () => ring.remove() });
+      gsap.fromTo(soulHeartCv, { x: -16 }, { x: 16, duration: 0.04, repeat: 7, yoyo: true, ease: 'none', onComplete: () => gsap.set(soulHeartCv, { x: 0 }) });
+      await wait(750);
+      // 4. glitch: tim xanh vỡ kênh màu, rồi slide 1 lộ ra
+      startGlitch(1600, 0.45);
+      const jit = setInterval(() => {
+        const o = (Math.random() * 18 - 9) | 0;
+        soulHeartCv.style.marginLeft = o + 'px';
+        soulHeartCv.style.filter = Math.random() < 0.7 ? 'drop-shadow(' + (-o - 6) + 'px 0 #00e5ff) drop-shadow(' + (o + 6) + 'px 0 #ff00aa)' : 'none';
+      }, 45);
+      await wait(420);
+      clearInterval(jit);
+      soul.cur = createSlide(slideImages[0], 0);
+      soul.cur.mesh.renderOrder = 1;
+      scene.add(soul.cur.group);
+      soulHeartCv.style.visibility = 'hidden'; soulHeartCv.style.marginLeft = ''; soulHeartCv.style.filter = '';
+      for (const [o, ms] of [[0, 70], [1, 45], [0, 60], [1, 35], [0, 0]]) {      // màn đen nhấp nháy rồi tắt hẳn
+        soulIntro.style.opacity = String(o);
+        if (ms) await wait(ms);
+      }
+      soulIntro.style.display = 'none';
+      soulIntro.style.opacity = '1';
+      await wait(850);                                                           // glitch giảm dần trên slide 1
+      stopGlitch();
+      soulBack.style.display = 'flex';
+      view = 'soul';
+    }
+
+    // ----- Chuyển slide trong chế độ tim xanh -----
+    // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
+    async function soulStep(dir, clickX) {
+      if (!soul.on || view !== 'soul') return;
+      const ni = soul.i + dir;
+      if (ni < 0 || ni >= slideImages.length) { soulExit(); return; }
+      view = 'busy';
+      if (soul.i === 2) hideAnim3Now();
+      const cur = soul.cur;
+      const next = createSlide(slideImages[ni], 0);        // nằm sau slide hiện tại, lộ ra khi nó tan
+      next.mesh.renderOrder = 0;
+      cur.mesh.renderOrder = 1;
+      scene.add(next.group);
+      if (dir > 0) await soulSlash(cur, clickX);
+      else await soulDissolve(cur);
+      next.mesh.renderOrder = 1;
+      soul.cur = next; soul.i = ni;
+      if (ni === 2) showAnim3();
+      view = 'soul';
+    }
+
+    async function soulDissolve(cur) {
+      dustUntil = performance.now() + DISSOLVE_MS;
+      await tw(cur.mesh.material.uniforms.uProgress, { value: 1, duration: DISSOLVE_MS / 1000, ease: 'none' });
+      disposeSlide(cur);
+    }
+
+    // Click: vệt chém dọc tại chỗ click. Có thể bị Sans chặn (tối đa 1 lần mỗi lượt tim xanh).
+    async function soulSlash(cur, clickX) {
+      const blocked = !soul.blockUsed && Math.random() < SOUL_BLOCK_CHANCE;
+      const px = blocked ? Math.max(innerWidth * 0.3, Math.min(innerWidth * 0.7, clickX)) : clickX;   // Sans phải nằm trong màn hình
+      const hitX = Math.max(2, Math.min(COLS - 3, Math.round(px / PX)));
+      const cx = hitX * PX, cy = innerHeight * 0.5;
+      const rows = startSlash(hitX, blocked ? Math.floor(cy / PX) : ROWS);
+      if (blocked) {
+        soul.blockUsed = true;
+        await soulBlockCut(cur, cx, cy);
+        return;
+      }
+      await wait(260);
+      impact(0.7);
+      await wait(60);
+      startSplat(rows);
+      popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
+      await wait(480);
+      gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
+      await soulDissolve(cur);
+    }
+
+    // Cắt đôi slide theo đường thẳng qua (px, py) hướng (dx, dy) (toạ độ màn hình) -> 2 nửa tách ra
+    function screenToLocal(px, py, group) {
+      const h = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const k = h / innerHeight, sc = group.scale.x;
+      return [(px - innerWidth / 2) * k / sc, -(py - innerHeight / 2) * k / sc];
+    }
+    function splitSlide(cur, px, py, dx, dy, path) {
+      const nx = -dy, ny = dx;
+      const h = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), k = h / innerHeight;
+      const dist = Math.hypot(innerWidth, innerHeight) * 0.06;
+      const halves = [1, -1].map((sg) => {
+        const half = createSlide(path, 0);
+        half.mesh.renderOrder = 2;
+        const u = half.mesh.material.uniforms;
+        u.uCutP.value = screenToLocal(px, py, half.group);
+        u.uCutN.value = [nx, -ny];                 // trục y của màn hình ngược với trục y của scene
+        u.uCutSide.value = sg;
+        scene.add(half.group);
+        const x1 = sg * nx * dist * k, y1 = -sg * ny * dist * k;
+        gsap.timeline()
+          .to(half.group.position, { x: x1, y: y1, duration: 0.7, delay: 0.09, ease: 'power3.out' })
+          .to(half.group.position, { x: x1 + sg * nx * 0.3, y: y1 - 1.4, duration: 0.9, ease: 'power2.in' });
+        gsap.to(half.group.rotation, { z: sg * 0.1 * (dx * dy > 0 ? 1 : -1), duration: 1.4, delay: 0.09, ease: 'power2.out' });
+        gsap.to(u.uProgress, { value: 1, duration: 1.0, delay: 0.45, ease: 'none' });
+        return half;
+      });
+      cur.group.visible = false;
+      return halves;
+    }
+
+    // Bị Sans chặn: Sans + bone hiện ra, rồi một nhát chém chéo cắt đứt bone, Sans và cả màn hình
+    async function soulBlockCut(cur, cx, cy) {
+      const side = cx < innerWidth / 2 ? 1 : -1;
+      const th = (27 + Math.random() * 9) * Math.PI / 180;
+      const dx = side * Math.cos(th), dy = -Math.sin(th);            // đường chém đi lên về phía Sans
+      const sb = soulBlock = { start: performance.now(), cutAt: 1150, x: cx, y: cy, side, dx, dy, nx: -dy, ny: dx, w: 46, cutTime: 0 };
+      await wait(sb.cutAt + 140);                                    // Sans đứng, bone rung, nhát chém quét qua
+      sb.cutTime = performance.now();
+      impact(2.4);
+      sparkLine(sb, 130);
+      const halves = splitSlide(cur, cx, cy, dx, dy, slideImages[soul.i]);
+      await wait(1600);
+      halves.forEach(disposeSlide);
+      disposeSlide(cur);
+      soulBlock = null;
+    }
+
+    // Thoát chế độ tim xanh: slide hiện tại tan, quay về danh sách
+    function soulExit() {
+      if (view !== 'soul') return;
+      view = 'busy';
+      hideAnim3Now();
+      soulBack.style.display = 'none';
+      const cur = soul.cur;
+      dustUntil = performance.now() + DISSOLVE_MS;
+      tweenProgress(cur, 1.0, DISSOLVE_MS / 1000, 'none', () => {
+        disposeSlide(cur);
+        soul.cur = null; soul.on = false;
+        showGrid();
+      });
+    }
+
+    soulBack.addEventListener('click', (e) => { e.stopPropagation(); soulExit(); });
+    window.addEventListener('click', (e) => {
+      if (view !== 'soul' || e.target.closest('#soulBack')) return;
+      soulStep(1, e.clientX);
     });
 
     startBtn.addEventListener('click', (e) => { e.stopPropagation(); enterGrid(); });
@@ -1230,6 +1625,14 @@
         return;
       }
       if (e.key === 'Escape' && view === 'settings') { closeSettings(); return; }
+      if (view === 'soul') {                  // chế độ tim xanh: click / phím phải = tiếp, Backspace / phím trái = lùi
+        if (e.key === 'Backspace' || e.key === 'ArrowLeft') { e.preventDefault(); soulStep(-1); }
+        else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          soulStep(1, innerWidth * (0.45 + Math.random() * 0.1));
+        }
+        return;
+      }
       if (e.key === 'Backspace') {
         e.preventDefault();
         if (view === 'settings') closeSettings();
@@ -1242,7 +1645,10 @@
     window.addEventListener('message', (ev) => {
       const d = ev.data;
       if (ev.source !== anim3.contentWindow || !d || d.type !== 'slide-key') return;
-      if (d.key === 'Backspace' && view === 'detail') closeDetail();
+      if (d.key === 'Backspace') {
+        if (view === 'detail') closeDetail();
+        else if (view === 'soul') soulStep(-1);
+      }
     });
 
     window.addEventListener('resize', () => {
@@ -1252,11 +1658,13 @@
       const k = coverScale();
       scene.children.forEach((g) => { if (g.isGroup) g.scale.setScalar(k); });
       resizeFx();
+      if (glitch.on) { glitchCv.width = innerWidth; glitchCv.height = innerHeight; }
     });
 
     (function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
+      if (glitch.on) drawGlitch(performance.now());      // phải vẽ ngay sau render để còn lấy được ảnh WebGL
     })();
   </script>
 </body>
