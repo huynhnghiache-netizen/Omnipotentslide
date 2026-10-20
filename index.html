@@ -1163,6 +1163,35 @@
     const picksEl = document.getElementById('picks');
     const tickerTrack = document.getElementById('ticker-track');
     const anim3 = document.getElementById('anim3');
+    // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ) và slide 3 (gió + keo dán)
+    const ANIM_SRC = { 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed' };
+    const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
+    const slidePath = (i) => i === 1 ? BLANK_SLIDE : slideImages[i];
+    let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
+    // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
+    function animGate() {
+      const idx = view === 'soul' ? soul.i : currentIndex;
+      if (idx !== 1 || animState === null || animState === 'done') return false;
+      const w = anim3.contentWindow;
+      if (animState === 'wait' && w) w.postMessage({ type: 'anim-start' }, '*');
+      else if (animState === 'busy' && w && performance.now() - animBusyAt > 900) w.postMessage({ type: 'anim-skip' }, '*');
+      return true;
+    }
+    // Vẽ xong: thay nền đen bằng ảnh slide 2 đầy đủ (giống hệt) để chém / tan được như các slide khác
+    function animFinished() {
+      let cur, set;
+      if (view === 'soul' && soul.i === 1) { cur = soul.cur; set = (n) => { soul.cur = n; }; }
+      else if (view === 'detail' && currentIndex === 1) { cur = currentSlideObj; set = (n) => { currentSlideObj = n; }; }
+      else return;
+      const n = createSlide(slideImages[1], 0);
+      n.mesh.renderOrder = cur.mesh.renderOrder;
+      scene.add(n.group);
+      set(n);
+      setTimeout(() => {
+        disposeSlide(cur);
+        if (animState === 'done') anim3.style.display = 'none';
+      }, 350);
+    }
 
     const TICKER_LINE = [
       "IT'S A BEAUTIFUL DAY OUTSIDE.", "SLASH A SLIDE, SEE WHAT'S INSIDE.", "ONE BONE. ONE SOUL.", "TEN SLIDES."
@@ -1291,13 +1320,14 @@
     // Mở slide đã phóng toàn màn hình: xem thông tin, Backspace để về danh sách
     function openSlide(i) {
       currentIndex = i;
-      if (i === 2) {                       // slide 3: mở bản động
-        anim3.src = 'slide3-anim.html?embed';
+      if (ANIM_SRC[i]) {                   // slide 2, 3: mở bản động
+        animState = i === 1 ? 'loading' : null;
+        anim3.src = ANIM_SRC[i];
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
         window.focus();
       }
-      currentSlideObj = createSlide(slideImages[i], 0);
+      currentSlideObj = createSlide(slidePath(i), 0);
       scene.add(currentSlideObj.group);
       view = 'detail';
     }
@@ -1412,7 +1442,8 @@
       if (view !== 'detail') return;
       view = 'busy';
       const cur = currentSlideObj;
-      if (currentIndex === 2) {            // slide 3: ẩn bản động dần trong lúc slide tan
+      if (ANIM_SRC[currentIndex]) {        // slide 2, 3: ẩn bản động dần trong lúc slide tan
+        animState = null;
         gsap.to(anim3, { opacity: 0, duration: DISSOLVE_MS / 1000, ease: 'none',
           onComplete: () => { anim3.style.display = 'none'; anim3.src = 'about:blank'; } });
       }
@@ -1549,14 +1580,16 @@
     }
 
     // ----- Slide 3 có bản động (iframe) -----
-    function showAnim3() {
-      anim3.src = 'slide3-anim.html?embed';
+    function showAnim3(i = 2) {
+      animState = i === 1 ? 'loading' : null;
+      anim3.src = ANIM_SRC[i];
       anim3.style.display = 'block';
       anim3.style.opacity = '0';
       gsap.to(anim3, { opacity: 1, duration: 0.35, ease: 'none' });
       window.focus();
     }
     function hideAnim3Now() {
+      animState = null;
       gsap.killTweensOf(anim3);
       anim3.style.display = 'none';
       anim3.src = 'about:blank';
@@ -1628,9 +1661,9 @@
       const ni = soul.i + dir;
       if (ni < 0 || ni >= slideImages.length) return;       // slide đầu / cuối: không có tác dụng, chỉ tim đỏ ở góc mới thoát được
       view = 'busy';
-      if (soul.i === 2) hideAnim3Now();
+      if (ANIM_SRC[soul.i]) hideAnim3Now();
       const cur = soul.cur;
-      const next = createSlide(slideImages[ni], 0);        // nằm sau slide hiện tại, lộ ra khi nó tan
+      const next = createSlide(slidePath(ni), 0);        // nằm sau slide hiện tại, lộ ra khi nó tan
       next.mesh.renderOrder = 0;
       cur.mesh.renderOrder = 1;
       scene.add(next.group);
@@ -1638,7 +1671,7 @@
       else await soulDissolve(cur);
       next.mesh.renderOrder = 1;
       soul.cur = next; soul.i = ni;
-      if (ni === 2) showAnim3();
+      if (ANIM_SRC[ni]) showAnim3(ni);
       view = 'soul';
     }
 
@@ -1748,7 +1781,9 @@
 
     soulBack.addEventListener('click', (e) => { e.stopPropagation(); soulExit(); });
     window.addEventListener('click', (e) => {
+      if (view === 'detail' && currentIndex === 1) { animGate(); return; }
       if (view !== 'soul' || e.target.closest('#soulBack')) return;
+      if (animGate()) return;
       soulStep(1, e.clientX);
     });
 
@@ -1765,6 +1800,7 @@
         if (e.key === 'Backspace' || e.key === 'ArrowLeft') { e.preventDefault(); soulStep(-1); }
         else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
+          if (animGate()) return;
           soulStep(1, innerWidth * (0.45 + Math.random() * 0.1));
         }
         return;
@@ -1774,13 +1810,23 @@
         if (view === 'settings') closeSettings();
         else if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
+      } else if ((e.key === 'Enter' || e.key === ' ') && view === 'detail' && currentIndex === 1) {
+        e.preventDefault();
+        animGate();
       }
     });
 
     // Phím bấm trong slide 3 (iframe) được chuyển lên đây: Backspace quay lại danh sách
     window.addEventListener('message', (ev) => {
       const d = ev.data;
-      if (ev.source !== anim3.contentWindow || !d || d.type !== 'slide-key') return;
+      if (ev.source !== anim3.contentWindow || !d) return;
+      if (d.type === 'anim-state') {
+        animState = d.state;
+        if (d.state === 'busy') animBusyAt = performance.now();
+        if (d.state === 'done') animFinished();
+        return;
+      }
+      if (d.type !== 'slide-key') return;
       if (d.key === 'Backspace') {
         if (view === 'detail') closeDetail();
         else if (view === 'soul') soulStep(-1);

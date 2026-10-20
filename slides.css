@@ -55,6 +55,7 @@ img.photo { object-fit: cover; }
 .member img { width: 228px; height: 228px; object-fit: cover; border-radius: 50%; flex: none; }
 .member h3 { font: 700 46px/1.2 var(--serif); color: var(--ink); white-space: nowrap; }
 .member p  { font: 700 44px/1.2 var(--serif); color: var(--ink); margin-top: 22px; }
+.member p + p { margin-top: 4px; }
 .m1 { left: 78px;  top: 222px; }  .m2 { left: 785px; top: 222px; }
 .m3 { left: 78px;  top: 531px; }  .m4 { left: 785px; top: 531px; }
 
