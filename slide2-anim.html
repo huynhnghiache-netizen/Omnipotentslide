@@ -200,7 +200,7 @@
     g.putImageData(im, 0, 0);
     puffCache.set(R, c); return c;
   }
-  function addPuff(x, y, big) { puffs.push({ x, y, t: 0, dur: 0.7, R: big ? 21 : 15 }); }
+  function addPuff(x, y, big) { puffs.push({ x, y, t: 0, dur: 0.5, R: big ? 21 : 15 }); }
   function drawPuffs() {
     for (let i = puffs.length - 1; i >= 0; i--) {
       const p = puffs[i], u = p.t / p.dur;
@@ -215,17 +215,17 @@
   }
 
   // ---------- Pha 1: cọ sơn nền ----------
-  const BW = 150, ROWS = 8;
+  const BW = 190, ROWS = 6;
   const segs = [];
   (function buildBrush() {
     const ys = Array.from({ length: ROWS }, (_, k) => 68 + k * (728 / (ROWS - 1)));
-    segs.push({ x0: -340, y0: -200, x1: -70, y1: ys[0] - 14, dur: 0.42, kind: 'in' });
+    segs.push({ x0: -340, y0: -200, x1: -70, y1: ys[0] - 14, dur: 0.3, kind: 'in' });
     for (let k = 0; k < ROWS; k++) {
       const dir = k % 2 ? -1 : 1, xa = dir > 0 ? -70 : 1606, xb = dir > 0 ? 1606 : -70;
-      segs.push({ x0: xa, y0: ys[k] - 14, x1: xb, y1: ys[k] + 14, dur: 0.4, kind: 'row', row: k });
-      if (k < ROWS - 1) segs.push({ x0: xb, y0: ys[k] + 14, x1: xb, y1: ys[k + 1] - 14, dur: 0.12, kind: 'turn', row: k });
+      segs.push({ x0: xa, y0: ys[k] - 14, x1: xb, y1: ys[k] + 14, dur: 0.3, kind: 'row', row: k });
+      if (k < ROWS - 1) segs.push({ x0: xb, y0: ys[k] + 14, x1: xb, y1: ys[k + 1] - 14, dur: 0.1, kind: 'turn', row: k });
     }
-    segs.push({ x0: -70, y0: ys[ROWS - 1] + 14, x1: 800, y1: 470, dur: 0.55, kind: 'out' });
+    segs.push({ x0: -70, y0: ys[ROWS - 1] + 14, x1: 800, y1: 470, dur: 0.4, kind: 'out' });
     let t = 0; segs.forEach((s) => { s.t0 = t; t += s.dur; }); segs.total = t;
   })();
   function brushAt(T) {
@@ -271,27 +271,27 @@
     tasks = []; taskDone = 0;
     let last = null;
     const add = (start, dur, tip, upd, wiggle) => {
-      if (last) tasks.push({ dur: 0.15, tip: ((a, b) => (p) => ({ x: a.x + (b.x - a.x) * smooth(p), y: a.y + (b.y - a.y) * smooth(p) }))(last, start), upd: null, move: true });
+      if (last) tasks.push({ dur: 0.06, tip: ((a, b) => (p) => ({ x: a.x + (b.x - a.x) * smooth(p), y: a.y + (b.y - a.y) * smooth(p) }))(last, start), upd: null, move: true });
       tasks.push({ dur, tip, upd, wiggle });
       last = tip(1);
     };
     const T = pos(title), R = pos(rule);
-    add({ x: T.x, y: T.y + T.h * 0.55 }, 1.0,
+    add({ x: T.x, y: T.y + T.h * 0.55 }, 0.6,
       (p) => ({ x: T.x + smooth(p) * T.w, y: T.y + T.h * 0.55 + Math.sin(p * 44) * 26 }),
       (p) => wipe(title, smooth(p)), true);
-    add({ x: R.x, y: R.y }, 0.35,
+    add({ x: R.x, y: R.y }, 0.25,
       (p) => ({ x: R.x + smooth(p) * R.w, y: R.y }),
       (p) => wipe(rule, smooth(p)));
     members.forEach((m, k) => {
       const B = pos(m.el), I = pos(m.img), H = pos(m.h3), bd = borders[k];
       const a0 = bd.path.getPointAtLength(0);
-      add({ x: a0.x, y: a0.y }, 0.45,
+      add({ x: a0.x, y: a0.y }, 0.3,
         (p) => { const q = bd.path.getPointAtLength(bd.len * smooth(p)); return { x: q.x, y: q.y }; },
         (p) => { bd.path.style.strokeDashoffset = bd.len * (1 - smooth(p)); m.el.style.background = 'rgba(255,244,232,' + (0.55 * smooth(p)).toFixed(3) + ')'; });
-      add({ x: I.x, y: I.y }, 0.4,
+      add({ x: I.x, y: I.y }, 0.25,
         (p) => { const u = p * 6, row = Math.floor(Math.min(5.999, u)), f = u - row; return { x: I.x + (row % 2 ? 1 - f : f) * I.w, y: I.y + I.h * p }; },
         (p) => { m.img.style.clipPath = 'inset(0 0 ' + ((1 - p) * 100).toFixed(2) + '% 0)'; });
-      add({ x: H.x, y: H.y + H.h * 0.6 }, 0.3,
+      add({ x: H.x, y: H.y + H.h * 0.6 }, 0.2,
         (p) => ({ x: H.x + smooth(p) * H.w, y: H.y + H.h * 0.6 + Math.sin(p * 30) * 8 }),
         (p) => wipe(m.h3, smooth(p)), true);
     });
@@ -307,9 +307,9 @@
   }
 
   // ---------- Pha 3: hiện tên ----------
-  const NAME_STAGGER = 0.28, LETTER_GAP = 0.05, LETTER_DUR = 0.28;
+  const NAME_STAGGER = 0.18, LETTER_GAP = 0.035, LETTER_DUR = 0.22;
   let namesTotal = 0, sparkDone = new Set();
-  function nameStart(mi, pi) { return mi * NAME_STAGGER + pi * 0.45; }
+  function nameStart(mi, pi) { return mi * NAME_STAGGER + pi * 0.3; }
   function stepNames(tt, final) {
     nameLetters.forEach((n) => {
       const q = final ? 1 : clamp((tt - nameStart(n.mi, n.pi) - n.i * LETTER_GAP) / LETTER_DUR);
@@ -339,27 +339,27 @@
         phase = 'poof1'; T = 0; addPuff(brush.x, brush.y, true);
       }
     } else if (phase === 'poof1') {
-      voidc.style.opacity = String(1 - clamp(T / 0.5));
-      if (T > 0.14) brush.vis = false;
-      if (T >= 0.7) {
+      voidc.style.opacity = String(1 - clamp(T / 0.3));
+      if (T > 0.1) brush.vis = false;
+      if (T >= 0.45) {
         voidc.style.display = 'none'; phase = 'pencil'; T = 0;
         buildTasks(); penTip = tasks[0].tip(0); penVis = false; penPuffed = false;
       }
     } else if (phase === 'pencil') {
       if (!penPuffed) { penPuffed = true; addPuff(penTip.x, penTip.y, false); }
-      if (T > 0.1) penVis = true;
-      const tt = T - 0.3;
+      if (T > 0.08) penVis = true;
+      const tt = T - 0.15;
       stepPencil(tt, dt);
       if (tt >= taskTotal) {
         tasks.forEach((q) => { if (q.upd) q.upd(1); });
         phase = 'poof2'; T = 0; addPuff(penTip.x, penTip.y, true);
       }
     } else if (phase === 'poof2') {
-      if (T > 0.14) penVis = false;
-      if (T >= 0.55) { phase = 'names'; T = 0; }
+      if (T > 0.1) penVis = false;
+      if (T >= 0.4) { phase = 'names'; T = 0; }
     } else if (phase === 'names') {
       stepNames(T, false);
-      if (T >= 3 * NAME_STAGGER + 0.45 + 9 * LETTER_GAP + LETTER_DUR + 0.45) { stepNames(0, true); phase = 'done'; post('done'); }
+      if (T >= 3 * NAME_STAGGER + 0.3 + 9 * LETTER_GAP + LETTER_DUR + 0.3) { stepNames(0, true); phase = 'done'; post('done'); }
     }
     updateParts(dt);
   }
