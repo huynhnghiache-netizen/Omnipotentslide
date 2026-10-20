@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 7 - animated village</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    html, body { background: #1b1412; }
+    body { padding: 0; overflow: hidden; }
+    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
+    /* Bố cục slide 7 có làng: 2 thẻ bên trái, khung làng pixel bên phải, 2 ảnh kỷ niệm kẹp ở góc trời */
+    .s7 .title { top: 50px; font-size: 90px; }
+    .s7 .rule { top: 160px; right: 66px; }
+    .s7 .c1 { left: 69px; top: 222px; width: 550px; height: 278px; }
+    .s7 .c2 { left: 69px; top: 525px; width: 550px; height: 280px; }
+    .s7 .card p { max-width: 380px; font-size: 28px; }
+    .vpanel { left: 660px; top: 205px; width: 810px; height: 600px; border: 2px solid var(--line); border-radius: 26px; overflow: hidden;
+              box-shadow: 0 8px 20px rgba(60,30,10,.18); background: #cfe6ee; }
+    #scene { position: absolute; left: 0; top: 0; width: 810px; height: 600px; image-rendering: pixelated; }
+    .snap { margin: 0; background: #fffaf2; padding: 7px; box-shadow: 0 4px 10px rgba(60,30,10,.35); z-index: 3; }
+    .snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .sa { left: 690px; top: 228px; width: 236px; height: 140px; transform: rotate(-3deg); }
+    .sb { left: 1212px; top: 234px; width: 236px; height: 146px; transform: rotate(2.5deg); }
+  </style>
+</head>
+<body>
+<!--
+  SLIDE 7 (động): làng quê Việt Nam ~1980 vẽ bằng pixel (không dùng ảnh thật), dân làng đội nón lá / mũ cối đi qua đi lại.
+  Cảnh được vẽ bằng code trong thẻ <canvas id="scene"> (270x200 điểm ảnh, mỗi điểm = 3px).
+  Thêm / bớt người đi: sửa mảng WALKERS ở cuối script. Mở với ?still=giây để dừng ở một khung hình (dùng để xuất slide7.png).
+-->
+<main class="deck">
+  <section class="slide s7" id="slide7">
+    <h2 class="title">How People Spent Free Time</h2>
+    <hr class="rule">
+    <article class="card c1"><h3>Outdoor Folk Games</h3><p>Children played traditional games like hide-and-seek and tug-of-war</p></article>
+    <article class="card c2"><h3>Communal Gatherings</h3><p>Evening radio listening and shared TV viewing with neighbours</p></article>
+    <div class="vpanel"><canvas id="scene" width="270" height="200"></canvas></div>
+    <figure class="snap sa"><img src="assets/s7-games.jpg" alt="Children playing folk games"></figure>
+    <figure class="snap sb"><img src="assets/s7-tv.jpg" alt="Neighbours watching TV together"></figure>
+  </section>
+</main>
+
+<script>
+(() => {
+  const EMBED = location.search.includes('embed');
+  const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const deck = document.querySelector('.deck');
+  function fit() {
+    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
+    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+  }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
+  addEventListener('resize', fit); fit();
+
+  const W = 270, H = 200;
+  const cv = document.getElementById('scene'), g = cv.getContext('2d');
+  const bgc = document.createElement('canvas'); bgc.width = W; bgc.height = H;
+  const bg = bgc.getContext('2d');
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const srnd = mulberry(1980);                    // cảnh nền: cố định
+  let seed = 7;                                    // chuyển động: xác định để chạy lại giống nhau
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => 'rgb(' + hex(a).map((v, i) => Math.round(lerp(v, hex(b)[i], t))).join(',') + ')';
+  const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+
+  // ================= CẢNH NỀN (vẽ 1 lần) =================
+  function drawBackground() {
+    const c = bg, B = [[0, 0], [2, 2], [3, 1], [1, 3]];                 // bảng dither 2x2
+    // trời: dải màu từ xanh nhạt xuống kem ấm, có chấm dither
+    const top = '#a9d6e8', mid = '#d9ecde', low = '#fbe7bd';
+    const pal = Array.from({ length: 12 }, (_, i) => { const t = i / 11; return t < 0.55 ? mix(top, mid, t / 0.55) : mix(mid, low, (t - 0.55) / 0.45); });
+    for (let y = 0; y < 112; y++) for (let x = 0; x < W; x++) {
+      const v = y / 112 * 11, b = Math.floor(v), f = v - b, thr = B[(y & 1) * 2 + (x & 1)][0] / 4 * 0.9 + 0.05;
+      R(c, x, y, 1, 1, pal[Math.min(11, f > thr ? b + 1 : b)]);
+    }
+    // núi xa 2 lớp
+    for (let x = 0; x < W; x++) {
+      const y1 = 84 + Math.sin(x * 0.045) * 6 + Math.sin(x * 0.13 + 1) * 3, y2 = 93 + Math.sin(x * 0.07 + 2) * 4 + Math.sin(x * 0.19) * 2;
+      R(c, x, y1, 1, 112 - y1, '#b4cdb8'); R(c, x, y2, 1, 112 - y2, '#8fb39a');
+    }
+    // hàng cây xa
+    for (let x = 0; x < W; x += 3) { const h = 5 + srnd() * 6; R(c, x, 104 - h + 6, 4, h, srnd() < 0.5 ? '#5f8a58' : '#6c9a5e'); }
+    // ruộng lúa: các mảnh xanh 2 sắc, mảnh dưới dày hơn (phối cảnh)
+    let y = 106;
+    for (let i = 0; y < 128; i++) {
+      const th = 2 + Math.floor(i * 0.5);
+      R(c, 0, y, W, th, i % 2 ? '#9fbd5e' : '#b6d070');
+      for (let k = 0; k < 18; k++) R(c, srnd() * W, y + srnd() * th, 2, 1, '#8aac4e');
+      y += th;
+    }
+    // bờ đất sau + cỏ
+    R(c, 0, 126, W, 14, '#8fae5c');
+    for (let k = 0; k < 140; k++) R(c, srnd() * W, 126 + srnd() * 14, 2, 1, srnd() < 0.5 ? '#7d9c4c' : '#a2c06a');
+    // đường đất: mép lượn nhẹ, đốm sáng tối
+    for (let x = 0; x < W; x++) {
+      const t0 = 139 + Math.round(Math.sin(x * 0.09) * 1.5), b0 = 190 + Math.round(Math.sin(x * 0.06 + 1) * 1.5);
+      R(c, x, t0, 1, b0 - t0, '#d3ad73');
+    }
+    for (let k = 0; k < 520; k++) R(c, srnd() * W, 141 + srnd() * 44, 1 + (srnd() < 0.3 ? 1 : 0), 1, srnd() < 0.5 ? '#c19a60' : '#e2c48c');
+    R(c, 0, 156, W, 1, '#c7a068'); R(c, 0, 172, W, 1, '#c7a068');           // vệt bánh xe
+    // cỏ tiền cảnh
+    R(c, 0, 187, W, 13, '#7f9f4c');
+    for (let k = 0; k < 150; k++) R(c, srnd() * W, 187 + srnd() * 13, 2, 2, srnd() < 0.5 ? '#6c8c3d' : '#94b45c');
+    // ao
+    ellipse(c, 132, 134, 30, 5, '#9ad0d8'); ellipse(c, 132, 135, 28, 3, '#86c0cc');
+    // hàng rào tre
+    for (let x = 66; x < 104; x += 6) { R(c, x, 131, 1, 9, '#7a5a34'); }
+    R(c, 66, 133, 38, 1, '#8c6b40'); R(c, 66, 136, 38, 1, '#8c6b40');
+    for (let x = 164; x < 204; x += 6) { R(c, x, 131, 1, 9, '#7a5a34'); }
+    R(c, 164, 133, 40, 1, '#8c6b40'); R(c, 164, 136, 40, 1, '#8c6b40');
+    // hai nếp nhà tranh
+    hut(c, 8, 140, 56, false); hut(c, 206, 140, 54, true);
+    // chuối
+    banana(c, 72, 131); banana(c, 196, 131);
+  }
+  function ellipse(c, cx, cy, rx, ry, col) {
+    c.fillStyle = col;
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.0001))); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
+  }
+  function hut(c, x, base, w, flip) {
+    const wallTop = base - 22, roofH = 24, roofTop = wallTop - roofH + 4;
+    ellipse(c, x + w / 2, base, w / 2 + 3, 2, 'rgba(70,50,20,.25)');
+    R(c, x + 4, wallTop, w - 8, 22, '#d6b688');                         // tường đất
+    for (let k = 0; k < 40; k++) R(c, x + 4 + srnd() * (w - 8), wallTop + srnd() * 22, 2, 1, srnd() < 0.5 ? '#c4a373' : '#e4c99c');
+    R(c, x + 4, wallTop, w - 8, 1, '#a98a5c');
+    const dx = flip ? x + w - 22 : x + 12;
+    R(c, dx, wallTop + 8, 10, 14, '#4a3320'); R(c, dx + 1, wallTop + 9, 8, 13, '#2f2014');         // cửa
+    const wx = flip ? x + 10 : x + w - 20;
+    R(c, wx, wallTop + 6, 8, 7, '#5a4128'); R(c, wx + 1, wallTop + 7, 6, 5, '#caa66e'); R(c, wx + 4, wallTop + 7, 1, 5, '#5a4128');   // cửa sổ
+    for (let r = 0; r < roofH; r++) {                                   // mái lá: tam giác thô, vệt rơm
+      const hw = Math.round(w / 2 - 2 + r * 0.28 - (roofH - r) * 0.9 * (w / 56) + (roofH - r) * 0.9 * (w / 56) - (roofH - r) * (w / 2 - 6) / roofH + 6);
+      const half = Math.round(6 + r * ((w / 2 + 2) - 6) / (roofH - 1));
+      const cx = x + w / 2;
+      R(c, cx - half, roofTop + r, half * 2, 1, r % 4 === 3 ? '#7d5a30' : '#a07844');
+      if (r % 4 !== 3) for (let k = 0; k < half / 3; k++) R(c, cx - half + srnd() * half * 2, roofTop + r, 1, 1, srnd() < 0.5 ? '#b88c52' : '#8a6535');
+      R(c, cx - half, roofTop + r, 1, 1, '#6e4c28'); R(c, cx + half - 1, roofTop + r, 1, 1, '#6e4c28');
+      void hw;
+    }
+    R(c, x + w / 2 - 6, roofTop - 1, 12, 2, '#6e4c28');                 // nóc
+    R(c, x + w / 2 - 1, roofTop - 4, 2, 4, '#6e4c28');                  // chóp
+  }
+  function banana(c, x, base) {
+    R(c, x, base - 16, 2, 16, '#7d9a4a');
+    for (let k = 0; k < 6; k++) {
+      const s = k < 3 ? -1 : 1, len = 8 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) { R(c, x + 1 + s * i, base - 18 + Math.round(i * i * 0.04) + (k % 3) * 2, 2, 1, i % 2 ? '#5d9a3c' : '#74b04a'); }
+    }
+  }
+
+  // ================= CHUYỂN ĐỘNG CỦA CẢNH =================
+  const clouds = [{ x: 20, y: 22, s: 1 }, { x: 150, y: 14, s: 1.3 }, { x: 225, y: 34, s: 0.9 }];
+  const birds = [{ x: 30, y: 44, v: 9, p: 0 }, { x: 14, y: 52, v: 9, p: 1.1 }, { x: 4, y: 40, v: 9, p: 2.0 }];
+  const smoke = [];
+  let smokeT = 0;
+  function cloud(c, x, y, s) {
+    const rows = [[3, 7], [1, 11], [0, 13], [1, 12]];
+    rows.forEach(([a, w], i) => { R(c, x + a * s, y + i * s, Math.round(w * s), Math.max(1, Math.round(s)), i === 3 ? '#e8dcc8' : '#fffbf2'); });
+    if (s > 1.1) R(c, x + 6 * s, y - 1 * s, Math.round(5 * s), Math.max(1, Math.round(s)), '#fffbf2');
+  }
+  function sun(c, t) {
+    const cx = 150, cy = 36, p = 0.5 + 0.5 * Math.sin(t * 1.2);
+    c.globalAlpha = 0.22 + 0.1 * p; ellipse(c, cx, cy, 19, 19, '#fff3c0'); c.globalAlpha = 0.35 + 0.1 * p; ellipse(c, cx, cy, 14, 14, '#ffe8a0'); c.globalAlpha = 1;
+    ellipse(c, cx, cy, 9, 9, '#ffd666'); ellipse(c, cx, cy, 7, 7, '#fff0b0');
+  }
+  function bamboo(c, x, h, t, ph) {
+    const base = 134;
+    for (let j = 0; j < 4; j++) {
+      const bx = x + j * 4 + (j % 2), hh = h - j * 5, sw = Math.sin(t * 1.3 + ph + j);
+      for (let y = 0; y < hh; y++) {
+        const off = Math.round(sw * (y / hh) * (y / hh) * 3);
+        R(c, bx + off, base - y, 2, 1, y % 9 === 0 ? '#3f6a22' : (y % 9 < 4 ? '#7fb246' : '#68a03a'));
+      }
+      const tx = bx + Math.round(sw * 3), ty = base - hh;
+      for (let k = 0; k < 6; k++) {
+        const s = k % 2 ? 1 : -1, len = 6 + (k % 3) * 2;
+        for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * 0.55) + (k >> 1) * 3 + Math.round(Math.sin(t * 2 + k + ph) * 0.6), 2, 1, i % 3 ? '#79b043' : '#5f9a34');
+      }
+    }
+  }
+  function areca(c, x, t) {                 // cây cau
+    const base = 134, h = 66, sw = Math.sin(t * 1.1 + 1.7);
+    for (let y = 0; y < h; y++) R(c, x + Math.round(sw * (y / h) * (y / h) * 2), base - y, 2, 1, y % 6 === 0 ? '#7a6a48' : '#9a8a64');
+    const tx = x + Math.round(sw * 2), ty = base - h;
+    for (let k = 0; k < 6; k++) {
+      const s = k % 2 ? 1 : -1, len = 9 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * i * 0.07) + (k >> 1) * 2 + Math.round(Math.sin(t * 2.2 + k) * 0.7), 2, 1, i % 2 ? '#4f8a35' : '#63a042');
+    }
+  }
+  function duck(c, x, y, d, t, ph) {
+    const bob = Math.round(Math.sin(t * 2.4 + ph) * 0.6);
+    R(c, x - 3 * d - (d < 0 ? 3 : 0), y + bob, 6, 2, '#f7f2e4'); R(c, x + 2 * d - (d < 0 ? 1 : 0), y - 2 + bob, 2, 2, '#2f7a4c');
+    R(c, x + 4 * d - (d < 0 ? 1 : 0), y - 1 + bob, 1, 1, '#e8a030'); R(c, x - 4 * d - (d < 0 ? 1 : 0), y - 1 + bob, 2, 1, '#e4dfd0');
+  }
+  function chicken(c, x, y, t, ph) {
+    const peck = Math.sin(t * 3 + ph) > 0.5 ? 2 : 0;
+    R(c, x, y - 4, 5, 3, '#a8562a'); R(c, x - 1, y - 5, 2, 2, '#8a4220'); R(c, x + 4, y - 6 + peck, 2, 2, '#b86a30'); R(c, x + 4, y - 8 + peck, 1, 1, '#d33'); R(c, x + 6, y - 5 + peck, 1, 1, '#e8a030');
+    R(c, x + 1, y - 1, 1, 2, '#c8a050'); R(c, x + 3, y - 1, 1, 2, '#c8a050');
+  }
+  function bird(c, b, t) {
+    const x = Math.round(b.x), y = Math.round(b.y + Math.sin(t * 2 + b.p) * 2), up = Math.floor(t * 6 + b.p * 3) % 2;
+    c.fillStyle = '#44403c';
+    if (up) { c.fillRect(x - 3, y - 2, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y - 2, 2, 1); }
+    else { c.fillRect(x - 3, y, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y, 2, 1); }
+  }
+  function stepScene(dt, t) {
+    clouds.forEach((c, i) => { c.x += dt * (1.6 + i * 0.7); if (c.x > W + 6) c.x = -20; });
+    birds.forEach((b) => { b.x += dt * b.v; if (b.x > W + 8) b.x = -10; });
+    smokeT -= dt;
+    if (smokeT < 0) { smokeT = 0.32; smoke.push({ x: 36, y: 100, a: 0 }); smoke.push({ x: 236, y: 98, a: 0 }); }
+    for (let i = smoke.length - 1; i >= 0; i--) { const s = smoke[i]; s.a += dt; s.y -= dt * 7; s.x += dt * 3 + Math.sin(s.a * 3) * dt * 3; if (s.a > 3.2) smoke.splice(i, 1); }
+  }
+
+  // ================= NGƯỜI (pixel) =================
+  function person(o, t) {
+    const d = o.d, k = o.k || 1, ph = o.ph, mv = o.moving;
+    const sw = mv ? Math.sin(ph) : 0, bob = mv ? Math.abs(Math.cos(ph)) * 1.2 * k : 0;
+    const X = Math.round(o.x), Y = Math.round(o.y);
+    const r = (x, y, w, h, col) => {
+      const px = d > 0 ? x : -x - w;
+      g.fillStyle = col;
+      g.fillRect(Math.round(X + px * k), Math.round(Y + y * k - bob), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    };
+    g.fillStyle = 'rgba(60,40,15,.28)'; g.fillRect(Math.round(X - 6 * k), Y, Math.round(12 * k), 1);                  // bóng
+    const s = Math.round(sw * 3 * k), lift1 = mv && Math.cos(ph) > 0 ? 1 : 0, lift2 = mv && Math.cos(ph) < 0 ? 1 : 0;
+    const st = o.style;
+    // chân (quần ống rộng) + dép
+    r(-3 - s, -9 + lift2, 3, 9 - lift2, st.pantsD || st.pants); r(-3 - s, -1 - lift2 * 0, 3, 1, '#2b1d12');
+    r(1 + s, -9 + lift1, 3, 9 - lift1, st.pants); r(1 + s, -1, 3, 1, '#2b1d12');
+    if (o.cane) r(6, -14, 1, 14, '#6b4a2a');
+    // tay xa
+    r(-1 + Math.round(sw * 2.2 * k), -18, 2, 7, st.shirtD, 0);
+    // thân áo + khăn
+    r(-3, -19, 7, 10, st.shirt); r(-3, -10, 7, 1, st.shirtD); r(2, -18, 1, 8, st.shirtL);
+    if (st.scarf) { r(-3, -19, 7, 1, '#ece8da'); r(-2, -19, 1, 1, '#555'); r(0, -19, 1, 1, '#555'); r(2, -19, 1, 1, '#555'); r(-3, -18, 1, 5, '#ece8da'); r(-3, -16, 1, 1, '#555'); }
+    // tay gần
+    r(-1 - Math.round(sw * 2.2 * k), -18, 2, 7, st.shirt); r(-1 - Math.round(sw * 2.2 * k), -11, 2, 1, '#e3b184');
+    // đầu
+    const hx = o.stoop ? 1 : 0;
+    r(-1, -20, 3, 1, '#e3b184'); r(-2 + hx, -24, 5, 4, '#e8b98a'); r(2 + hx, -23, 1, 1, '#222');
+    if (st.hat === 'non') {                                   // nón lá
+      for (const [hy, hw] of [[-31, 1], [-30, 3], [-29, 5], [-28, 7], [-27, 11], [-26, 15]]) {
+        r(-(hw >> 1) + hx, hy, hw, 1, '#f1dea4');
+        if (hw > 1) r(1 + hx, hy, (hw >> 1), 1, hy > -28 ? '#d2b672' : '#dcc588');
+      }
+      r(-7 + hx, -25, 15, 1, '#a88b4a'); r(-2 + hx, -24, 1, 3, '#c9485a');
+    } else if (st.hat === 'coi') {                            // mũ cối
+      r(-3 + hx, -28, 7, 1, '#6a8a4c'); r(-4 + hx, -27, 9, 2, '#5f7e44'); r(-6 + hx, -25, 13, 1, '#465f32'); r(0 + hx, -27, 1, 1, '#d24');
+    } else if (st.hat === 'khan') {                           // khăn đội đầu
+      r(-3 + hx, -26, 7, 3, '#cfcab8'); r(-3 + hx, -26, 7, 1, '#e8e4d4'); r(-1 + hx, -24, 1, 1, '#555');
+    }
+    if (o.pole) {                                             // đòn gánh + 2 thúng
+      const b = Math.round(Math.sin(ph * 2) * 1.2 * k);
+      r(-13, -20 + b, 13, 1, '#8a6a3a'); r(0, -20 - b, 14, 1, '#8a6a3a');
+      for (const [bx, by, sg] of [[-13, b, 1], [13, -b, 2]]) {
+        r(bx, -19 + by, 1, 8, '#6b5530');
+        r(bx - 3, -11 + by, 7, 3, '#8a5a2a'); r(bx - 3, -12 + by, 7, 1, '#aa7a3a'); r(bx - 2, -13 + by, 5, 1, sg === 1 ? '#5f9a3a' : '#d9b04a');
+      }
+    }
+  }
+  function buffalo(o, t) {
+    const d = o.d, ph = o.ph, mv = o.moving, X = Math.round(o.x), Y = Math.round(o.y), sw = mv ? Math.sin(ph) : 0, bob = mv ? Math.abs(Math.cos(ph)) * 0.8 : 0;
+    const r = (x, y, w, h, col) => { const px = d > 0 ? x : -x - w; g.fillStyle = col; g.fillRect(Math.round(X + px), Math.round(Y + y - bob), w, h); };
+    g.fillStyle = 'rgba(60,40,15,.3)'; g.fillRect(X - 13, Y, 26, 1);
+    const s = Math.round(sw * 3);
+    r(-9 - s, -8, 3, 8, '#454039'); r(-4 + s, -8, 3, 8, '#4f4a43'); r(4 - s, -8, 3, 8, '#454039'); r(8 + s, -8, 3, 8, '#4f4a43');   // 4 chân
+    r(-12, -17, 24, 10, '#5d5750'); r(-12, -9, 24, 2, '#4d4842'); r(-12, -17, 24, 1, '#6f6860');                                   // thân
+    r(10, -19, 5, 8, '#57514a'); r(13, -17, 7, 6, '#4d4842'); r(19, -14, 2, 3, '#6a5a56'); r(16, -16, 1, 1, '#e8dcc4');            // cổ, đầu, mõm
+    r(12, -21, 6, 1, '#e8dcc4'); r(17, -23, 1, 3, '#e8dcc4'); r(10, -21, 2, 1, '#e8dcc4');                                         // sừng
+    const tw = Math.round(Math.sin(t * 4 + ph) * 1.5);
+    r(-14 + tw, -16, 2, 9, '#4d4842'); r(-14 + tw, -8, 2, 2, '#3a342f');                                                          // đuôi
+    // cậu bé cưỡi trên lưng
+    person({ x: X + (d > 0 ? -2 : 2), y: Y - 15 - bob, d, k: 0.62, ph: 0, moving: false, style: STY.boy, hat: 1 }, t);
+  }
+
+  // ================= TRANG PHỤC (VN ~1980) =================
+  const STY = {
+    woman:  { shirt: '#6b4a32', shirtD: '#563a27', shirtL: '#7e5a40', pants: '#2c2724', hat: 'non', scarf: true },
+    black:  { shirt: '#34302d', shirtD: '#27231f', shirtL: '#4a4540', pants: '#25201d', hat: 'non', scarf: true },
+    indigo: { shirt: '#3d5382', shirtD: '#2f4068', shirtL: '#4f679c', pants: '#2c2724', hat: 'non', scarf: false },
+    white:  { shirt: '#ebe6d6', shirtD: '#cfc9b6', shirtL: '#fffaf0', pants: '#6b5a3a', hat: 'coi', scarf: false },
+    elder:  { shirt: '#8a6f4a', shirtD: '#715a3b', shirtL: '#9b8058', pants: '#2c2724', hat: 'khan', scarf: false },
+    boy:    { shirt: '#c08a44', shirtD: '#a47235', shirtL: '#d09c56', pants: '#5a4a35', hat: 'non', scarf: false },
+    kid:    { shirt: '#b84a3a', shirtD: '#9a3c2e', shirtL: '#c85e4c', pants: '#3a3a52', hat: 'non', scarf: false }
+  };
+  // người đi: lane = đường chạy (toạ độ y của chân), v = tốc độ (điểm ảnh/giây), pausing = hay dừng lại
+  const WALKERS = [
+    { kind: 'person', x: 40,  y: 152, d: 1,  v: 7,  style: STY.woman, pole: true },
+    { kind: 'person', x: 200, y: 152, d: -1, v: 5,  style: STY.elder, cane: true, stoop: true, pausing: true },
+    { kind: 'person', x: 110, y: 164, d: 1,  v: 8,  style: STY.white, pausing: true },
+    { kind: 'person', x: 230, y: 166, d: -1, v: 9,  style: STY.indigo },
+    { kind: 'person', x: 60,  y: 172, d: -1, v: 10, style: STY.black, pole: true },
+    { kind: 'buffalo', x: 30, y: 184, d: 1,  v: 6 },
+    { kind: 'person', x: 170, y: 181, d: -1, v: 13, style: STY.kid, k: 0.7 },
+    { kind: 'person', x: 120, y: 180, d: 1,  v: 8,  style: STY.woman, pausing: true }
+  ];
+  WALKERS.forEach((w, i) => { w.ph = i * 1.3; w.moving = true; w.wait = 0; w.next = 2 + i * 0.7; });
+
+  function stepWalkers(dt, t) {
+    for (const w of WALKERS) {
+      if (w.wait > 0) { w.wait -= dt; w.moving = false; if (w.wait <= 0) { w.moving = true; w.d = rnd() < 0.5 ? w.d : -w.d; } continue; }
+      w.x += w.d * w.v * dt; w.ph += dt * w.v * 0.62;
+      if (w.x > W + 24) { w.d = -1; } else if (w.x < -24) { w.d = 1; }
+      if (w.pausing && t > w.next) { w.next = t + 5 + rnd() * 6; w.wait = 1.6 + rnd() * 1.8; }
+    }
+  }
+
+  // ================= VẼ MỖI KHUNG =================
+  function draw(t) {
+    g.drawImage(bgc, 0, 0);
+    sun(g, t);
+    clouds.forEach((c) => cloud(g, c.x, c.y, c.s));
+    birds.forEach((b) => bird(g, b, t));
+    bamboo(g, 98, 54, t, 0.4); bamboo(g, 172, 48, t, 2.1);
+    areca(g, 66, t); areca(g, 190, t);
+    // ao: sóng nước + sen + vịt
+    for (let i = 0; i < 4; i++) { const rx = 118 + i * 9 + Math.round(Math.sin(t * 1.2 + i) * 2); R(g, rx, 133 + (i % 2), 4, 1, '#c8e8ec'); }
+    for (const [lx, ly] of [[118, 136], [140, 131], [150, 136]]) { ellipse(g, lx, ly, 3, 1, '#4f8a4a'); }
+    R(g, 141, 129, 2, 2, '#f08aa8'); R(g, 142, 128, 1, 1, '#ffd0de');
+    duck(g, 128 + Math.round(Math.sin(t * 0.4) * 10), 134, Math.cos(t * 0.4) > 0 ? 1 : -1, t, 0);
+    duck(g, 146 + Math.round(Math.sin(t * 0.33 + 2) * 8), 137, Math.cos(t * 0.33 + 2) > 0 ? 1 : -1, t, 1.7);
+    chicken(g, 214, 142, t, 0); chicken(g, 240, 143, t, 2.2); chicken(g, 20, 144, t, 4.1);
+    // người, xếp theo y (xa trước, gần sau)
+    WALKERS.slice().sort((a, b) => a.y - b.y).forEach((w) => (w.kind === 'buffalo' ? buffalo(w, t) : person(w, t)));
+    // khói bếp
+    for (const s of smoke) {
+      const a = s.a / 3.2, sz = 2 + Math.floor(a * 4);
+      g.globalAlpha = Math.max(0, 0.7 * (1 - a)); g.fillStyle = '#f4f1ea'; g.fillRect(Math.round(s.x), Math.round(s.y), sz, sz);
+    }
+    g.globalAlpha = 1;
+    // cỏ tiền cảnh đung đưa
+    for (let i = 0; i < 70; i++) {
+      const x = i * 3.9 + (i % 3), h = 5 + (i * 7 % 5), sw = Math.sin(t * 2 + i * 0.7) * 1.4;
+      for (let y = 0; y < h; y++) R(g, x + Math.round(sw * y / h * 1.5), 199 - y, 1, 1, i % 4 ? '#6f9440' : '#87ac4e');
+      if (i % 13 === 0) R(g, x + Math.round(sw * 1.5), 199 - h - 1, 2, 2, i % 2 ? '#f6d65a' : '#f2a0b8');
+    }
+  }
+
+  drawBackground();
+  let t = 0, last = 0, acc = 0, raf = 0;
+  const FIX = 1 / 60;
+  function stepAll(dt) { t += dt; stepScene(dt, t); stepWalkers(dt, t); }
+  function loop(now) {
+    acc += Math.min(0.1, (now - last) / 1000); last = now;
+    while (acc >= FIX) { stepAll(FIX); acc -= FIX; }
+    draw(t);
+    raf = requestAnimationFrame(loop);
+  }
+  if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) stepAll(FIX); draw(t); window.__ready = true; }
+  else { last = performance.now(); raf = requestAnimationFrame(loop); }
+  // Khi nhúng trong index.html: chuyển phím (Backspace) lên trang chính để quay lại danh sách
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
+})();
+</script>
+</body>
+</html>
