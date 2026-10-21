@@ -100,7 +100,7 @@
     #soulIntro { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: #000; }
     #soulHeart { width: clamp(96px, 17vmin, 200px); height: auto; image-rendering: pixelated; position: relative; z-index: 1; }
     .soul-ring { position: absolute; inset: 0; margin: auto; width: clamp(96px, 17vmin, 200px); height: clamp(96px, 17vmin, 200px); border: 6px solid #3d66ff; pointer-events: none; }
-    #pov { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 12; pointer-events: none; display: none; }
+    #cineBlack { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 60; }
     #glitch { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 52; pointer-events: none; display: none; }
     #soulBack {
       position: fixed; right: 18px; top: 18px; z-index: 56; width: 48px; height: 48px; padding: 0; display: none;
@@ -206,7 +206,7 @@
 
   <div id="canvas-container"></div>
   <canvas id="fx"></canvas>
-  <canvas id="pov"></canvas>
+  <div id="cineBlack"></div>
   <div id="overlay"></div>
   <iframe id="anim3" title="Slide 3" aria-hidden="true"></iframe>
 
@@ -861,20 +861,18 @@
       }
     }
 
-    // ================= CẢNH ĐIỆN ẢNH: Sans chặn -> góc nhìn người chém (POV) =================
-    // Trình tự (ms): 0-320 vệt chém rơi xuống; 320 bone chặn, Sans hiện rõ; 1900 kiếm đỏ trồi lên từ tay người chém;
-    // 2500-3900 quay người gồng chiêu; 3900 chém ngang xuống; 4150-5300 nhìn xuống đất (vết cắt đỏ trên nền);
-    // 5300-6050 ngẩng lên, vệt đỏ mờ còn lơ lửng; 6600 vệt đỏ hoá nhát chém lao xuyên Sans vào hư vô;
-    // ~7150 Sans đứt lìa, màn hình nứt, khe hư vô mở ra; ~8700 hết. Chỉ chạy 1 lần mỗi lượt tim xanh.
-    //   cine: { t0, x, y, side, dx, dy, nx, ny, sans, D, L, w, bend, pivot, vp, k, halves, cur, ev }
-    //   (x, y) là điểm đường chém đi qua (tâm bone); (dx, dy) hướng đường chém; (nx, ny) pháp tuyến
-    const povCv = document.getElementById('pov'), pov = povCv.getContext('2d');
+    // ================= CẢNH SANS CHẶN (gọn): bone chặn -> nhát chém đỏ xé màn hình xuyên bone -> trúng Sans (9999) -> Sans chảy máu -> đen 0.5s -> slide kế =================
+    // Trình tự (ms): 0 Sans hiện; 250 bone chặn; 1000 nhát chém đỏ lao từ xa, xé màn hình, cắt đôi bone; ~1520 trúng Sans: 9999, máu;
+    // 3500 màn hình tối, giữ 0.5s trong lúc đổi slide, rồi mở ra. Chỉ chạy 1 lần mỗi lượt tim xanh, cố định giữa slide 4 và slide 5.
+    //   cine: { t0, x, y, dx, dy, nx, ny, sans, D, L, w, bend, seed, cur, ev, drops, boneCut }
+    //   (x, y) là tâm bone; (dx, dy) hướng từ bone tới Sans; (nx, ny) pháp tuyến
     let cine = null;
-    const CT = { block: 320, sword: 1900, turn: 2500, wind: 3350, strike: 3900, ground: 4150, up: 5300, upEnd: 6050, wave: 6600, waveLen: 1400 };
-    const UH = Math.pow(0.22 / 1.7, 1 / 2.2);                       // lúc nhát chém đi ngang qua Sans (0..1 của thời gian bay)
-    CT.hit = CT.wave + UH * CT.waveLen;
-    CT.end = CT.hit + 1550;
-
+    const CT = { bone: 250, wave: 1000, waveLen: 520, black: 3500 };
+    CT.hit = CT.wave + CT.waveLen;
+    const SANS_HURT = new Image();
+    let SANS_HURT_O = null;
+    SANS_HURT.onload = () => { SANS_HURT_O = outlineSprite(SANS_HURT, 5, '#0b0b0b'); };
+    SANS_HURT.src = 'assets/sans-hurt.png';
     function outlineSprite(img, o, col) {                            // viền đen quanh sprite trắng cho dễ nhìn trên nền sáng
       const c = document.createElement('canvas'); c.width = img.width + o * 2; c.height = img.height + o * 2;
       const g = c.getContext('2d'), k = document.createElement('canvas'); k.width = img.width; k.height = img.height;
@@ -888,180 +886,7 @@
     const BONE_O = outlineSprite(BONE_IMG, 3, '#0b0b0b');
     const ramp = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
     const easeOut3 = (u) => 1 - Math.pow(1 - u, 3);
-    function kf(t, k) {                                              // nội suy mượt qua các mốc [thời gian, giá trị]
-      if (t <= k[0][0]) return k[0][1];
-      for (let i = 1; i < k.length; i++) {
-        if (t < k[i][0]) { const a = k[i - 1], b = k[i], u = (t - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * (u * u * (3 - 2 * u)); }
-      }
-      return k[k.length - 1][1];
-    }
     const hash1 = (c, i) => { const x = Math.sin(i * 127.1 + c.seed) * 43758.5453; return x - Math.floor(x); };
-
-    // ----- máy quay -----
-    function camAt(t) {
-      const ce = t - CT.hit;
-      let zoom = kf(t, [[0, 1], [1900, 1], [2600, 1.07], [3350, 1.0], [3900, 1.03], [4130, 1.14], [5300, 1.05], [6050, 1.0]]);
-      let shk = 0;
-      if (t > 3350 && t < 3910) shk = 2.4 * ramp(t, 3350, 3700);                              // run lên khi gồng chiêu
-      if (t >= 3900) shk += 20 * Math.pow(Math.max(0, 1 - (t - 3900) / 700), 2);             // dội lại sau cú chém
-      if (ce > 0) { shk += 18 * Math.pow(Math.max(0, 1 - ce / 850), 2); zoom += 0.05 * Math.pow(Math.max(0, 1 - ce / 450), 2); }
-      return {
-        yaw: kf(t, [[0, 0], [2500, 0], [3350, -30], [3900, -30], [4130, 11], [5300, 11], [6050, 0]]),
-        pitch: kf(t, [[0, 0], [3900, 0], [4230, 0.62], [5300, 0.62], [6050, 0]]),
-        roll: kf(t, [[0, 0], [2500, 0], [3350, 4.5], [3900, 5.5], [4130, -3.5], [5300, -1.5], [6050, 0]]),
-        zoom, shk, blur: (t > 3930 && t < 4200) ? 2.5 : 0
-      };
-    }
-    function applyCam(c, p) {
-      const H = innerHeight;
-      const ident = p.yaw === 0 && p.pitch === 0 && p.roll === 0 && p.zoom === 1 && p.shk === 0 && !p.blur;
-      if (ident) { if (c.camOn) { resetCam(); c.camOn = false; } return; }
-      c.camOn = true;
-      const jx = (Math.random() - 0.5) * 2 * p.shk, jy = (Math.random() - 0.5) * 1.4 * p.shk;
-      const tr = 'perspective(1100px) translate3d(' + jx.toFixed(1) + 'px,' + (jy - p.pitch * H).toFixed(1) + 'px,0) rotateX(' + (p.pitch * 16).toFixed(2) + 'deg) rotateY(' + p.yaw.toFixed(2) + 'deg) rotateZ(' + p.roll.toFixed(2) + 'deg) scale(' + p.zoom.toFixed(3) + ')';
-      containerEl.style.transform = tr; fxCanvas.style.transform = tr;
-      containerEl.style.filter = p.blur ? 'blur(' + p.blur + 'px)' : '';
-    }
-    function resetCam() { containerEl.style.transform = ''; containerEl.style.filter = ''; fxCanvas.style.transform = ''; }
-
-    // ----- kiếm đỏ trong tay (toạ độ theo tỉ lệ màn hình) -----
-    function swordAt(t) {
-      const u = ramp(t, CT.strike, CT.strike + 200);
-      const hx = kf(t, [[1900, 1.15], [2500, 0.80], [3350, 0.93], [3900, 0.95], [4100, 0.18], [4300, 0.52], [5300, 0.52], [6050, 0.80], [6900, 0.80], [7500, 1.15]]);
-      const hy = kf(t, [[1900, 1.25], [2500, 0.93], [3350, 0.52], [3900, 0.50], [4100, 0.86], [4300, 0.58], [5300, 0.58], [6050, 0.93], [6900, 0.93], [7500, 1.25]]) - 0.2 * Math.sin(Math.PI * u);
-      const ang = kf(t, [[1900, -35], [2500, -50], [3350, 28], [3900, 34], [4100, -128], [4300, -155], [5300, -155], [6050, -50], [6900, -50], [7500, -30]]);
-      const glow = kf(t, [[2000, 0], [3350, 0.8], [3900, 1], [4300, 0.5], [6050, 0.3], [6600, 1], [7200, 0.2]]);
-      return { hx, hy, ang, glow, vis: t > 1850 && t < 7550 };
-    }
-    function drawSwordPov(x, y, ang, s, glow, alpha) {
-      const W = innerWidth, H = innerHeight;
-      pov.save(); pov.globalAlpha = alpha;
-      const sx = W * 1.06, sy = H * 1.22, ax = Math.atan2(sy - y, sx - x), px = -Math.sin(ax), py = Math.cos(ax);   // cánh tay từ vai (góc dưới phải)
-      pov.fillStyle = '#1b1315'; pov.beginPath();
-      pov.moveTo(x + px * 42 * s, y + py * 42 * s); pov.lineTo(sx + px * 100 * s, sy + py * 100 * s); pov.lineTo(sx - px * 100 * s, sy - py * 100 * s); pov.lineTo(x - px * 42 * s, y - py * 42 * s); pov.closePath(); pov.fill();
-      pov.strokeStyle = '#050304'; pov.lineWidth = 4 * s; pov.stroke();
-      pov.strokeStyle = 'rgba(255,255,255,0.08)'; pov.lineWidth = 3 * s; pov.beginPath(); pov.moveTo(x + px * 18 * s, y + py * 18 * s); pov.lineTo(sx + px * 40 * s, sy + py * 40 * s); pov.stroke();
-      pov.translate(x, y); pov.rotate(ang * Math.PI / 180); pov.scale(s, s);
-      const L = 620;
-      if (glow > 0.02) { pov.shadowColor = 'rgba(255,40,60,' + Math.min(1, glow) + ')'; pov.shadowBlur = 38 * glow; }
-      pov.beginPath(); pov.moveTo(-30, -80); pov.lineTo(30, -80); pov.lineTo(26, -L + 120); pov.lineTo(0, -L - 26); pov.lineTo(-26, -L + 120); pov.closePath();
-      const gr = pov.createLinearGradient(-30, 0, 30, 0);
-      gr.addColorStop(0, '#ff5a50'); gr.addColorStop(0.46, '#e0162b'); gr.addColorStop(0.5, '#ffa598'); gr.addColorStop(0.54, '#a60d1f'); gr.addColorStop(1, '#650513');
-      pov.fillStyle = gr; pov.fill(); pov.shadowBlur = 0;
-      pov.lineWidth = 5; pov.strokeStyle = '#2a0008'; pov.lineJoin = 'round'; pov.stroke();
-      pov.fillStyle = 'rgba(60,0,12,0.5)'; pov.fillRect(-4, -L + 150, 8, L - 250);                        // rãnh giữa lưỡi
-      pov.fillStyle = '#ffd6cf'; pov.fillRect(-26, -L + 130, 3, L - 230);                                 // vệt sáng mép lưỡi
-      pov.fillStyle = '#6a4a2a'; pov.beginPath(); pov.moveTo(-86, -78); pov.lineTo(86, -78); pov.lineTo(74, -52); pov.lineTo(-74, -52); pov.closePath(); pov.fill();   // chắn kiếm
-      pov.strokeStyle = '#1c1208'; pov.lineWidth = 4; pov.stroke();
-      pov.fillStyle = '#c8302e'; pov.beginPath(); pov.arc(0, -65, 11, 0, 7); pov.fill();
-      pov.fillStyle = '#18100f'; pov.fillRect(-14, -52, 28, 150);                                         // cán
-      pov.fillStyle = '#3a2220'; for (let i = 0; i < 6; i++) pov.fillRect(-14, -44 + i * 22, 28, 6);
-      pov.fillStyle = '#4a4a52'; pov.beginPath(); pov.arc(0, 108, 22, 0, 7); pov.fill(); pov.stroke();    // đầu cán
-      pov.fillStyle = '#2a1618'; pov.beginPath(); pov.moveTo(-34, -22); pov.lineTo(34, -22); pov.lineTo(38, 52); pov.lineTo(-38, 52); pov.closePath(); pov.fill();   // nắm tay
-      pov.lineWidth = 4; pov.strokeStyle = '#080404'; pov.stroke();
-      pov.fillStyle = '#4a2a2c'; pov.fillRect(-30, -18, 60, 8);
-      pov.strokeStyle = '#0a0606'; pov.lineWidth = 3;
-      for (let i = -1; i <= 1; i++) { pov.beginPath(); pov.moveTo(i * 20 + 10, -20); pov.lineTo(i * 20 + 10, 40); pov.stroke(); }
-      pov.restore();
-    }
-    const swordTip = (sp, W, H, s) => [sp.hx * W + Math.sin(sp.ang * Math.PI / 180) * 640 * s, sp.hy * H - Math.cos(sp.ang * Math.PI / 180) * 640 * s];
-
-    // ----- nền đất khi nhìn xuống -----
-    function drawFloor(c, t, p) {
-      const W = innerWidth, H = innerHeight;
-      const yh = H / 2 + p.zoom * H / 2 - p.pitch * H + 6;                   // chân tường = mép dưới slide
-      if (yh >= H - 2) return;
-      let g = pov.createLinearGradient(0, yh, 0, H); g.addColorStop(0, '#08080d'); g.addColorStop(1, '#1d1115');
-      pov.fillStyle = g; pov.fillRect(0, yh, W, H - yh);
-      const vpx = W / 2 - p.yaw * 8, vpy = yh - 0.3 * H;
-      pov.strokeStyle = 'rgba(255,225,225,0.07)'; pov.lineWidth = 2;
-      for (let i = -14; i <= 14; i++) {
-        const bx = W / 2 + i * 0.17 * W, k = (yh - vpy) / (H - vpy);
-        pov.beginPath(); pov.moveTo(vpx + (bx - vpx) * k, yh); pov.lineTo(bx, H); pov.stroke();
-      }
-      for (let j = 1; j <= 9; j++) { const y = yh + (H - yh) * Math.pow(j / 9, 2); pov.beginPath(); pov.moveTo(0, y); pov.lineTo(W, y); pov.stroke(); }
-      g = pov.createLinearGradient(0, yh, 0, yh + 0.14 * H); g.addColorStop(0, 'rgba(0,0,0,0.8)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      pov.fillStyle = g; pov.fillRect(0, yh, W, 0.14 * H);
-      // vết cắt đỏ trên nền, lan từ chỗ kiếm chạm đất ra xa
-      const prog = easeOut3(ramp(t, CT.ground, CT.ground + 650));
-      if (prog > 0) {
-        const x0 = 0.34 * W, y0 = H * 1.04, x1 = 0.66 * W, y1 = yh + 6, N = 26, pts = [];
-        for (let i = 0; i <= N; i++) {
-          const u = i / N, jit = (hash1(c, i + 40) - 0.5) * 34 * (1 - u * 0.6);
-          pts.push([x0 + (x1 - x0) * u + jit, y0 + (y1 - y0) * Math.pow(u, 1.15)]);
-        }
-        const lim = Math.floor(N * prog), pulse = 0.85 + 0.15 * Math.sin(t / 90);
-        pov.lineCap = 'round';
-        const rg = pov.createRadialGradient((x0 + x1) / 2, (y0 + y1) / 2, 10, (x0 + x1) / 2, (y0 + y1) / 2, H * 0.55);
-        rg.addColorStop(0, 'rgba(255,40,50,' + (0.28 * pulse * prog) + ')'); rg.addColorStop(1, 'rgba(255,40,50,0)');
-        pov.fillStyle = rg; pov.fillRect(0, yh, W, H - yh);
-        for (const [wmul, col] of [[3.6, 'rgba(255,30,50,0.20)'], [1.5, '#ff2038'], [0.45, '#ffe0e4']]) {
-          for (let i = 0; i < lim; i++) {
-            const u = i / N, wd = (30 * (1 - u * 0.88) + 2) * wmul * pulse;
-            pov.strokeStyle = col; pov.lineWidth = wd;
-            pov.beginPath(); pov.moveTo(pts[i][0], pts[i][1]); pov.lineTo(pts[i + 1][0], pts[i + 1][1]); pov.stroke();
-          }
-        }
-        if (t < CT.up + 300) for (let i = 0; i < 2; i++) {                // tàn lửa bay lên
-          const u = Math.random() * prog, k = Math.min(N - 1, Math.floor(u * N));
-          c.embers.push({ x: pts[k][0], y: pts[k][1], vx: (Math.random() - 0.5) * 2, vy: -1 - Math.random() * 3, a: 1 });
-        }
-      }
-      pov.globalCompositeOperation = 'lighter';
-      for (let i = c.embers.length - 1; i >= 0; i--) {
-        const e = c.embers[i]; e.x += e.vx; e.y += e.vy; e.a -= 0.02;
-        if (e.a <= 0) { c.embers.splice(i, 1); continue; }
-        pov.fillStyle = 'rgba(255,' + (90 + (e.a * 120 | 0)) + ',50,' + e.a + ')'; pov.fillRect(Math.round(e.x / 4) * 4, Math.round(e.y / 4) * 4, 4, 4);
-      }
-      pov.globalCompositeOperation = 'source-over';
-    }
-
-    // ----- lớp POV (cố định theo màn hình, không xoay theo cảnh) -----
-    function drawPov(c, t, p) {
-      const W = innerWidth, H = innerHeight;
-      if (t < 1800) return;
-      if (povCv.style.display !== 'block') povCv.style.display = 'block';
-      if (povCv.width !== W || povCv.height !== H) { povCv.width = W; povCv.height = H; }
-      pov.clearRect(0, 0, W, H);
-      if (p.pitch > 0.01) drawFloor(c, t, p);
-      const sp = swordAt(t), s = H / 600;
-      // tụ năng lượng vào lưỡi kiếm lúc gồng chiêu
-      if (t > 2800 && t < 3920) {
-        pov.globalCompositeOperation = 'lighter';
-        const bx = sp.hx * W + Math.sin(sp.ang * Math.PI / 180) * 320 * s, by = sp.hy * H - Math.cos(sp.ang * Math.PI / 180) * 320 * s;
-        for (let i = 0; i < 34; i++) {
-          const ph = ((t * 0.0017 + i * 0.137) % 1), a0 = i * 2.4, r0 = (0.35 + 0.65 * hash1(c, i)) * W * 0.5;
-          const x = bx + Math.cos(a0) * r0 * (1 - ph), y = by + Math.sin(a0) * r0 * (1 - ph) * 0.7;
-          pov.fillStyle = 'rgba(255,' + (60 + (ph * 100 | 0)) + ',70,' + (0.2 + 0.6 * ph) + ')';
-          const z = Math.max(2, 9 * (1 - ph)); pov.fillRect(x, y, z, z);
-        }
-        pov.globalCompositeOperation = 'source-over';
-      }
-      // vệt kiếm mờ lúc chém
-      if (t >= CT.strike && t < CT.strike + 420) {
-        const e = ramp(t, CT.strike, CT.strike + 200), fade = 1 - ramp(t, CT.strike + 150, CT.strike + 420);
-        pov.lineCap = 'round'; pov.lineJoin = 'round';
-        for (const [wd, col] of [[110, 'rgba(255,30,50,0.18)'], [56, 'rgba(255,60,70,0.3)'], [16, 'rgba(255,225,230,0.6)']]) {
-          pov.strokeStyle = col; pov.globalAlpha = fade; pov.lineWidth = wd * s; pov.beginPath();
-          for (let i = 0; i <= 12; i++) { const tt = CT.strike + 200 * e * i / 12, q = swordTip(swordAt(tt), W, H, s); if (i) pov.lineTo(q[0], q[1]); else pov.moveTo(q[0], q[1]); }
-          pov.stroke();
-        }
-        pov.globalAlpha = 1;
-        for (let i = 5; i >= 1; i--) { const sa = swordAt(Math.max(CT.strike, t - i * 14)); drawSwordPov(sa.hx * W, sa.hy * H, sa.ang, s, 0.6, 0.12 * (6 - i)); }
-      }
-      if (sp.vis) drawSwordPov(sp.hx * W, sp.hy * H, sp.ang, s, sp.glow, 1);
-      // tối 4 góc + nhịp đỏ khi gồng
-      let g = pov.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95);
-      const a = 0.55 * ramp(t, 1800, 2400) * (1 - ramp(t, CT.wave + 600, CT.wave + 1200));
-      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,' + a + ')');
-      pov.fillStyle = g; pov.fillRect(0, 0, W, H);
-      if (t > 2500 && t < 4000) {
-        const k = (0.5 + 0.5 * Math.sin(t / 150)) * ramp(t, 2500, 3300) * 0.35;
-        g = pov.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.9);
-        g.addColorStop(0, 'rgba(180,0,20,0)'); g.addColorStop(1, 'rgba(200,0,24,' + k + ')');
-        pov.fillStyle = g; pov.fillRect(0, 0, W, H);
-      }
-    }
 
     // ================= VỆT CHÉM HÌNH TRĂNG KHUYẾT (cú chém của kiếm) =================
     // Đường cong đi qua tâm (cx, cy), cong về 1 phía; mỏng 2 đầu, dày giữa
@@ -1817,187 +1642,138 @@
       const k = h / innerHeight, sc = group.scale.x;
       return [(px - innerWidth / 2) * k / sc, -(py - innerHeight / 2) * k / sc];
     }
-    // ----- lớp cảnh (trên canvas #fx, xoay cùng máy quay) -----
+    // ----- các lớp vẽ của cảnh (trên canvas #fx) -----
     function drawCineBack(now) {                                    // tối màn hình, chừa sáng quanh Sans
       const c = cine, t = now - c.t0, W = innerWidth, H = innerHeight;
-      let d = 0.66 * ramp(t, CT.block - 20, CT.block + 500);
-      if (t > CT.hit) d *= 1 - 0.55 * ramp(t - CT.hit, 0, 600);
-      if (d < 0.01) return;
+      const d = 0.6 * ramp(t, 0, 400) * (1 - 0.5 * ramp(t, CT.hit + 600, CT.black));
       const g = fx.createRadialGradient(c.sans.x, c.sans.y, H * 0.08, c.sans.x, c.sans.y, c.D * 0.7);
       g.addColorStop(0, 'rgba(6,3,16,' + (d * 0.3) + ')'); g.addColorStop(1, 'rgba(6,3,16,' + d + ')');
       fx.fillStyle = g; fx.fillRect(0, 0, W, H);
     }
-    function lineAt(c, ox, oy, sc) {                                // điểm trên vệt cong tại tham số tt (-1..1)
-      return (tt) => { const u = tt * c.L * sc, v = -c.bend * sc * tt * tt; return [ox + c.dx * u + c.nx * v, oy + c.dy * u + c.ny * v]; };
+    function waveS(c, t) {                                          // vị trí nhát chém dọc theo hướng d (0 = tâm bone)
+      const u = ramp(t, CT.wave, CT.hit), s0 = -0.75 * c.D;
+      return s0 + (c.sH - s0) * Math.pow(u, 1.7);
     }
-    function drawGhostLine(c, ox, oy, sc, alpha) {                  // vệt đỏ mờ lơ lửng sau cú chém
-      const P = lineAt(c, ox, oy, sc), N = 40;
-      fx.lineCap = 'round';
-      for (const [wm, col] of [[1.9, 'rgba(255,30,50,0.09)'], [1.2, 'rgba(255,40,60,0.14)'], [0.6, 'rgba(255,70,80,0.22)'], [0.2, 'rgba(255,215,220,0.45)']]) {
-        for (let i = 0; i < N; i++) {
-          const t0 = -1 + 2 * i / N, t1 = -1 + 2 * (i + 1) / N, m = (t0 + t1) / 2, tp = Math.pow(Math.max(0, 1 - m * m), 0.6);
-          const a = P(t0), b = P(t1);
-          fx.strokeStyle = col; fx.globalAlpha = alpha; fx.lineWidth = Math.max(2, c.w * sc * wm * tp * 0.55);
-          fx.beginPath(); fx.moveTo(a[0], a[1]); fx.lineTo(b[0], b[1]); fx.stroke();
-        }
+    function drawRift(c, t) {                                       // vết xé màn hình: dải tối viền đỏ chạy dọc đường chém
+      if (t < CT.wave) return;
+      const ce = t - CT.hit, s0 = -0.75 * c.D;
+      const sEnd = ce < 0 ? waveS(c, t) : c.sH + 0.6 * c.D * easeOut3(ramp(ce, 0, 350));
+      const a = 1 - ramp(t, CT.black - 700, CT.black - 100);
+      const hwMax = (4 + 20 * ramp(t, CT.wave, CT.hit + 300)) * (1 + 0.15 * Math.sin(t / 90));
+      const N = 46, L = [], Rr = [];
+      for (let k = 0; k <= N; k++) {
+        const s = s0 + (sEnd - s0) * k / N, e = k / N, tp = Math.min(1, e * 6) * Math.min(1, (1 - e) * 4 + (ce > 0 ? 1 : 0));
+        const hw = hwMax * Math.max(0.15, tp), j1 = (hash1(c, k) - 0.5) * hw * 0.9, j2 = (hash1(c, k + 70) - 0.5) * hw * 0.9;
+        const px = c.x + c.dx * s, py = c.y + c.dy * s;
+        L.push([px + c.nx * (hw + j1), py + c.ny * (hw + j1)]); Rr.push([px - c.nx * (hw + j2), py - c.ny * (hw + j2)]);
       }
-      fx.globalAlpha = 1;
-    }
-    // nhát chém bay: lúc u = 0 ở gần máy quay (to, thấp), u = UH đi ngang qua Sans (nằm đúng trên đường cắt), rồi thu nhỏ dần vào điểm tụ
-    function waveAt(c, u) {
-      const near = -0.22 * c.D, fx_ = c.nx * c.fwd, fy_ = c.ny * c.fwd;
-      if (u <= UH) {
-        const e = Math.pow(u / UH, 1.3), trav = near * (1 - e);
-        return { x: c.x + fx_ * trav, y: c.y + fy_ * trav, sc: 1.25 - 0.25 * e };
-      }
-      const v = (u - UH) / (1 - UH), e = 1 - Math.pow(1 - v, 1.8);
-      return { x: c.x + (c.vp.x - c.x) * e, y: c.y + (c.vp.y - c.y) * e, sc: 0.95 * Math.pow(1 - v, 1.2) + 0.05 };
+      const pts = L.concat(Rr.reverse());
+      fx.save(); fx.globalAlpha = a;
+      fx.beginPath(); pts.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); }); fx.closePath();
+      fx.fillStyle = '#12000a'; fx.fill();
+      fx.lineJoin = 'miter';
+      fx.strokeStyle = '#ff2a3a'; fx.lineWidth = 5; fx.stroke();
+      fx.strokeStyle = '#ffd0d8'; fx.lineWidth = 1.5; fx.stroke();
+      fx.restore();
     }
     function drawWave(c, t) {
-      const u = ramp(t, CT.wave, CT.wave + CT.waveLen);
-      const fade = u > 0.82 ? Math.max(0, (1 - u) / 0.18) : 1, born = ramp(t, CT.wave - 150, CT.wave);
+      const ce = t - CT.hit; if (t < CT.wave - 120 || ce > 140) return;
+      const born = ramp(t, CT.wave - 120, CT.wave), fade = ce > 0 ? 1 - ce / 140 : 1;
       for (let i = 6; i >= 0; i--) {
-        const uu = u - i * 0.032;
-        if (i && uu <= 0) continue;
-        const w = waveAt(c, Math.max(0, uu)), al = (i ? 0.34 * (1 - i / 7) : 1) * fade * (i ? 1 : born);
-        if (al <= 0.01) continue;
-        drawCrescent({ x: w.x, y: w.y, dx: c.dx, dy: c.dy, nx: c.nx, ny: c.ny, L: c.L * w.sc, w: c.w * w.sc, bend: c.bend * w.sc, streaks: c.streaks }, 1, al, 1);
-      }
-      if (u > 0 && u < 0.9) {                                       // vệt tốc độ toả ra từ điểm tụ: cảm giác chiều sâu
-        fx.lineCap = 'butt';
-        for (let i = 0; i < 26; i++) {
-          const ang = hash1(c, i + 500) * 6.2832, r0 = (0.12 + 0.5 * ((hash1(c, i + 600) + u * 1.8) % 1)) * c.D, ln = 30 + r0 * 0.25;
-          fx.strokeStyle = 'rgba(255,' + (90 + (hash1(c, i) * 120 | 0)) + ',110,' + (0.35 * (1 - u)) + ')'; fx.lineWidth = 2;
-          fx.beginPath(); fx.moveTo(c.vp.x + Math.cos(ang) * r0, c.vp.y + Math.sin(ang) * r0); fx.lineTo(c.vp.x + Math.cos(ang) * (r0 + ln), c.vp.y + Math.sin(ang) * (r0 + ln)); fx.stroke();
-        }
+        const s = waveS(c, Math.max(CT.wave, t - i * 22));
+        const al = (i ? 0.3 * (1 - i / 7) : 1) * born * fade;
+        drawCrescent({ x: c.x + c.dx * s, y: c.y + c.dy * s, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy, L: c.L, w: c.w, bend: c.bend, streaks: c.streaks }, 1, al, 1);
       }
     }
-    function drawRift(c, ce) {                                       // khe hư vô: hình nêm mở ra như cánh cửa, sao bay tới như đang lao vào
-      const a = 1 - ramp(ce, 1100, 1500);
-      if (a <= 0) return;
-      const W = innerWidth, H = innerHeight, D = c.D, phi = 0.11 * easeOut3(ramp(ce, 60, 1100)), P = c.pivot, Ln = D * 1.15;
-      const E = (sg) => { const ang = -sg * phi, ca = Math.cos(ang), sa = Math.sin(ang), vx = -c.dx * Ln, vy = -c.dy * Ln; return [P.x + vx * ca - vy * sa, P.y + vx * sa + vy * ca]; };
-      const e1 = E(1), e2 = E(-1);
-      fx.save(); fx.globalAlpha = a;
-      fx.beginPath(); fx.moveTo(P.x, P.y); fx.lineTo(e1[0], e1[1]); fx.lineTo(e2[0], e2[1]); fx.closePath(); fx.clip();
-      fx.fillStyle = '#04000a'; fx.fillRect(0, 0, W, H);
-      const rg = fx.createRadialGradient(c.vp.x, c.vp.y, 4, c.vp.x, c.vp.y, D * 0.55);
-      rg.addColorStop(0, 'rgba(255,90,110,0.55)'); rg.addColorStop(0.25, 'rgba(120,20,70,0.35)'); rg.addColorStop(1, 'rgba(4,0,10,0)');
-      fx.fillStyle = rg; fx.fillRect(0, 0, W, H);
-      fx.lineCap = 'butt';
-      for (let i = 0; i < 120; i++) {
-        const ang = hash1(c, i) * 6.2832, sp = 0.4 + hash1(c, i + 300), f = (hash1(c, i + 90) + ce * 0.0009 * sp) % 1;
-        const r = Math.pow(f, 2.4) * D * 0.95, ln = r * 0.14 + 2, x = c.vp.x + Math.cos(ang) * r, y = c.vp.y + Math.sin(ang) * r;
-        fx.strokeStyle = hash1(c, i + 7) < 0.3 ? 'rgba(255,120,140,0.9)' : 'rgba(255,255,255,0.9)'; fx.lineWidth = 1 + r / 160;
-        fx.beginPath(); fx.moveTo(x - Math.cos(ang) * ln, y - Math.sin(ang) * ln); fx.lineTo(x, y); fx.stroke();
-      }
+    function drawBoneHalf(c, sg, ce) {                              // nửa bone bị cắt: tách ra, xoay, rơi, mờ dần
+      const al = 1 - ramp(ce, 350, 900), bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale;
+      if (al <= 0) return;
+      const sep = easeOut3(ramp(ce, 0, 400)) * 70, fall = 0.5 * 1800 * Math.pow(Math.max(0, ce - 100) / 1000, 2);
+      const bsb = { x: c.x, y: c.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy };
+      fx.save(); fx.globalAlpha = al;
+      fx.translate(c.dx * sg * sep, c.dy * sg * sep + fall);
+      fx.translate(c.x, c.y); fx.rotate(sg * 0.5 * easeOut3(ramp(ce, 0, 700))); fx.translate(-c.x, -c.y);
+      halfClip(bsb, sg);
+      fx.drawImage(BONE_O, Math.round(c.x - bw / 2), Math.round(c.y - bh / 2), bw, bh);
       fx.restore();
-      fx.globalAlpha = a;
-      for (const e of [e1, e2]) {
-        fx.strokeStyle = '#ff3344'; fx.lineWidth = 6; fx.beginPath(); fx.moveTo(P.x, P.y); fx.lineTo(e[0], e[1]); fx.stroke();
-        fx.strokeStyle = '#ffe3e8'; fx.lineWidth = 2; fx.stroke();
+    }
+    function bloodBurst(c, n, spread) {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * 6.2832, v = (1 + Math.random() * spread);
+        c.drops.push({ x: c.sans.x + (Math.random() - 0.5) * 40, y: c.sans.y - 10 + (Math.random() - 0.5) * 50, vx: Math.cos(a) * v + c.dx * 3, vy: Math.sin(a) * v - 4 * Math.random(), s: PX * (0.4 + Math.random() * 0.8), c: Math.random() < 0.4 ? '#8a0010' : '#d0102a', age: 0 });
+      }
+    }
+    function drawDrops(c) {
+      for (let i = c.drops.length - 1; i >= 0; i--) {
+        const p = c.drops[i]; p.age++; p.x += p.vx; p.y += p.vy; p.vy += 0.5; p.vx *= 0.985;
+        if (p.y > innerHeight + 20 || p.age > 160) { c.drops.splice(i, 1); continue; }
+        fx.globalAlpha = Math.min(1, (160 - p.age) / 40); fx.fillStyle = p.c; fx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s * 1.6);
       }
       fx.globalAlpha = 1;
     }
-    function drawHalfCine(c, act, sg, ce) {                          // nửa bone / nửa Sans: tách ra, lăn và rơi xuống, mờ dần
-      const al = 1 - ramp(ce, 950, 1450);
-      if (al <= 0) return;
-      const phi = 0.11 * easeOut3(ramp(ce, 60, 1100)), fall = 0.5 * 1500 * Math.pow(Math.max(0, ce - 250) / 1000, 2);
-      const roll = sg * easeOut3(ramp(ce, 150, 1300)) * 1.1, sep = easeOut3(ramp(ce, 60, 800)) * c.D * 0.05;
-      fx.save(); fx.globalAlpha = al;
-      fx.translate(c.pivot.x, c.pivot.y); fx.rotate(-sg * phi); fx.translate(-c.pivot.x, -c.pivot.y);
-      fx.translate(c.nx * sg * sep, c.ny * sg * sep + fall);
-      const mx = act.x + act.w / 2, my = act.y + act.h / 2;
-      fx.translate(mx, my); fx.rotate(roll); fx.translate(-mx, -my);
-      halfClip(c, sg);
-      fx.drawImage(act.img, Math.round(act.x), Math.round(act.y), act.w, act.h);
-      fx.restore();
-    }
-    function updateHalves(c, ce) {                                   // hai nửa slide xoay quanh điểm tụ như cánh cửa, rồi tan
-      const phi = 0.11 * easeOut3(ramp(ce, 60, 1100)), pw = { x: (c.pivot.x - innerWidth / 2) * c.k, y: -(c.pivot.y - innerHeight / 2) * c.k };
-      for (const h of c.halves) {
-        const a = h.sg * phi, ca = Math.cos(a), sa = Math.sin(a);
-        h.obj.group.rotation.z = a;
-        h.obj.group.position.x = pw.x - (ca * pw.x - sa * pw.y);
-        h.obj.group.position.y = pw.y - (sa * pw.x + ca * pw.y);
-        h.obj.mesh.material.uniforms.uProgress.value = ramp(ce, 600, 1700);
-      }
-    }
-    function cineCut(c) {                                            // khoảnh khắc nhát chém đi qua Sans
-      flash(110, 'rgba(255,255,255,0.6)');
-      startGlitch(900, 0.25, 0.24);                                  // nhiễu nhẹ
-      sparkLine(c, 190);
-      makeCracks(c.x, c.y, c.dx, c.dy);
-      try { navigator.vibrate && navigator.vibrate([70, 40, 140]); } catch (e) { }
-      c.halves = [1, -1].map((sg) => {
-        const half = createSlide(slideImages[soul.i], 0);
-        half.mesh.renderOrder = 2;
-        const u = half.mesh.material.uniforms;
-        u.uCutP.value = screenToLocal(c.x, c.y, half.group);
-        u.uCutN.value = [c.nx, -c.ny];                              // trục y của màn hình ngược với trục y của scene
-        u.uCutSide.value = sg;
-        scene.add(half.group);
-        return { obj: half, sg };
-      });
-      c.cur.group.visible = false;
-    }
     function drawCine(now) {
-      const c = cine, t = now - c.t0, ev = c.ev;
-      if (!ev.block && t >= CT.block) {                              // bone chặn vệt chém
-        ev.block = 1; flash(70, 'rgba(255,255,255,0.5)'); shake(0.8, 3);
+      const c = cine, t = now - c.t0, ev = c.ev, ce = t - CT.hit;
+      const W = innerWidth, H = innerHeight;
+      if (!ev.block && t >= CT.bone) {                              // bone chặn
+        ev.block = 1; flash(70, 'rgba(255,255,255,0.45)'); shake(0.7, 3);
         const cols = ['#ffffff', '#ffd0d8', '#ff3344'];
-        for (let i = 0; i < 40; i++) particles.push({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 14, life: 30 + Math.random() * 30, age: 0, c: cols[(Math.random() * 3) | 0], s: PX * (0.5 + Math.random() * 0.7) });
+        for (let i = 0; i < 30; i++) particles.push({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 26 + Math.random() * 26, age: 0, c: cols[(Math.random() * 3) | 0], s: PX * (0.5 + Math.random() * 0.6) });
       }
-      if (!ev.cut && t >= CT.hit) { ev.cut = 1; cineCut(c); }
-      const p = camAt(t);
-      applyCam(c, p);
-      const W = innerWidth, H = innerHeight, ce = t - CT.hit;
-      const sS = c.sansScale, sw = SANS_O.width * sS, sh = SANS_O.height * sS, bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale;
-      if (ce < 0) {                                                  // Sans đứng sau bone, hiện rõ
-        const par = -p.yaw * 2.2, sxc = c.sans.x + par, syc = c.sans.y + Math.sin(t / 230) * 4;
-        fx.globalAlpha = ramp(t, CT.block + 30, CT.block + 480);
-        fx.drawImage(SANS_O, Math.round(sxc - sw / 2), Math.round(syc - sh / 2), sw, sh);
-        fx.globalAlpha = 1;
-        if (t >= CT.block) {
-          const shk = 2 + Math.min(1, (t - CT.block) / 1500) * 7;
+      if (!ev.tear && t >= CT.wave && waveS(c, t) >= 0) {           // nhát chém đi ngang qua bone: xé màn hình, cắt đôi bone
+        ev.tear = t; flash(80, 'rgba(255,60,80,0.35)'); makeCracks(c.x, c.y, c.nx, c.ny); sparkLine({ x: c.x, y: c.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 90); shake(1.2, 4);
+      }
+      if (!ev.hit && ce >= 0) {                                     // trúng Sans
+        ev.hit = 1; flash(120, 'rgba(255,255,255,0.7)'); impact(3.2); startGlitch(700, 0.2, 0.22);
+        popDamage(c.sans.x, c.sans.y - 0.27 * H, 9999);
+        bloodBurst(c, 90, 11); sparkLine({ x: c.sans.x, y: c.sans.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 80);
+        try { navigator.vibrate && navigator.vibrate([60, 30, 120]); } catch (e) { }
+      }
+      if (ev.hit && ce < 1500 && Math.random() < 0.55) bloodBurst(c, 1, 2.5);      // máu rỉ chảy
+      // ---- Sans ----
+      const hurt = ce >= 0 && SANS_HURT_O;
+      const img = hurt ? SANS_HURT_O : SANS_O, hs = hurt ? 0.46 * H / SANS_HURT.height : c.sansScale;
+      const sw = img.width * hs, sh = img.height * hs;
+      let sx = c.sans.x, sy = c.sans.y + (hurt ? 0.03 * H : Math.sin(t / 230) * 4);
+      if (hurt) { const kb = easeOut3(ramp(ce, 0, 300)) * 34, tr = 8 * Math.pow(Math.max(0, 1 - ce / 500), 2); sx += c.dx * kb + (Math.random() - 0.5) * tr; sy += c.dy * kb + (Math.random() - 0.5) * tr; }
+      fx.globalAlpha = hurt ? 1 : ramp(t, 0, 380);
+      fx.drawImage(img, Math.round(sx - sw / 2), Math.round(sy - sh / 2), sw, sh);
+      fx.globalAlpha = 1;
+      // ---- bone ----
+      if (t >= CT.bone) {
+        if (!ev.tear) {
+          const bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale, shk = 2 + Math.min(1, (t - CT.bone) / 750) * 6;
           fx.drawImage(BONE_O, Math.round(c.x - bw / 2 + (Math.random() - 0.5) * shk), Math.round(c.y - bh / 2), bw, bh);
-        }
-        if (t > CT.up + 50 && t < CT.wave - 150) drawGhostLine(c, c.x - c.nx * c.fwd * 0.22 * c.D, c.y - c.ny * c.fwd * 0.22 * c.D, 1.25, ramp(t, CT.up + 50, CT.up + 650) * (0.75 + 0.25 * Math.sin(t / 110)));
-        if (t >= CT.wave - 150) drawWave(c, t);
-      } else {
-        if (!c.acts) c.acts = { sans: { img: SANS_O, x: c.sans.x - sw / 2, y: c.sans.y - sh / 2, w: sw, h: sh }, bone: { img: BONE_O, x: c.x - bw / 2, y: c.y - bh / 2, w: bw, h: bh } };
-        updateHalves(c, ce);
-        drawRift(c, ce);
-        for (const sg of [1, -1]) { drawHalfCine(c, c.acts.bone, sg, ce); drawHalfCine(c, c.acts.sans, sg, ce); }
-        if (!ev.dust && ce > 1000) { ev.dust = 1; shatterRect({ left: c.acts.sans.x, top: c.acts.sans.y + 700, width: sw, height: sh * 0.8 }, ['#f2f2f2', '#0b0b0b']); }
-        drawWave(c, t);
+        } else { const bce = t - ev.tear; drawBoneHalf(c, 1, bce); drawBoneHalf(c, -1, bce); }
       }
-      drawPov(c, t, p);
+      drawRift(c, t);
+      drawWave(c, t);
+      drawDrops(c);
+      if (ce > 0) {                                                 // viền đỏ nhịp theo cú đánh
+        const a = 0.35 * Math.pow(Math.max(0, 1 - ce / 900), 2);
+        if (a > 0.01) { const g = fx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.95); g.addColorStop(0, 'rgba(180,0,20,0)'); g.addColorStop(1, 'rgba(180,0,20,' + a + ')'); fx.fillStyle = g; fx.fillRect(0, 0, W, H); }
+      }
     }
 
-    // Bị Sans chặn: cảnh điện ảnh góc nhìn người chém (xem trình tự ở trên), kết thúc bằng slide kế lộ ra
+    // Bị Sans chặn: kết thúc bằng màn hình đen 0.5s, trong lúc đó đổi sang slide kế
     async function soulBlockCut(cur, cx, cy) {
       const W = innerWidth, H = innerHeight, D = Math.hypot(W, H);
       const side = cx < W / 2 ? 1 : -1;
       const sans = { x: cx + side * 0.17 * W, y: cy - 0.17 * H };     // Sans đứng trên đường cắt đi qua tâm bone
-      let dx = sans.x - cx, dy = sans.y - cy; const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
-      const nx = -dy, ny = dx, fwd = ny <= 0 ? 1 : -1;
-      const hW = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-      const vp = { x: Math.max(0.12 * W, Math.min(0.88 * W, cx + nx * fwd * 0.55 * D)), y: Math.max(0.1 * H, Math.min(0.9 * H, cy + ny * fwd * 0.55 * D)) };
+      let dx = sans.x - cx, dy = sans.y - cy; const sH = Math.hypot(dx, dy); dx /= sH; dy /= sH;
+      const blk = document.getElementById('cineBlack');
       const c = cine = {
-        t0: performance.now(), x: cx, y: cy, side, dx, dy, nx, ny, fwd, sans, D, vp, cur,
-        L: D * 0.62, w: D * 0.075, bend: (Math.random() < 0.5 ? -1 : 1) * D * 0.045, seed: Math.random() * 1000,
-        pivot: { x: cx + dx * 0.95 * D, y: cy + dy * 0.95 * D }, k: hW / H,
-        sansScale: 0.36 * H / SANS_IMG.height, boneScale: 1.5, halves: null, acts: null, embers: [], ev: {}, camOn: false,
+        t0: performance.now(), x: cx, y: cy, dx, dy, nx: -dy, ny: dx, sans, D, sH, cur, ev: {}, drops: [],
+        L: D * 0.5, w: D * 0.065, bend: D * 0.04, seed: Math.random() * 1000,
+        sansScale: 0.36 * H / SANS_IMG.height, boneScale: 1.5,
         streaks: [{ v: 0.22, t0: -0.7, t1: 0.25 }, { v: -0.15, t0: -0.3, t1: 0.8 }, { v: 0.05, t0: 0.1, t1: 0.9 }, { v: 0.32, t0: -0.9, t1: -0.2 }]
       };
-      await wait(CT.end);
-      stopGlitch();
-      if (c.halves) c.halves.forEach((h) => disposeSlide(h.obj));
-      disposeSlide(cur);
-      resetCam();
-      povCv.style.display = 'none';
-      cine = null;
+      await wait(CT.black);
+      blk.style.transition = 'opacity .25s linear'; blk.style.opacity = '1';      // tối đen
+      await wait(270);
+      stopGlitch(); crack = null; cine = null; particles.length = 0;
+      disposeSlide(cur);                                                // lộ slide kế phía sau lớp đen
+      await wait(500);                                                  // giữ đen 0.5s
+      blk.style.transition = 'opacity .18s linear'; blk.style.opacity = '0';
     }
 
     // Thoát chế độ tim xanh: slide hiện tại tan, quay về danh sách
