@@ -25,6 +25,16 @@ const path = require('path');
       console.log('slide7.png (từ slide7-anim.html)');
       continue;
     }
+    if (i === 10) {   // slide 10 là cảnh kết: xuất khung sân khấu từ slide10-anim.html (giây thứ 17)
+      const p10 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
+      await p10.goto('file://' + path.join(__dirname, 'slide10-anim.html') + '?still=17', { waitUntil: 'load' });
+      await p10.waitForFunction('window.__ready');
+      await p10.evaluate(() => document.fonts.ready);
+      await p10.screenshot({ path: path.join(__dirname, 'slide10.png') });
+      await p10.close();
+      console.log('slide10.png (từ slide10-anim.html)');
+      continue;
+    }
     await page.locator('#slide' + i).screenshot({ path: path.join(__dirname, `slide${i}.png`) });
     console.log('slide' + i + '.png');
   }
