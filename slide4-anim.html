@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 4 - animated street</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    html, body { background: #1b1412; }
+    body { padding: 0; overflow: hidden; }
+    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
+    /* Bố cục slide 4 có phố động: 2 thẻ bên trái, khung phố pixel bên phải, ảnh xe điện thật kẹp ở góc trời */
+    .s4 .title { top: 50px; left: 62px; font-size: 90px; }
+    .s4 .rule { top: 160px; left: 238px; right: 66px; }
+    .s4 .c1 { left: 69px; top: 222px; width: 550px; height: 278px; }
+    .s4 .c2 { left: 69px; top: 525px; width: 550px; height: 280px; }
+    .s4 .card p { max-width: 380px; font-size: 28px; }
+    .vpanel { left: 660px; top: 205px; width: 810px; height: 600px; border: 2px solid var(--line); border-radius: 26px; overflow: hidden;
+              box-shadow: 0 8px 20px rgba(60,30,10,.18); background: #cfe6ee; }
+    #scene { position: absolute; left: 0; top: 0; width: 810px; height: 600px; image-rendering: pixelated; }
+    .snap { margin: 0; background: #fffaf2; padding: 7px; box-shadow: 0 4px 10px rgba(60,30,10,.35); z-index: 3; }
+    .snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .sa { left: 1214px; top: 226px; width: 236px; height: 146px; transform: rotate(2.5deg); }
+  </style>
+</head>
+<body>
+<!--
+  SLIDE 4 (động): phố cũ ~1980 vẽ bằng pixel, không xe máy: xe đạp (nan hoa quay, chân đạp), người đi bộ đội nón lá / mũ cối,
+  xe điện chạy qua kêu "TING!", chuông xe "KRING!", đồ phơi và cờ bay, lá rơi. Ảnh xe điện thật là tấm ảnh kẹp ở góc trời.
+  Cảnh được vẽ bằng code trong <canvas id="scene"> (270x200 điểm ảnh, mỗi điểm = 3px). Chỉnh xe / người ở mảng BIKES, WALKERS.
+  Mở với ?still=giây để dừng ở một khung hình (dùng để xuất slide4.png).
+-->
+<main class="deck">
+  <section class="slide s4" id="slide4">
+    <i class="tape t-tl"></i>
+    <h2 class="title">How People Moved Around</h2>
+    <hr class="rule">
+    <article class="card c1"><h3>Bicycles &amp; Walking</h3><p>Primary transport modes for villagers</p></article>
+    <article class="card c2"><h3>Traffic-Free Streets</h3><p>Quiet roads without motorbikes or heavy traffic</p></article>
+    <div class="vpanel"><canvas id="scene" width="270" height="200"></canvas></div>
+    <figure class="snap sa"><img src="assets/s4-tram.jpg" alt="Tram and bicycles on a street"></figure>
+  </section>
+</main>
+
+<script>
+(() => {
+  const EMBED = location.search.includes('embed');
+  const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const deck = document.querySelector('.deck');
+  function fit() {
+    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
+    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+  }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
+  addEventListener('resize', fit); fit();
+
+  const W = 270, H = 200;
+  const cv = document.getElementById('scene'), g = cv.getContext('2d');
+  const bgc = document.createElement('canvas'); bgc.width = W; bgc.height = H;
+  const bg = bgc.getContext('2d');
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const srnd = mulberry(1980);                    // cảnh nền: cố định
+  let seed = 7;                                    // chuyển động: xác định để chạy lại giống nhau
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => 'rgb(' + hex(a).map((v, i) => Math.round(lerp(v, hex(b)[i], t))).join(',') + ')';
+  const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+
+  function ellipse(c, cx, cy, rx, ry, col) {
+    c.fillStyle = col;
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.0001))); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
+  }
+  function cloud(c, x, y, s) {
+    const rows = [[3, 7], [1, 11], [0, 13], [1, 12]];
+    rows.forEach(([a, w], i) => { R(c, x + a * s, y + i * s, Math.round(w * s), Math.max(1, Math.round(s)), i === 3 ? '#e8dcc8' : '#fffbf2'); });
+    if (s > 1.1) R(c, x + 6 * s, y - 1 * s, Math.round(5 * s), Math.max(1, Math.round(s)), '#fffbf2');
+  }
+  function bird(c, b, t) {
+    const x = Math.round(b.x), y = Math.round(b.y + Math.sin(t * 2 + b.p) * 2), up = Math.floor(t * 6 + b.p * 3) % 2;
+    c.fillStyle = '#44403c';
+    if (up) { c.fillRect(x - 3, y - 2, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y - 2, 2, 1); }
+    else { c.fillRect(x - 3, y, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y, 2, 1); }
+  }
+  // ================= NGƯỜI (pixel) =================
+  function person(o, t) {
+    const d = o.d, k = o.k || 1, ph = o.ph, mv = o.moving;
+    const sw = mv ? Math.sin(ph) : 0, bob = mv ? Math.abs(Math.cos(ph)) * 1.2 * k : 0;
+    const X = Math.round(o.x), Y = Math.round(o.y);
+    const r = (x, y, w, h, col) => {
+      const px = d > 0 ? x : -x - w;
+      g.fillStyle = col;
+      g.fillRect(Math.round(X + px * k), Math.round(Y + y * k - bob), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    };
+    g.fillStyle = 'rgba(60,40,15,.28)'; g.fillRect(Math.round(X - 6 * k), Y, Math.round(12 * k), 1);                  // bóng
+    const s = Math.round(sw * 3 * k), lift1 = mv && Math.cos(ph) > 0 ? 1 : 0, lift2 = mv && Math.cos(ph) < 0 ? 1 : 0;
+    const st = o.style;
+    // chân (quần ống rộng) + dép
+    r(-3 - s, -9 + lift2, 3, 9 - lift2, st.pantsD || st.pants); r(-3 - s, -1 - lift2 * 0, 3, 1, '#2b1d12');
+    r(1 + s, -9 + lift1, 3, 9 - lift1, st.pants); r(1 + s, -1, 3, 1, '#2b1d12');
+    if (o.cane) r(6, -14, 1, 14, '#6b4a2a');
+    // tay xa
+    r(-1 + Math.round(sw * 2.2 * k), -18, 2, 7, st.shirtD, 0);
+    // thân áo + khăn
+    r(-3, -19, 7, 10, st.shirt); r(-3, -10, 7, 1, st.shirtD); r(2, -18, 1, 8, st.shirtL);
+    if (st.scarf) { r(-3, -19, 7, 1, '#ece8da'); r(-2, -19, 1, 1, '#555'); r(0, -19, 1, 1, '#555'); r(2, -19, 1, 1, '#555'); r(-3, -18, 1, 5, '#ece8da'); r(-3, -16, 1, 1, '#555'); }
+    // tay gần
+    r(-1 - Math.round(sw * 2.2 * k), -18, 2, 7, st.shirt); r(-1 - Math.round(sw * 2.2 * k), -11, 2, 1, '#e3b184');
+    // đầu
+    const hx = o.stoop ? 1 : 0;
+    r(-1, -20, 3, 1, '#e3b184'); r(-2 + hx, -24, 5, 4, '#e8b98a'); r(2 + hx, -23, 1, 1, '#222');
+    if (st.hat === 'non') {                                   // nón lá
+      for (const [hy, hw] of [[-31, 1], [-30, 3], [-29, 5], [-28, 7], [-27, 11], [-26, 15]]) {
+        r(-(hw >> 1) + hx, hy, hw, 1, '#f1dea4');
+        if (hw > 1) r(1 + hx, hy, (hw >> 1), 1, hy > -28 ? '#d2b672' : '#dcc588');
+      }
+      r(-7 + hx, -25, 15, 1, '#a88b4a'); r(-2 + hx, -24, 1, 3, '#c9485a');
+    } else if (st.hat === 'coi') {                            // mũ cối
+      r(-3 + hx, -28, 7, 1, '#6a8a4c'); r(-4 + hx, -27, 9, 2, '#5f7e44'); r(-6 + hx, -25, 13, 1, '#465f32'); r(0 + hx, -27, 1, 1, '#d24');
+    } else if (st.hat === 'khan') {                           // khăn đội đầu
+      r(-3 + hx, -26, 7, 3, '#cfcab8'); r(-3 + hx, -26, 7, 1, '#e8e4d4'); r(-1 + hx, -24, 1, 1, '#555');
+    }
+    if (o.pole) {                                             // đòn gánh + 2 thúng
+      const b = Math.round(Math.sin(ph * 2) * 1.2 * k);
+      r(-13, -20 + b, 13, 1, '#8a6a3a'); r(0, -20 - b, 14, 1, '#8a6a3a');
+      for (const [bx, by, sg] of [[-13, b, 1], [13, -b, 2]]) {
+        r(bx, -19 + by, 1, 8, '#6b5530');
+        r(bx - 3, -11 + by, 7, 3, '#8a5a2a'); r(bx - 3, -12 + by, 7, 1, '#aa7a3a'); r(bx - 2, -13 + by, 5, 1, sg === 1 ? '#5f9a3a' : '#d9b04a');
+      }
+    }
+  }
+  // ================= TRANG PHỤC (VN ~1980) =================
+  const STY = {
+    woman:  { shirt: '#6b4a32', shirtD: '#563a27', shirtL: '#7e5a40', pants: '#2c2724', hat: 'non', scarf: true },
+    black:  { shirt: '#34302d', shirtD: '#27231f', shirtL: '#4a4540', pants: '#25201d', hat: 'non', scarf: true },
+    indigo: { shirt: '#3d5382', shirtD: '#2f4068', shirtL: '#4f679c', pants: '#2c2724', hat: 'non', scarf: false },
+    white:  { shirt: '#ebe6d6', shirtD: '#cfc9b6', shirtL: '#fffaf0', pants: '#6b5a3a', hat: 'coi', scarf: false },
+    elder:  { shirt: '#8a6f4a', shirtD: '#715a3b', shirtL: '#9b8058', pants: '#2c2724', hat: 'khan', scarf: false },
+    boy:    { shirt: '#c08a44', shirtD: '#a47235', shirtL: '#d09c56', pants: '#5a4a35', hat: 'non', scarf: false },
+    kid:    { shirt: '#b84a3a', shirtD: '#9a3c2e', shirtL: '#c85e4c', pants: '#3a3a52', hat: 'non', scarf: false }
+  };
+  // ================= CẢNH NỀN: phố cũ Hà Nội ~1980, không xe máy (vẽ 1 lần) =================
+  const BASE = 112;                                                   // chân dãy nhà
+  function px(c, x, y, col) { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), 1, 1); }
+  function drawBackground() {
+    const c = bg, B = [[0, 0], [2, 2], [3, 1], [1, 3]];
+    const top = '#9fd0e6', mid = '#d6ebe4', low = '#fbe6bb';
+    const pal = Array.from({ length: 12 }, (_, i) => { const t = i / 11; return t < 0.55 ? mix(top, mid, t / 0.55) : mix(mid, low, (t - 0.55) / 0.45); });
+    for (let y = 0; y < 110; y++) for (let x = 0; x < W; x++) {
+      const v = y / 110 * 11, b = Math.floor(v), f = v - b, thr = B[(y & 1) * 2 + (x & 1)][0] / 4 * 0.9 + 0.05;
+      R(c, x, y, 1, 1, pal[Math.min(11, f > thr ? b + 1 : b)]);
+    }
+    // toà nhà xa, mờ
+    for (let x = 0, i = 0; x < W; x += 20 + ((i * 7) % 11), i++) { const w = 16 + (i * 5) % 12, h = 18 + (i * 13) % 22; R(c, x, 78 - h + 30, w, h, i % 2 ? '#b9c9cf' : '#c6d2d2'); for (let k = 0; k < 4; k++) R(c, x + 2 + k * 4, 78 - h + 34, 2, 2, '#a6b8c0'); }
+    // dãy nhà phố
+    const HS = [[0, 56, '#e3c27a', '#c9a35a'], [56, 50, '#e9dec2', '#cdbf9c'], [106, 58, '#b7cfa2', '#98b384'], [164, 52, '#d9967a', '#bb7a60'], [216, 54, '#e6cf8a', '#cbb06a']];
+    HS.forEach(([x, w, wall, shade], i) => house(c, x, w, wall, shade, i));
+    // vỉa hè
+    R(c, 0, BASE, W, 11, '#d8cfb8');
+    for (let x = 0; x < W; x += 9) R(c, x, BASE + 4, 1, 7, '#c9bfa4');
+    R(c, 0, BASE + 10, W, 1, '#a89e86'); R(c, 0, BASE + 11, W, 1, '#8d846e');          // bó vỉa
+    // mặt đường
+    R(c, 0, 123, W, 68, '#9b958a');
+    for (let k = 0; k < 900; k++) R(c, srnd() * W, 124 + srnd() * 66, 1 + (srnd() < 0.3 ? 1 : 0), 1, srnd() < 0.5 ? '#8c867b' : '#aaa498');
+    for (let k = 0; k < 18; k++) { const x0 = srnd() * W, y0 = 126 + srnd() * 60; for (let i = 0; i < 10; i++) px(c, x0 + i, y0 + Math.round(Math.sin(i * 0.8) * 1.2), '#7c776d'); }   // vết nứt
+    // đường ray xe điện (làn xa)
+    R(c, 0, 131, W, 1, '#6d675c'); R(c, 0, 133, W, 1, '#6d675c'); R(c, 0, 132, W, 1, '#8a8478');
+    for (let x = 2; x < W; x += 7) R(c, x, 131, 2, 3, '#7a6a52');
+    // lề đường tiền cảnh
+    R(c, 0, 191, W, 9, '#7f9f4c');
+    for (let k = 0; k < 120; k++) R(c, srnd() * W, 191 + srnd() * 9, 2, 2, srnd() < 0.5 ? '#6c8c3d' : '#94b45c');
+    R(c, 0, 190, W, 1, '#8d846e');
+    // cột điện + dây điện xe điện
+    for (const px0 of [24, 120, 214]) { R(c, px0, 52, 2, 60, '#4a4742'); R(c, px0 - 4, 52, 10, 1, '#4a4742'); R(c, px0 - 1, 50, 4, 2, '#6a665f'); }
+    for (let x = 0; x < W; x++) px(c, x, 55 + Math.round(Math.sin(x * 0.03) * 0.5), '#3d3a36');
+    // cây bàng trên vỉa hè (thân; tán vẽ động)
+    for (const tx of [46, 132, 232]) { R(c, tx, 92, 3, 21, '#6a4c30'); R(c, tx + 2, 92, 1, 21, '#533a24'); R(c, tx - 1, 111, 5, 2, '#5a4128'); }
+  }
+  function house(c, x, w, wall, shade, i) {
+    const ht = 46, top = BASE - ht;
+    R(c, x, top, w, ht, wall); R(c, x + w - 3, top, 3, ht, shade);
+    for (let k = 0; k < w * 2; k++) R(c, x + srnd() * w, top + srnd() * ht, 2, 1, srnd() < 0.5 ? shade : mix(wall, '#ffffff', 0.25));
+    R(c, x, top - 1, w, 3, mix(wall, '#ffffff', 0.35)); R(c, x, top + 2, w, 1, shade);                    // gờ cornice
+    // mái ngói
+    for (let r = 0; r < 9; r++) R(c, x + r + (i % 2 ? 0 : 0), top - 2 - r, w - r * 2, 1, r % 2 ? '#a24c34' : '#b9583c');
+    for (let r = 0; r < 9; r++) for (let k = x + r + 2; k < x + w - r - 2; k += 4) px(c, k, top - 2 - r, '#8a3e2a');
+    // tầng 2: 2 cửa sổ có cánh chớp
+    const n = w > 52 ? 3 : 2, gap = (w - n * 11) / (n + 1);
+    for (let k = 0; k < n; k++) {
+      const wx = Math.round(x + gap * (k + 1) + k * 11), wy = top + 10;
+      R(c, wx - 3, wy, 3, 14, '#4d7a54'); R(c, wx + 11, wy, 3, 14, '#4d7a54'); for (let q = 1; q < 14; q += 3) { R(c, wx - 3, wy + q, 3, 1, '#3a5f40'); R(c, wx + 11, wy + q, 3, 1, '#3a5f40'); }
+      R(c, wx, wy, 11, 14, '#33262a'); R(c, wx + 1, wy + 1, 9, 5, '#415a66'); R(c, wx + 5, wy, 1, 14, '#5a4a3a'); R(c, wx - 1, wy + 14, 13, 2, shade); R(c, wx, wy + 16, 11, 1, '#80705a');
+      for (let q = 0; q < 6; q += 2) R(c, wx + q * 2 - 1, wy + 14, 1, 2, '#2d2a28');                         // lan can sắt
+    }
+    // tầng trệt: cửa hàng có mái hiên sọc hoặc cửa gỗ đôi
+    const gy = BASE - 22;
+    if (i % 2 === 0) {
+      R(c, x + 6, gy + 5, w - 12, 17, '#4a3626');
+      for (let q = 0; q < 17; q += 2) R(c, x + 6, gy + 5 + q, w - 12, 1, '#5c4430');
+      R(c, x + 6, gy + 3, w - 12, 5, i === 0 ? '#c8442f' : '#2f6f8a');                                       // mái hiên
+      for (let q = x + 6; q < x + w - 6; q += 4) R(c, q, gy + 3, 2, 5, '#f1e8d2');
+      R(c, x + 6, gy + 8, w - 12, 1, '#2a1c14');
+    } else {
+      R(c, x + w / 2 - 8, gy + 4, 16, 18, '#5b3d27'); R(c, x + w / 2 - 7, gy + 5, 7, 16, '#6e4a2f'); R(c, x + w / 2 + 1, gy + 5, 7, 16, '#6e4a2f');
+      R(c, x + w / 2 - 1, gy + 12, 2, 2, '#d9b25a'); R(c, x + w / 2 - 9, gy + 3, 18, 1, shade);
+      R(c, x + 3, gy + 7, 9, 12, '#33262a'); R(c, x + 4, gy + 8, 7, 4, '#415a66'); R(c, x + w - 12, gy + 7, 9, 12, '#33262a'); R(c, x + w - 11, gy + 8, 7, 4, '#415a66');
+    }
+    // biển hiệu
+    R(c, x + 8, top + 28, w - 16, 5, '#f5edd6'); R(c, x + 8, top + 28, w - 16, 1, '#9a8a6a'); for (let q = 0; q < (w - 20) / 4; q++) R(c, x + 10 + q * 4, top + 30, 2, 2, ['#c0392b', '#2f6f8a', '#33262a'][(q + i) % 3]);
+  }
+
+  // ================= CHUYỂN ĐỘNG NỀN: mây, chim, cờ, đồ phơi, tán cây, lá rơi =================
+  const clouds = [{ x: 20, y: 12, s: 1 }, { x: 140, y: 6, s: 1.3 }, { x: 225, y: 22, s: 0.9 }];
+  const birds = [{ x: 30, y: 30, v: 9, p: 0 }, { x: 14, y: 38, v: 9, p: 1.1 }, { x: 4, y: 26, v: 9, p: 2.0 }];
+  const leaves = [], sparks = [], puffs = [], pops = [];
+  let leafT = 0;
+  function flag(c, x, y, t) {                                          // cờ đỏ sao vàng bay trên nóc nhà
+    R(c, x, y, 1, 22, '#5a4a3a');
+    for (let i = 0; i < 18; i++) {
+      const w = Math.round(Math.sin(t * 5 - i * 0.45) * (1 + i * 0.12));
+      for (let j = 0; j < 12; j++) {
+        const col = '#d8231f', onStar = (i > 5 && i < 13 && j > 2 && j < 9) && ((Math.abs(i - 9) + Math.abs(j - 5.5) * 1.2) < 3.8);
+        px(c, x + 1 + i, y + 1 + j + w, onStar ? '#ffdf3a' : (i > 14 ? '#b81c19' : col));
+      }
+    }
+  }
+  function laundry(c, x1, x2, y, t) {                                  // dây phơi quần áo giữa hai nhà
+    for (let x = x1; x <= x2; x++) px(c, x, y + Math.round(Math.sin((x - x1) / (x2 - x1) * Math.PI) * 3), '#6a5a48');
+    const cols = ['#e8e4d4', '#3d5382', '#c9485a', '#e6d28a', '#7e9a64'];
+    for (let k = 0; k < 5; k++) {
+      const cx = Math.round(x1 + 6 + k * ((x2 - x1 - 12) / 4)), sy = y + Math.round(Math.sin((cx - x1) / (x2 - x1) * Math.PI) * 3), sw = Math.round(Math.sin(t * 2.4 + k * 1.3) * 1.5);
+      for (let j = 0; j < 8; j++) R(c, cx + Math.round(sw * j / 8), sy + 1 + j, 4, 1, cols[k]);
+    }
+  }
+  function canopy(c, x, t, ph) {                                       // tán cây bàng: các cụm lá đung đưa
+    const sw = Math.sin(t * 1.4 + ph), base = 94;
+    const blobs = [[-12, 6, 10], [0, 0, 12], [12, 6, 10], [-6, -7, 9], [7, -6, 9], [0, -12, 7]];
+    for (const [dx, dy, r] of blobs) { ellipse(c, x + 1 + dx + Math.round(sw * (dy < -3 ? 2 : 1)), base + dy, r + 1, Math.round(r * 0.72), '#3f7a3a'); }
+    for (const [dx, dy, r] of blobs) { ellipse(c, x + 1 + dx + Math.round(sw * (dy < -3 ? 2 : 1)) - 1, base + dy - 2, r - 2, Math.round(r * 0.5), '#5a9a48'); }
+    for (let k = 0; k < 18; k++) px(c, x - 14 + ((k * 7 + Math.floor(t * 3 + ph)) % 28), base - 10 + ((k * 5) % 18), k % 2 ? '#7fba5a' : '#2f6a30');
+  }
+  function stepScene(dt, t) {
+    clouds.forEach((c, i) => { c.x += dt * (1.6 + i * 0.7); if (c.x > W + 6) c.x = -20; });
+    birds.forEach((b) => { b.x += dt * b.v; if (b.x > W + 8) b.x = -10; });
+    leafT -= dt;
+    if (leafT < 0) { leafT = 1.1 + rnd(); const tx = [46, 132, 232][Math.floor(rnd() * 3)]; leaves.push({ x: tx + (rnd() - 0.5) * 22, y: 86 + rnd() * 6, a: 0, ph: rnd() * 6, c: rnd() < 0.5 ? '#c8962f' : '#8aa83a' }); }
+    for (let i = leaves.length - 1; i >= 0; i--) { const l = leaves[i]; l.a += dt; l.y += dt * 8; l.x += Math.sin(l.a * 3 + l.ph) * dt * 9 + dt * 4; if (l.y > 118) leaves.splice(i, 1); }
+    for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.a += dt; p.y -= dt * 3; p.x += p.vx * dt; if (p.a > 0.7) puffs.splice(i, 1); }
+    for (let i = pops.length - 1; i >= 0; i--) { pops[i].a += dt; if (pops[i].a > 1.3) pops.splice(i, 1); }
+    for (let i = sparks.length - 1; i >= 0; i--) { sparks[i].a += dt; if (sparks[i].a > 0.25) sparks.splice(i, 1); }
+  }
+
+  // ================= CHỮ NỔI "KRING!" / "TING!" (font 3x5) =================
+  const GL = { K: ['101', '101', '110', '101', '101'], R: ['110', '101', '110', '101', '101'], I: ['111', '010', '010', '010', '111'], N: ['101', '111', '111', '111', '101'], G: ['011', '100', '101', '101', '011'], T: ['111', '010', '010', '010', '010'], '!': ['1', '1', '1', '0', '1'] };
+  function popText(txt, x, y, a) {
+    let w = 0; for (const ch of txt) w += GL[ch][0].length + 1; w -= 1;
+    const x0 = Math.round(x - w / 2), y0 = Math.round(y), al = a < 0.15 ? a / 0.15 : (a > 1.0 ? Math.max(0, 1 - (a - 1.0) / 0.3) : 1), up = Math.round(Math.min(a, 0.4) * 10);
+    g.globalAlpha = al; R(g, x0 - 2, y0 - 2 - up, w + 4, 9, '#fff6d8'); R(g, x0 - 1, y0 + 7 - up, 3, 2, '#fff6d8'); g.fillStyle = '#3a2a1a';
+    g.fillRect(x0 - 3, y0 - 1 - up, 1, 7); g.fillRect(x0 + w + 2, y0 - 1 - up, 1, 7); g.fillRect(x0 - 2, y0 - 3 - up, w + 4, 1); g.fillRect(x0 - 2, y0 + 7 - up - 0, w + 4, 1);
+    let cx = x0; for (const ch of txt) { const gr = GL[ch]; for (let r = 0; r < 5; r++) for (let q = 0; q < gr[r].length; q++) if (gr[r][q] === '1') R(g, cx + q, y0 + r - up, 1, 1, '#c0392b'); cx += gr[0].length + 1; }
+    g.globalAlpha = 1;
+  }
+
+  // ================= XE ĐẠP (pixel, nhìn ngang) =================
+  function line(fn, x0, y0, x1, y1) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) fn(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n)); }
+  const CIRC = (() => { const o = []; for (let a = 0; a < 40; a++) o.push([Math.round(Math.cos(a / 40 * 6.2832) * 6), Math.round(Math.sin(a / 40 * 6.2832) * 6)]); return o; })();
+  function bike(o, t) {
+    const d = o.d, X = Math.round(o.x), Y = Math.round(o.y), k = o.k || 1, mv = o.moving, st = o.style;
+    const P = (x, y, col) => { g.fillStyle = col; g.fillRect(Math.round(X + (d > 0 ? x : -x - 1) * k), Math.round(Y + y * k), Math.max(1, Math.round(k)), Math.max(1, Math.round(k))); };
+    const L = (x0, y0, x1, y1, col) => line((a, b) => P(a, b, col), x0, y0, x1, y1);
+    g.fillStyle = 'rgba(40,30,20,.3)'; g.fillRect(Math.round(X - 12 * k), Y, Math.round(24 * k), 1);
+    // bánh xe + nan hoa quay
+    for (const hx of [-8, 8]) {
+      for (const [cx, cy] of CIRC) P(hx + cx, -6 + cy, '#25221f');
+      for (let s = 0; s < 4; s++) { const a = o.wheel + s * 0.785; L(hx, -6, hx + Math.round(Math.cos(a) * 5), -6 + Math.round(Math.sin(a) * 5), '#b9b3a6'); }
+      P(hx, -6, '#e0d8c4');
+    }
+    // khung xe
+    const fc = o.frame || '#27483b';
+    L(-8, -6, -2, -7, fc); L(-2, -7, -4, -15, fc); L(-4, -15, 6, -14, fc); L(6, -14, 8, -6, fc); L(-2, -7, 6, -14, fc); L(-8, -6, -4, -14, fc);
+    L(5, -15, 9, -17, '#25221f'); P(9, -17, '#cfc9b8'); L(-6, -16, -2, -16, '#25221f');          // ghi-đông + yên
+    if (o.cargo === 'basket') { for (let q = 0; q < 6; q++) { L(8 + 0, -19 + q * 0, 12, -19, '#9a7a44'); } R2(P, 9, -23, 6, 5, '#9a7a44'); R2(P, 10, -26, 4, 3, '#6aa04a'); R2(P, 12, -27, 2, 2, '#d9484a'); }
+    if (o.cargo === 'rack') { R2(P, -15, -20, 9, 6, '#c9a56a'); R2(P, -15, -20, 9, 1, '#a98a52'); R2(P, -13, -22, 5, 2, '#d6b97c'); }
+    // chân đạp quay theo tay quay
+    const pa = o.crank, pdx = Math.round(Math.cos(pa) * 3), pdy = Math.round(Math.sin(pa) * 3), hip = [-4, -17];
+    const legs = [[pdx, pdy, st.pants], [-pdx, -pdy, st.pantsD || st.pants]];
+    for (const [ax, ay, col] of legs) { const fx = -1 + ax, fy = -7 + ay, kx = (hip[0] + fx) / 2 + 3, ky = (hip[1] + fy) / 2 - 1; L(hip[0], hip[1], kx, ky, col); L(kx, ky, fx, fy, col); P(fx, fy, '#2b1d12'); P(fx + 1, fy, '#2b1d12'); }
+    // thân, tay, đầu
+    for (let q = 0; q < 8; q++) { L(-4 + q * 0, -17 - q, 0 + (q >> 1), -17 - q, st.shirt); }
+    R2(P, -4, -17, 6, 2, st.pants);
+    L(-1, -23, 7, -17, st.shirtD); L(-1, -24, 7, -18, st.shirt); P(8, -17, '#e3b184');
+    R2(P, -1, -29, 5, 5, '#e8b98a'); P(3, -27, '#222');
+    if (st.hat === 'non') { for (const [hy, hw] of [[-35, 1], [-34, 3], [-33, 5], [-32, 7], [-31, 11], [-30, 15]]) { R2(P, 1 - (hw >> 1), hy, hw, 1, '#f1dea4'); if (hw > 1) R2(P, 2, hy, hw >> 1, 1, hy > -32 ? '#d2b672' : '#dcc588'); } R2(P, 0, -29, 1, 3, '#c9485a'); }
+    else if (st.hat === 'coi') { R2(P, -2, -33, 7, 1, '#6a8a4c'); R2(P, -3, -32, 9, 2, '#5f7e44'); R2(P, -5, -30, 13, 1, '#465f32'); P(1, -32, '#d24'); }
+    else if (st.hat === 'khan') { R2(P, -2, -31, 7, 3, '#cfcab8'); R2(P, -2, -31, 7, 1, '#e8e4d4'); }
+    if (o.rider2) {                                                    // người ngồi sau, ngồi nghiêng
+      R2(P, -13, -22, 5, 8, o.rider2.shirt); R2(P, -12, -26, 4, 4, '#e8b98a'); R2(P, -14, -14, 4, 5, o.rider2.pants); R2(P, -13, -27, 6, 1, '#cfcab8');
+    }
+  }
+  function R2(P, x, y, w, h, col) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) P(x + i, y + j, col); }
+
+  // ================= XE ĐIỆN (tram) =================
+  const tram = { x: -80, d: 1, v: 24, on: false, wait: 2.2, bell: 0 };
+  function drawTram(t) {
+    const d = tram.d, X = Math.round(tram.x), Y = 134;
+    const r = (x, y, w, h, col) => { const px0 = d > 0 ? x : -x - w; g.fillStyle = col; g.fillRect(X + px0, Y + y, w, h); };
+    g.fillStyle = 'rgba(30,20,10,.3)'; g.fillRect(X - 32, Y, 64, 1);
+    r(-30, -22, 60, 3, '#6d6a64'); r(-31, -19, 62, 5, '#c2392b');                    // mái + dải đỏ
+    r(-31, -14, 62, 11, '#efe6c8'); r(-31, -6, 62, 3, '#c2392b'); r(-31, -3, 62, 2, '#47423b');
+    for (let i = 0; i < 6; i++) { const wx = -27 + i * 9; r(wx, -13, 7, 6, '#9ec3cf'); r(wx, -13, 7, 1, '#6f98a6'); r(wx + 2, -11 + (Math.round(Math.sin(t * 3 + i) * 0.5)), 2, 3, '#4a443d'); }   // cửa sổ + hành khách
+    r(-31, -14, 2, 11, '#d8cfae'); r(29, -14, 2, 11, '#d8cfae'); r(24, -21, 5, 1, '#f1e8d2');                           // đầu xe
+    for (const wx of [-24, -16, 16, 24]) { r(wx - 2, -3, 4, 3, '#25221f'); r(wx - 1, -2, 2, 1, '#8a8478'); }
+    // cần lấy điện lên dây
+    const pxo = d > 0 ? -8 : 8; g.fillStyle = '#3d3a36';
+    line((a, b) => g.fillRect(a, b, 1, 1), X + pxo, Y - 22, X + pxo + (d > 0 ? 6 : -6), 55);
+    if (tram.on && Math.sin(t * 40) > 0.6) { g.fillStyle = '#fff3a0'; g.fillRect(X + pxo + (d > 0 ? 6 : -6) - 1, 54, 3, 2); }
+  }
+  function stepTram(dt, t) {
+    if (!tram.on) { tram.wait -= dt; if (tram.wait <= 0) { tram.on = true; tram.d = -tram.d; tram.x = tram.d > 0 ? -40 : W + 40; tram.bell = 0; pops.push({ txt: 'TING!', x: tram.d > 0 ? 28 : W - 28, y: 100, a: 0 }); } return; }
+    tram.x += tram.d * tram.v * dt;
+    if ((tram.d > 0 && tram.x > W + 44) || (tram.d < 0 && tram.x < -44)) { tram.on = false; tram.wait = 9 + rnd() * 3; }
+  }
+
+  // ================= NGƯỜI & XE =================
+  const BSTY = {
+    a: { shirt: '#ebe6d6', shirtD: '#cfc9b6', pants: '#6b5a3a', hat: 'coi' },
+    b: { shirt: '#3d5382', shirtD: '#2f4068', pants: '#2c2724', hat: 'non' },
+    c: { shirt: '#8a6f4a', shirtD: '#715a3b', pants: '#2c2724', hat: 'khan' },
+    d: { shirt: '#6b4a32', shirtD: '#563a27', pants: '#2c2724', hat: 'non' },
+    e: { shirt: '#b84a3a', shirtD: '#9a3c2e', pants: '#3a3a52', hat: 'coi' }
+  };
+  const BIKES = [
+    { x: 30,  y: 152, d: 1,  v: 18, style: BSTY.a, k: 0.9, frame: '#27483b' },
+    { x: 220, y: 160, d: -1, v: 22, style: BSTY.b, k: 0.95, frame: '#8a2f2a', cargo: 'basket' },
+    { x: 100, y: 170, d: 1,  v: 15, style: BSTY.c, k: 1.0, frame: '#2d3a5a', cargo: 'rack' },
+    { x: 250, y: 181, d: -1, v: 25, style: BSTY.d, k: 1.05, frame: '#27483b', rider2: { shirt: '#c9485a', pants: '#3a3a52' } },
+    { x: 160, y: 147, d: -1, v: 12, style: BSTY.e, k: 0.88, frame: '#5a4a2a' },
+    { x: 60,  y: 186, d: 1,  v: 20, style: BSTY.a, k: 1.08, frame: '#8a2f2a', cargo: 'basket' }
+  ];
+  BIKES.forEach((b, i) => { b.wheel = i; b.crank = i * 1.7; b.moving = true; b.bell = 3 + i * 2.5; });
+  const WALKERS = [
+    { kind: 'person', x: 30,  y: 120, d: 1,  v: 5,  style: STY.woman, pole: true },
+    { kind: 'person', x: 170, y: 121, d: -1, v: 4,  style: STY.elder, cane: true, stoop: true, pausing: true },
+    { kind: 'person', x: 100, y: 120, d: 1,  v: 6,  style: STY.white, pausing: true },
+    { kind: 'person', x: 230, y: 121, d: -1, v: 7,  style: STY.indigo },
+    { kind: 'person', x: 150, y: 124, d: 1,  v: 9,  style: STY.kid, k: 0.7 },
+    { kind: 'person', x: 70,  y: 126, d: -1, v: 6,  style: STY.black, pole: true, pausing: true }
+  ];
+  WALKERS.forEach((w, i) => { w.ph = i * 1.3; w.moving = true; w.wait = 0; w.next = 2 + i * 0.7; });
+  function stepActors(dt, t) {
+    for (const w of WALKERS) {
+      if (w.wait > 0) { w.wait -= dt; w.moving = false; if (w.wait <= 0) { w.moving = true; w.d = rnd() < 0.5 ? w.d : -w.d; } continue; }
+      w.x += w.d * w.v * dt; w.ph += dt * w.v * 0.62;
+      if (w.x > W + 24) w.d = -1; else if (w.x < -24) w.d = 1;
+      if (w.pausing && t > w.next) { w.next = t + 5 + rnd() * 6; w.wait = 1.6 + rnd() * 1.8; }
+    }
+    for (const b of BIKES) {
+      b.x += b.d * b.v * dt; b.wheel += b.v * dt / 6 * b.d; b.crank += b.v * dt / 4.5 * b.d;
+      if (b.x > W + 30) b.x = -30; else if (b.x < -30) b.x = W + 30;
+      if (rnd() < dt * 1.2) puffs.push({ x: b.x - b.d * 14, y: b.y - 1, vx: -b.d * 4, a: 0 });
+      b.bell -= dt; if (b.bell < 0) { b.bell = 8 + rnd() * 8; if (b.x > 24 && b.x < W - 24) pops.push({ txt: 'KRING!', x: b.x, y: b.y - 46, a: 0 }); }
+    }
+  }
+
+  // ================= VẼ MỖI KHUNG =================
+  function draw(t) {
+    g.drawImage(bgc, 0, 0);
+    clouds.forEach((c) => cloud(g, c.x, c.y, c.s));
+    birds.forEach((b) => bird(g, b, t));
+    flag(g, 80, 34, t);
+    laundry(g, 58, 104, 76, t); laundry(g, 168, 214, 74, t + 1.3);
+    // đèn lồng / biển hiệu đung đưa
+    for (const [lx, ly] of [[56, 98], [216, 96]]) { const sw = Math.round(Math.sin(t * 1.6 + lx) * 1.5); R(g, lx, ly, 1, 4, '#4a3a2a'); R(g, lx - 2 + sw, ly + 4, 5, 6, '#d8452f'); R(g, lx - 2 + sw, ly + 4, 5, 1, '#f3c34a'); R(g, lx - 1 + sw, ly + 10, 3, 1, '#f3c34a'); }
+    // xe, người xếp theo y (xa trước, gần sau); xe điện ở làn xa
+    const items = [];
+    items.push({ y: 134, f: () => drawTram(t) });
+    WALKERS.forEach((w) => items.push({ y: w.y, f: () => person(w, t) }));
+    BIKES.forEach((b) => items.push({ y: b.y, f: () => bike(b, t) }));
+    items.sort((a, b) => a.y - b.y).forEach((it) => it.f());
+    for (const p of puffs) { const a = p.a / 0.7; g.globalAlpha = 0.45 * (1 - a); R(g, p.x, p.y, 2 + Math.round(a * 2), 2 + Math.round(a * 2), '#e6dcc4'); }
+    g.globalAlpha = 1;
+    // tán cây phủ lên người đi sát vỉa hè
+    canopy(g, 47, t, 0.3); canopy(g, 133, t, 1.9); canopy(g, 233, t, 3.7);
+    for (const l of leaves) { R(g, l.x, l.y, 2, 1, l.c); }
+    for (const p of pops) popText(p.txt, p.x, p.y, p.a);
+    // cỏ tiền cảnh đung đưa
+    for (let i = 0; i < 70; i++) {
+      const x = i * 3.9 + (i % 3), h = 4 + (i * 7 % 5), sw = Math.sin(t * 2 + i * 0.7) * 1.4;
+      for (let y = 0; y < h; y++) R(g, x + Math.round(sw * y / h * 1.5), 199 - y, 1, 1, i % 4 ? '#6f9440' : '#87ac4e');
+      if (i % 13 === 0) R(g, x + Math.round(sw * 1.5), 199 - h - 1, 2, 2, i % 2 ? '#f6d65a' : '#f2a0b8');
+    }
+  }
+
+  drawBackground();
+  let t = 0, last = 0, acc = 0;
+  const FIX = 1 / 60;
+  function stepAll(dt) { t += dt; stepScene(dt, t); stepTram(dt, t); stepActors(dt, t); }
+  function loop(now) {
+    acc += Math.min(0.1, (now - last) / 1000); last = now;
+    while (acc >= FIX) { stepAll(FIX); acc -= FIX; }
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+  if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) stepAll(FIX); draw(t); window.__ready = true; }
+  else { last = performance.now(); requestAnimationFrame(loop); }
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
+})();
+</script>
+</body>
+</html>
