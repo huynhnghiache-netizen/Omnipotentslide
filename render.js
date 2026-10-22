@@ -25,6 +25,16 @@ const path = require('path');
       console.log('slide4.png (từ slide4-anim.html)');
       continue;
     }
+    if (i === 6) {   // slide 6 có sân giếng pixel: xuất từ slide6-anim.html (dừng ở giây thứ 6.5)
+      const p6 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
+      await p6.goto('file://' + path.join(__dirname, 'slide6-anim.html') + '?still=6.5', { waitUntil: 'load' });
+      await p6.waitForFunction('window.__ready');
+      await p6.evaluate(() => document.fonts.ready);
+      await p6.locator('#slide6').screenshot({ path: path.join(__dirname, 'slide6.png') });
+      await p6.close();
+      console.log('slide6.png (từ slide6-anim.html)');
+      continue;
+    }
     if (i === 7) {   // slide 7 có làng pixel: xuất từ slide7-anim.html (dừng ở giây thứ 6)
       const p7 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
       await p7.goto('file://' + path.join(__dirname, 'slide7-anim.html') + '?still=6', { waitUntil: 'load' });
