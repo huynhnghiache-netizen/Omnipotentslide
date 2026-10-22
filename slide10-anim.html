@@ -27,7 +27,8 @@
   const EMBED = location.search.includes('embed');
   const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
   if (EMBED) document.body.style.background = '#000';
-  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const cv = document.getElementById('c'), mainCtx = cv.getContext('2d');
+  let ctx = mainCtx;
   let W = 0, H = 0, dpr = 1;
   const mask = document.createElement('canvas'), mctx = mask.getContext('2d');
   function resize() {
@@ -315,11 +316,17 @@
     const ta = smooth(ramp(t, T.text, T.text + 1.6));
     if (ta > 0) {
       ctx.save(); ctx.globalAlpha = ta; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const fs = 0.105 * H; ctx.font = '700 ' + fs + 'px Tinos, "Times New Roman", serif'; try { ctx.letterSpacing = (fs * 0.12) + 'px'; } catch (e) { }
-      const gy = 0.36 * H - 0.02 * H * (1 - ta), g = ctx.createLinearGradient(0, gy - fs / 2, 0, gy + fs / 2); g.addColorStop(0, '#fff2bf'); g.addColorStop(0.5, '#f0bf4c'); g.addColorStop(1, '#b57a1a');
-      ctx.shadowColor = 'rgba(255,170,40,0.75)'; ctx.shadowBlur = fs * 0.35; ctx.fillStyle = g; ctx.fillText('THANK YOU', W / 2, gy);
-      ctx.shadowBlur = 0; const fs2 = 0.032 * H; ctx.font = '400 ' + fs2 + 'px Tinos, "Times New Roman", serif'; try { ctx.letterSpacing = (fs2 * 0.18) + 'px'; } catch (e) { }
-      ctx.fillStyle = 'rgba(255,236,200,0.95)'; ctx.fillText('Life in My Neighbourhood · 40 Years Ago', W / 2, gy + fs * 0.8);
+      const L1 = 'THANK YOU FOR LISTENING', L2 = 'ANY THOUGHTS, GUYS?';
+      let fs = 0.075 * H; ctx.font = '700 ' + fs + 'px Tinos, "Times New Roman", serif'; try { ctx.letterSpacing = (fs * 0.08) + 'px'; } catch (e) { }
+      const wmax = 0.62 * W, w1 = ctx.measureText(L1).width; if (w1 > wmax) { fs *= wmax / w1; ctx.font = '700 ' + fs + 'px Tinos, "Times New Roman", serif'; try { ctx.letterSpacing = (fs * 0.08) + 'px'; } catch (e) { } }
+      const gy = 0.34 * H - 0.02 * H * (1 - ta);
+      ctx.save(); ctx.translate(W / 2, gy + fs * 0.45); ctx.scale(1, 0.4);
+      const bg = ctx.createRadialGradient(0, 0, 0, 0, 0, wmax * 0.62); bg.addColorStop(0, 'rgba(25,0,6,0.62)'); bg.addColorStop(0.7, 'rgba(25,0,6,0.4)'); bg.addColorStop(1, 'rgba(25,0,6,0)');
+      ctx.fillStyle = bg; ctx.fillRect(-wmax * 0.65, -wmax * 0.65, wmax * 1.3, wmax * 1.3); ctx.restore();
+      const g = ctx.createLinearGradient(0, gy - fs / 2, 0, gy + fs / 2); g.addColorStop(0, '#fff2bf'); g.addColorStop(0.5, '#f0bf4c'); g.addColorStop(1, '#b57a1a');
+      ctx.shadowColor = 'rgba(255,170,40,0.75)'; ctx.shadowBlur = fs * 0.35; ctx.fillStyle = g; ctx.fillText(L1, W / 2, gy);
+      ctx.shadowBlur = 0; const fs2 = fs * 0.62; ctx.font = '700 ' + fs2 + 'px Tinos, "Times New Roman", serif'; try { ctx.letterSpacing = (fs2 * 0.16) + 'px'; } catch (e) { }
+      ctx.fillStyle = 'rgba(255,238,205,0.97)'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = fs2 * 0.3; ctx.fillText(L2, W / 2, gy + fs * 0.95);
       ctx.restore();
     }
     // lộ ra khỏi vụ nổ trắng
@@ -327,8 +334,177 @@
     if (wa > 0) { ctx.fillStyle = 'rgba(255,248,235,' + wa + ')'; ctx.fillRect(0, 0, W, H); }
   }
 
+  // ================= PHẦN 3: CHÚ CHIM BỒ CÂU (nhân vật hoạt hình tự vẽ) cuốn slide lại rồi chạy mất =================
+  // Bấm / Enter ở slide 10 (sau khi chữ cuối hiện): chim chạy vào giữa sân khấu, nhìn ra màn hình, quay lưng lại,
+  // chạy tới mép trái, cuốn cả cảnh sân khấu thành một cuộn rồi ôm cuộn chạy mất; màn hình đen hẳn.
+  let outro = null;
+  const scBuf = document.createElement('canvas'), scCtx = scBuf.getContext('2d');
+  const OL = '#26212e', C_BODY = '#8493ad', C_BODY2 = '#6c7c9a', C_BELLY = '#c3cde0', C_WING = '#5b6b89', C_BEAK = '#f6a82a', C_LEG = '#ea7a3c', C_CAP = '#d63a42', C_CAP2 = '#9f2630';
+  function ell(x, y, rx, ry, fill, rot, stroke) {
+    ctx.beginPath(); ctx.ellipse(x, y, Math.abs(rx), Math.abs(ry), rot || 0, 0, 6.2832); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke !== false) ctx.stroke();
+  }
+  function poly(pts, fill) { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); ctx.stroke(); }
+  function legs(walk, spread, front) {
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 2; i++) {
+      const ph = walk + i * Math.PI, lift = Math.max(0, -Math.cos(ph)) * 6, fx0 = front ? (i ? 9 : -9) : (-4 + i * 8) + Math.sin(ph) * spread;
+      ctx.strokeStyle = OL; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(front ? fx0 : -2 + i * 4, -26); ctx.lineTo(fx0, -3 - lift); ctx.stroke();
+      ctx.strokeStyle = C_LEG; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(front ? fx0 : -2 + i * 4, -26); ctx.lineTo(fx0, -3 - lift); ctx.stroke();
+      ctx.lineWidth = 2.4; ctx.strokeStyle = OL;
+      if (front) ell(fx0, -2 - lift, 8, 3.6, C_LEG); else poly([[fx0 - 9, -1 - lift], [fx0 + 1, -5 - lift], [fx0 + 3, -1 - lift]], C_LEG);
+    }
+  }
+  function cap(cx, cy, rx, lift, front) {
+    ctx.save(); ctx.translate(cx, cy - lift); ctx.rotate(-lift * 0.02);
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, rx * 0.62, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = C_CAP; ctx.fill(); ctx.stroke();
+    if (front) { ell(0, 1, rx * 1.15, 3.4, C_CAP2); }
+    ell(0, -rx * 0.62, 2.4, 2.4, '#f2c14e');
+    ctx.restore();
+  }
+  // view: 'side' (quay mặt sang trái, lật bằng dir), 'front', 'back'; p: { ph, bob, blink, wave, lookx, looky, lean, push, lift }
+  function pigeon(x, y, h, view, dir, p) {
+    const k = h / 100;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k * (p.sx || 1), k * (p.sy || 1)); ctx.rotate(p.lean || 0);
+    ctx.lineJoin = 'round'; ctx.strokeStyle = OL; ctx.lineWidth = 2.6;
+    // bóng
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(0, 1, 34, 5, 0, 0, 6.2832); ctx.fill(); ctx.restore();
+    const by = -(p.bob || 0);
+    if (view === 'side') {
+      ctx.scale(dir > 0 ? -1 : 1, 1);
+      legs(p.ph || 0, 9, false);
+      ctx.translate(0, by);
+      poly([[20, -52], [52, -60], [55, -46], [50, -36], [22, -38]], C_WING);
+      ell(0, -46, 30, 24, C_BODY); ell(-8, -40, 20, 15, C_BELLY, 0, false);
+      if (p.push) { ctx.lineCap = 'round'; ctx.strokeStyle = OL; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(-8, -46); ctx.lineTo(-40, -38 + (p.push - 1) * 4); ctx.stroke(); ctx.strokeStyle = C_WING; ctx.lineWidth = 7.5; ctx.stroke(); ctx.strokeStyle = OL; ctx.lineWidth = 2.6; ell(-42, -38, 6, 6, C_WING); }
+      else ell(6, -48, 18, 11, C_WING, -0.2);
+      ell(-20, -66, 11, 15, C_BODY); ell(-18, -64, 6.5, 6, 'rgba(110,200,160,0.85)', 0, false);
+      ell(-26, -82, 14.5, 14, '#9aaac6');
+      const e = p.blink ? 0.15 : 1; ell(-31, -84, 5.4, 5.4 * e, '#fff', 0, true); if (!p.blink) ell(-33, -84, 2.5, 2.5, OL, 0, false);
+      poly([[-38, -83], [-53, -78], [-38, -74]], C_BEAK);
+      cap(-26, -91, 13, p.lift || 0, true);
+    } else if (view === 'front') {
+      legs(0, 0, true);
+      ctx.translate(0, by);
+      ell(0, -46, 28, 26, C_BODY); ell(0, -40, 19, 18, C_BELLY, 0, false);
+      ell(-27, -48, 9, 20, C_WING, 0.15);
+      ctx.save(); ctx.translate(24, -62); ctx.rotate(-0.12 - (p.wave || 0) * 1.25); ell(4, 16, 9, 20, C_WING); ctx.restore();
+      ell(0, -64, 13, 12, C_BODY, 0, false); ell(0, -63, 8, 5, 'rgba(110,200,160,0.85)', 0, false);
+      ell(0, -82, 17, 16.5, '#9aaac6');
+      const e = p.blink ? 0.12 : 1;
+      for (const sx of [-1, 1]) { ell(sx * 7.2, -84, 5.8, 5.8 * e, '#fff'); if (!p.blink) ell(sx * 7.2 + (p.lookx || 0) * 2.2, -84 + (p.looky || 0) * 2, 2.8, 2.8, OL, 0, false); }
+      ell(-12, -76, 3.6, 2.2, 'rgba(240,140,150,0.55)', 0, false); ell(12, -76, 3.6, 2.2, 'rgba(240,140,150,0.55)', 0, false);
+      poly([[-4.5, -79], [4.5, -79], [0, -69]], C_BEAK);
+      cap(0, -93, 15, p.lift || 0, true);
+    } else {
+      ctx.translate(0, by);
+      for (let i = -2; i <= 2; i++) { ctx.save(); ctx.translate(i * 7, -24); ctx.rotate(i * 0.22); ell(0, 12, 6.5, 17, i % 2 ? C_WING : C_BODY2); ctx.restore(); }
+      legs(p.ph || 0, 4, true);
+      ell(0, -46, 29, 26, C_BODY2);
+      ell(-14, -46, 11, 21, C_WING, 0.12); ell(14, -46, 11, 21, C_WING, -0.12);
+      ctx.lineWidth = 1.6; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(-14, -60 + i * 8, 7, 0.3, 2.8); ctx.stroke(); ctx.beginPath(); ctx.arc(14, -60 + i * 8, 7, 0.3, 2.8); ctx.stroke(); } ctx.lineWidth = 2.6;
+      ell(0, -66, 13, 11, C_BODY2, 0, false); ell(0, -64, 7, 4.5, 'rgba(110,200,160,0.7)', 0, false);
+      ell(0, -82, 17, 16.5, '#8a9ab6');
+      cap(0, -91, 15.5, p.lift || 0, false);
+    }
+    ctx.restore();
+  }
+  function cloud(x, y, r, a) {                                         // đám bụi hoạt hình
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(60,50,70,0.8)'; ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.fillStyle = '#f6f2ea';
+    for (const [dx, dy, rr] of [[0, 0, 1], [-0.9, 0.2, 0.7], [0.9, 0.25, 0.75], [0.2, -0.65, 0.65]]) { ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, rr * r, 0, 6.2832); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
+  const easeOutQ = (u) => 1 - (1 - u) * (1 - u);
+  const O = { roll0: 4.4, roll1: 5.0, roll2: 8.0, away: 8.5, end: 9.8 };
+  function rollInfo(s) {
+    const rx = 0.04 * W + 0.8 * W * smooth(ramp(s, O.roll1 - 0.5, O.roll2));
+    return { x: rx, r: 0.012 * H + 0.075 * H * Math.sqrt(Math.max(0, rx) / W) };
+  }
+  function drawRollCyl(c, rl, y0, hh, w) {                              // cuộn: các cột ảnh quấn quanh hình trụ + đổ bóng
+    const x0 = rl.x - rl.r, R = rl.r;
+    for (let i = 0; i < 2 * R; i++) {
+      const th = Math.asin(Math.max(-1, Math.min(1, (i - R) / R))), tx = Math.max(0, Math.min(W - 1, rl.x + R * (Math.PI / 2 - th) * 0.9));
+      c.drawImage(scBuf, Math.floor(tx), 0, 1, H, x0 + i * w, y0, w + 0.6, hh);
+    }
+    const g = c.createLinearGradient(x0, 0, x0 + 2 * R * w, 0); g.addColorStop(0, 'rgba(0,0,0,0.65)'); g.addColorStop(0.3, 'rgba(255,255,255,0.18)'); g.addColorStop(0.45, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+    c.fillStyle = g; c.fillRect(x0, y0, 2 * R * w, hh);
+    c.strokeStyle = 'rgba(30,10,10,0.8)'; c.lineWidth = Math.max(2, R * 0.05); c.strokeRect(x0, y0, 2 * R * w, hh);
+  }
+  function drawOutro(t) {
+    const s = t - outro.t0, h = 0.3 * H, yb = 0.94 * H;
+    if (s >= O.end) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); return; }
+    if (scBuf.width !== W || scBuf.height !== H) { scBuf.width = W; scBuf.height = H; }
+    const rolling = s >= O.roll0 + 0.2;
+    if (rolling) { ctx = scCtx; drawStage(t); ctx = mainCtx; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); } else drawStage(t);
+    const rl = rollInfo(s);
+    const cvsx = () => rl.x + rl.r;
+    let px, py = yb, view = 'side', dir = -1, p = { ph: 0, bob: 0 };
+    const rollEndX = rollInfo(O.roll2);
+    const pushX = (rr) => Math.max(rr.x - rr.r - 0.085 * H, 0.07 * H);
+    if (s < 2.0) { const u = s / 2; px = W * (1.14 - 0.64 * easeOutQ(u)); p.ph = s * 11; p.bob = Math.abs(Math.sin(s * 11)) * 3.5; p.lean = Math.sin(s * 11) * 0.05; if (u > 0.85) { p.ph = s * 11 * (1 - (u - 0.85) / 0.15 * 0.8); } }
+    else if (s < 3.3) {
+      view = 'front'; px = W * 0.5; const q = s - 2.0;
+      p.blink = (q > 0.5 && q < 0.62) || (q > 1.1 && q < 1.2); p.lookx = Math.sin(q * 2) * 0.6; p.looky = 0.3 + 0.2 * Math.sin(q * 3);
+      p.wave = smooth(ramp(q, 0.25, 0.45)) * (0.55 + 0.45 * Math.sin((q - 0.25) * 16)) * (1 - ramp(q, 1.1, 1.3)); p.lift = Math.max(0, Math.sin((q - 0.7) * 9)) * 7 * (q > 0.7 && q < 1.05 ? 1 : 0);
+      p.bob = Math.abs(Math.sin(q * 3)) * 1.2;
+    } else if (s < 4.0) {
+      const u = ramp(s, 3.3, 3.9); px = W * 0.5; view = u < 0.5 ? 'front' : 'back'; p.sx = Math.max(0.04, Math.abs(Math.cos(Math.PI * u))); py -= Math.sin(Math.PI * Math.min(1, u)) * 0.035 * H; p.sy = 1 + 0.06 * Math.sin(Math.PI * u);
+    } else if (s < 4.6) {
+      const u = easeOutQ(ramp(s, 4.0, 4.6)); view = 'back'; const tx = pushX(rollInfo(4.6)); px = W * 0.5 + (tx - W * 0.5) * u; p.ph = s * 18; p.bob = Math.abs(Math.sin(s * 18)) * 4; p.lean = -0.1 * Math.sin(Math.PI * u); dir = -1;
+    } else if (s < 4.9) {
+      const u = ramp(s, 4.6, 4.9); px = pushX(rl); view = u < 0.5 ? 'back' : 'side'; dir = 1; p.sx = Math.max(0.04, Math.abs(Math.cos(Math.PI * u)));
+    } else if (s < O.away) {
+      px = pushX(rl); view = 'side'; dir = 1; p.ph = s * 9; p.bob = Math.abs(Math.sin(s * 9)) * 3; p.lean = 0.16 + 0.03 * Math.sin(s * 9); p.push = 1;
+      if (s > O.roll2) { const u = ramp(s, O.roll2, O.away); py -= Math.sin(Math.PI * u) * 0.04 * H; p.lean = 0.16 - 0.2 * u; }
+    } else {
+      const u = (s - O.away) / (O.end - O.away); px = pushX(rollEndX) + (1.5 * W) * u * u * 1.05; view = 'side'; dir = 1; p.ph = s * 24; p.bob = Math.abs(Math.sin(s * 24)) * 5; p.lean = 0.3; p.sx = 1.12;
+    }
+    // vị trí cuộn / cuộn thu nhỏ thành ống giấy ôm trong cánh
+    if (s >= O.roll0 + 0.2) {
+      if (s < O.roll2) {
+        const rr = rl, y0 = 0, hh = H;
+        // phần cảnh còn phẳng
+        mainCtx.drawImage(scBuf, rr.x + rr.r, 0, W - (rr.x + rr.r), H, rr.x + rr.r, 0, W - (rr.x + rr.r), H);
+        drawRollCyl(mainCtx, rr, y0, hh, 1);
+      } else {
+        const u = smooth(ramp(s, O.roll2, O.away)), hh = H * (1 - 0.72 * u), cxp = rollEndX.x + (px + 0.07 * H * 1.0 - rollEndX.x) * u, cyp = H * 0.5 + (yb - 0.2 * H - H * 0.5) * u;
+        const w = 1 + 0.9 * u; mainCtx.save(); mainCtx.translate(cxp, cyp); mainCtx.rotate(u * 0.45 * (dir || 1)); mainCtx.translate(-cxp, -cyp);
+        drawRollCyl(mainCtx, { x: cxp / 1, r: rollEndX.r }, cyp - hh / 2, hh, w);
+        mainCtx.restore();
+      }
+    }
+    // chim
+    ctx = mainCtx;
+    if (s >= 8.5) {                                                  // vệt tốc độ + bụi phía sau
+      for (let i = 0; i < 9; i++) { const yy = yb - (0.02 + hash(i) * 0.26) * H, ll = (0.1 + hash(i + 7) * 0.2) * W, xx = px - 0.08 * W - hash(i + 3) * 0.1 * W; ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 2 + hash(i + 11) * 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(xx, yy); ctx.lineTo(xx - ll, yy); ctx.stroke(); }
+    }
+    for (const d of outro.dust) { const a = 1 - d.age / d.life; if (a > 0) cloud(d.x, d.y, d.r * (0.5 + d.age / d.life), a * 0.9); }
+    if (s > 3.9 && s < 4.7 || s >= 8.4) pigeon(px, py, h, view, dir, p); else pigeon(px, py, h, view, dir, p);
+    if (s >= O.away - 0.05 && s < O.away + 0.35) {                   // chữ hoạt hình "ZOOM!"
+      const u = ramp(s, O.away - 0.05, O.away + 0.35); ctx.save(); ctx.translate(W * 0.5, H * 0.3); ctx.rotate(-0.08); ctx.scale(0.6 + 0.5 * easeOutQ(u), 0.6 + 0.5 * easeOutQ(u)); ctx.globalAlpha = 1 - ramp(u, 0.7, 1);
+      ctx.font = '700 ' + 0.12 * H + 'px Tinos, "Times New Roman", serif'; ctx.textAlign = 'center'; ctx.lineWidth = 0.014 * H; ctx.strokeStyle = '#26212e'; ctx.strokeText('ZOOM!', 0, 0); ctx.fillStyle = '#ffd23c'; ctx.fillText('ZOOM!', 0, 0); ctx.restore();
+    }
+    // đen dần ở cuối
+    const fo = ramp(s, O.end - 0.45, O.end); if (fo > 0) { ctx.fillStyle = 'rgba(0,0,0,' + fo + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+  function stepOutro(dt, t) {
+    if (!outro) return;
+    const s = t - outro.t0, h = 0.3 * H, yb = 0.94 * H;
+    outro.dust = outro.dust.filter((d) => (d.age += dt) < d.life);
+    outro.acc = (outro.acc || 0) + dt;
+    if (outro.acc > 0.07) {
+      outro.acc = 0;
+      let px = null;
+      if (s > 0.1 && s < 2.0) px = W * (1.14 - 0.64 * easeOutQ(s / 2));
+      else if (s > 4.0 && s < 4.6) px = W * 0.5 + (Math.max(rollInfo(4.6).x - rollInfo(4.6).r - 0.085 * H, 0.07 * H) - W * 0.5) * easeOutQ(ramp(s, 4.0, 4.6));
+      else if (s > 4.9 && s < O.away) { const r = rollInfo(s); px = Math.max(r.x - r.r - 0.085 * H, 0.07 * H); }
+      else if (s >= O.away && s < O.end - 0.3) { const u = (s - O.away) / (O.end - O.away), re = rollInfo(O.roll2); px = Math.max(re.x - re.r - 0.085 * H, 0.07 * H) + 1.5 * W * u * u * 1.05; }
+      if (px !== null) outro.dust.push({ x: px + (rnd() - 0.5) * 0.03 * W, y: yb - 0.01 * H, r: (0.014 + rnd() * 0.012) * H, age: 0, life: 0.55 + rnd() * 0.25 });
+    }
+  }
+
   // ================= VÒNG LẶP =================
   function draw(t) {
+    if (outro) { drawOutro(t); return; }
     if (t < T.white1) {
       drawHorror(t);
       const wa = smooth(ramp(t, T.white0, T.white1));
@@ -337,17 +513,20 @@
   }
   let t = 0, last = 0, acc = 0;
   const FIX = 1 / 60;
-  function step() { t += FIX; stepStage(FIX, t); }
+  function step() { t += FIX; stepStage(FIX, t); stepOutro(FIX, t); }
   function loop(now) {
     acc += Math.min(0.1, (now - last) / 1000); last = now;
     while (acc >= FIX) { step(); acc -= FIX; }
     draw(t); requestAnimationFrame(loop);
   }
   function start() {
-    if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) step(); draw(t); window.__ready = true; }
+    if (STILL) { const o = (/[?&]outro=([\d.]+)/.exec(location.search) || [])[1], n = Math.round(parseFloat(STILL) / FIX), at = o ? Math.round((parseFloat(STILL) - parseFloat(o)) / FIX) : -1; for (let i = 0; i < n; i++) { if (i === at) outro = { t0: t, dust: [] }; step(); } draw(t); window.__ready = true; }
     else { last = performance.now(); requestAnimationFrame(loop); }
   }
   if (stage.complete) start(); else { stage.onload = start; stage.onerror = start; }
+  // Trang chính gửi 'finale' khi người xem bấm / Enter ở slide 10: chỉ bắt đầu khi chữ cuối đã hiện, và chỉ một lần
+  addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'finale' && !outro && t >= T.text + 0.8) { outro = { t0: t, dust: [] }; } });
+  if (STILL && /[?&]outro=([\d.]+)/.test(location.search)) { /* xem thử: ?still=T&outro=S bắt đầu cuộn S giây trước T */ }
   addEventListener('keydown', (e) => {
     if (!EMBED || window.parent === window) return;
     if (e.key === 'Backspace') e.preventDefault();

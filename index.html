@@ -109,6 +109,15 @@
       transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
     }
     #soulBack canvas { width: 28px; height: auto; display: block; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #000); animation: soulBeat 1.2s steps(1) infinite; }
+    #soulGear {
+      position: fixed; right: 78px; top: 18px; z-index: 56; width: 48px; height: 48px; padding: 0; display: none;
+      align-items: center; justify-content: center; cursor: pointer;
+      background: rgba(0, 0, 0, 0.6); border: 3px solid #000; box-shadow: 0 5px 0 #000;
+      transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    }
+    #soulGear canvas { width: 28px; height: 28px; display: block; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #000); }
+    #soulGear:hover { transform: translateY(-3px); border-color: #3d66ff; box-shadow: 0 8px 0 #000, 0 0 14px rgba(0, 60, 255, 0.55); }
+    #soulGear:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
     #soulBack:hover { transform: translateY(-3px); border-color: #ff3344; box-shadow: 0 8px 0 #000, 0 0 14px rgba(255, 51, 68, 0.5); }
     #soulBack:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
     #soulBack:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
@@ -128,6 +137,14 @@
     .settings-close { position: absolute; right: 12px; top: 10px; padding: 8px; background: none; border: none; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 14px; color: #fff; }
     .settings-close:hover { color: #ff3344; }
     .settings-hint { position: absolute; left: 20px; bottom: 14px; font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.4); }
+
+    .settings-box.list { height: auto; padding: 58px 22px 46px; }
+    .slide-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .slide-item { font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.5; text-align: left; color: #fff; background: #000; border: 3px solid #fff; padding: 11px 10px; cursor: pointer; }
+    .slide-item b { color: #ff3344; margin-right: 8px; }
+    .slide-item:hover { border-color: #3d66ff; color: #7b97ff; }
+    .slide-item.cur { background: #0a1a66; border-color: #3d66ff; }
+    @media (max-width: 560px) { .slide-list { grid-template-columns: 1fr; } }
 
     .cursor { animation: blink 1s steps(2, start) infinite; }
     .grid-head span { font-size: 12px; letter-spacing: 2px; color: rgba(255, 255, 255, 0.55); text-shadow: 2px 2px 0 #000; }
@@ -246,6 +263,7 @@
   <div id="soulIntro" aria-hidden="true"><canvas id="soulHeart"></canvas></div>
   <canvas id="glitch" aria-hidden="true"></canvas>
   <button id="soulBack" type="button" aria-label="Back to list"></button>
+  <button id="soulGear" type="button" aria-label="Slide list"></button>
 
   <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
   <div id="choose">
@@ -1109,6 +1127,10 @@
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
     // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
     function animGate() {
+      if ((view === 'soul' ? soul.i : currentIndex) === slideImages.length - 1 && (view === 'soul' || view === 'detail')) {   // slide 10: bắt đầu màn chú chim cuốn slide
+        try { anim3.contentWindow.postMessage({ type: 'finale' }, '*'); } catch (e) { }
+        return true;
+      }
       const idx = view === 'soul' ? soul.i : currentIndex;
       if (idx !== 1 || animState === null || animState === 'done') return false;
       const w = anim3.contentWindow;
@@ -1425,8 +1447,26 @@
     gearBtn.appendChild(gearCv);
     heartBtn.appendChild(heartCv);
 
-    function openSettings() {
-      if (view !== 'grid') return;
+    const SLIDE_NAMES = ['Life in My Neighbourhood', 'Group Members', 'A Glimpse into the Past', 'How People Moved Around', 'Daily Living Conditions', 'Water & Electricity Supply', 'How People Spent Free Time', 'Key Changes Over 40 Years', 'Preserving Our Memories', 'Thank You'];
+    const settingsBox = settingsEl.querySelector('.settings-box'), settingsTitle = settingsEl.querySelector('.settings-title');
+    const slideListEl = document.createElement('div'); slideListEl.className = 'slide-list'; settingsBox.appendChild(slideListEl);
+    let settingsFrom = 'grid';
+    function openSettings(from) {
+      from = from || 'grid';
+      if (view !== from) return;
+      settingsFrom = from;
+      slideListEl.innerHTML = '';
+      settingsBox.classList.toggle('list', from === 'soul');
+      settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
+      if (from === 'soul') {                      // chế độ tim xanh: danh sách 10 slide để nhảy nhanh
+        SLIDE_NAMES.forEach((name, n) => {
+          const bt = document.createElement('button');
+          bt.type = 'button'; bt.className = 'slide-item' + (n === soul.i ? ' cur' : '');
+          bt.innerHTML = '<b>' + (n + 1) + '</b>' + name.replace(/&/g, '&amp;');
+          bt.addEventListener('click', (e) => { e.stopPropagation(); soulJump(n); });
+          slideListEl.appendChild(bt);
+        });
+      }
       view = 'settings';
       settingsEl.classList.add('show');
       settingsEl.setAttribute('aria-hidden', 'false');
@@ -1436,9 +1476,9 @@
       if (view !== 'settings') return;
       settingsEl.classList.remove('show');
       settingsEl.setAttribute('aria-hidden', 'true');
-      view = 'grid';
+      view = settingsFrom === 'soul' ? 'soul' : 'grid';
     }
-    gearBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+    gearBtn.addEventListener('click', (e) => { e.stopPropagation(); openSettings('grid'); });
     document.getElementById('settingsClose').addEventListener('click', closeSettings);
     settingsEl.addEventListener('click', (e) => { if (e.target === settingsEl) closeSettings(); });
     // Trái tim xanh: đập một nhịp rồi vào chế độ tim xanh
@@ -1459,6 +1499,8 @@
     const soulIntro = document.getElementById('soulIntro');
     const soulHeartCv = document.getElementById('soulHeart');
     const soulBack = document.getElementById('soulBack');
+    const soulGear = document.getElementById('soulGear');
+    soulGear.appendChild(makeSprite(GEAR_ROWS, (ch) => (ch === 'W' ? '#f2f2f2' : null), 1));
     const glitchCv = document.getElementById('glitch');
     const glitchCx = glitchCv.getContext('2d');
     const containerEl = document.getElementById('canvas-container');
@@ -1589,7 +1631,7 @@
       soulIntro.style.opacity = '1';
       await wait(850);                                                           // glitch giảm dần trên slide 1
       stopGlitch();
-      soulBack.style.display = 'flex';
+      soulBack.style.display = 'flex'; soulGear.style.display = 'flex';
       view = 'soul';
     }
 
@@ -1793,7 +1835,7 @@
       if (view !== 'soul') return;
       view = 'busy';
       hideAnim3Now();
-      soulBack.style.display = 'none';
+      soulBack.style.display = 'none'; soulGear.style.display = 'none';
       const cur = soul.cur;
       dustUntil = performance.now() + DISSOLVE_MS;
       tweenProgress(cur, 1.0, DISSOLVE_MS / 1000, 'none', () => {
@@ -1804,9 +1846,24 @@
     }
 
     soulBack.addEventListener('click', (e) => { e.stopPropagation(); soulExit(); });
+    soulGear.addEventListener('click', (e) => { e.stopPropagation(); openSettings('soul'); });
+    // Nhảy thẳng tới slide n từ danh sách (chế độ tim xanh): slide hiện tại tan, slide n lộ ra
+    async function soulJump(n) {
+      if (view !== 'settings' || settingsFrom !== 'soul') return;
+      closeSettings();
+      if (n === soul.i) return;
+      view = 'busy';
+      if (ANIM_SRC[soul.i]) hideAnim3Now();
+      const cur = soul.cur, next = createSlide(slidePath(n), 0);
+      next.mesh.renderOrder = 0; cur.mesh.renderOrder = 1; scene.add(next.group);
+      await soulDissolve(cur);
+      next.mesh.renderOrder = 1; soul.cur = next; soul.i = n;
+      if (ANIM_SRC[n]) showAnim3(n);
+      view = 'soul';
+    }
     window.addEventListener('click', (e) => {
-      if (view === 'detail' && currentIndex === 1) { animGate(); return; }
-      if (view !== 'soul' || e.target.closest('#soulBack')) return;
+      if (view === 'detail' && (currentIndex === 1 || currentIndex === slideImages.length - 1)) { animGate(); return; }
+      if (view !== 'soul' || e.target.closest('#soulBack') || e.target.closest('#soulGear')) return;
       if (animGate()) return;
       soulStep(1, e.clientX);
     });
@@ -1834,7 +1891,7 @@
         if (view === 'settings') closeSettings();
         else if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
-      } else if ((e.key === 'Enter' || e.key === ' ') && view === 'detail' && currentIndex === 1) {
+      } else if ((e.key === 'Enter' || e.key === ' ') && view === 'detail' && (currentIndex === 1 || currentIndex === slideImages.length - 1)) {
         e.preventDefault();
         animGate();
       }
