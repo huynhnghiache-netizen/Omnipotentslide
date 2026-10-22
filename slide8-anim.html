@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 8 - key changes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    html, body { background: #1b1412; }
+    body { padding: 0; overflow: hidden; }
+    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
+    /* Bố cục slide 8: dải cảnh rộng ở trên (1980 bên trái | 2020s bên phải), hai thẻ nằm ngay dưới mỗi nửa */
+    .s8 .title { top: 34px; left: 68px; font-size: 84px; }
+    .s8 .rule { top: 142px; left: 68px; right: 68px; }
+    .vpanel { left: 68px; top: 160px; width: 1400px; height: 440px; border: 2px solid var(--line); border-radius: 26px; overflow: hidden;
+              box-shadow: 0 8px 20px rgba(60,30,10,.18); background: #cfe6ee; }
+    #scene { position: absolute; left: 0; top: 0; width: 1400px; height: 440px; image-rendering: pixelated; }
+    .s8 .card { padding: 14px 36px 0; }
+    .s8 .card h3 { font-size: 40px; padding-bottom: 10px; margin-bottom: 12px; }
+    .s8 .card li { font: 400 27px/1.45 var(--sans); }
+    .s8 .c1 { left: 68px; top: 624px; width: 690px; height: 216px; }
+    .s8 .c2 { left: 778px; top: 624px; width: 690px; height: 216px; }
+    .snap { margin: 0; background: #fffaf2; padding: 6px; box-shadow: 0 4px 10px rgba(60,30,10,.35); z-index: 3; }
+    .snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .sa { left: 92px; top: 182px; width: 200px; height: 124px; transform: rotate(-2.5deg); }
+    .sb { left: 1262px; top: 182px; width: 190px; height: 124px; transform: rotate(2.2deg); }
+    .yr { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 10px;
+          background: rgba(40,24,12,.82); color: #fff4dc; border: 2px solid #e8c98f; border-radius: 40px; padding: 4px 22px 6px;
+          font: 700 34px/1 var(--serif); letter-spacing: 1px; white-space: nowrap; }
+    .yr small { font: 500 17px/1 var(--sans); color: #e8c98f; letter-spacing: .5px; }
+  </style>
+</head>
+<body>
+<!--
+  SLIDE 8 (động): MỘT dải cảnh pixel chia đôi, cùng một con đường chạy xuyên qua:
+  nửa trái = làng 1980 (nhà tranh, xe đạp, người gánh, xe tải cũ, đèn dầu, trời hoàng hôn màu nâu ấm),
+  nửa phải = 2020s (nhà cao tầng, nhà máy khói, ô tô, xe máy giao hàng, wifi, đèn đường LED, trời xanh).
+  Bầu trời và mặt đường pha màu mượt qua đường phân chia; bảng năm 1980 -> 2020 chạy ở giữa.
+  Cảnh vẽ bằng code trong <canvas id="scene"> (350x110 điểm ảnh, mỗi điểm = 4px). Mở với ?still=giây để dừng ở một khung hình.
+-->
+<main class="deck">
+  <section class="slide s8" id="slide8">
+    <h2 class="title">Key Changes Over 40 Years</h2>
+    <hr class="rule">
+    <div class="vpanel"><canvas id="scene" width="350" height="110"></canvas><div class="yr"><span id="yr">1980</span><small>&rarr; 2020s</small></div></div>
+    <figure class="snap sa"><img src="assets/s8-past.jpg" alt="Street in the 1980s"></figure>
+    <figure class="snap sb"><img src="assets/s8-present.jpg" alt="City skyline in the 2020s"></figure>
+    <article class="card c1">
+      <h3>The Past (1980s)</h3>
+      <ul><li>Simple technology</li><li>Peaceful atmosphere</li><li>Strong face-to-face interaction</li></ul>
+    </article>
+    <article class="card c2">
+      <h3>The Present (2020s)</h3>
+      <ul><li>Modern conveniences</li><li>High-speed internet</li><li>Fast-paced lifestyles</li></ul>
+    </article>
+  </section>
+</main>
+
+<script>
+(() => {
+  const EMBED = location.search.includes('embed');
+  const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const deck = document.querySelector('.deck');
+  function fit() {
+    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
+    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+  }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
+  addEventListener('resize', fit); fit();
+
+  const W = 350, H = 110, SEAM = 175;
+  const cv = document.getElementById('scene'), g = cv.getContext('2d');
+  const bgc = document.createElement('canvas'); bgc.width = W; bgc.height = H;
+  const bg = bgc.getContext('2d');
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const srnd = mulberry(1980);
+  let seed = 11;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => 'rgb(' + hex(a).map((v, i) => Math.round(lerp(v, hex(b)[i], t))).join(',') + ')';
+  const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+  function px(c, x, y, col) { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), 1, 1); }
+  function line(fn, x0, y0, x1, y1) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) fn(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n)); }
+  const L = (c, x0, y0, x1, y1, col) => line((a, b) => px(c, a, b, col), x0, y0, x1, y1);
+  const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function ellipse(c, cx, cy, rx, ry, col) {
+    c.fillStyle = col;
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.0001))); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
+  }
+  function hut(c, x, base, w, flip) {
+    const wallTop = base - 22, roofH = 24, roofTop = wallTop - roofH + 4;
+    ellipse(c, x + w / 2, base, w / 2 + 3, 2, 'rgba(70,50,20,.25)');
+    R(c, x + 4, wallTop, w - 8, 22, '#d6b688');                         // tường đất
+    for (let k = 0; k < 40; k++) R(c, x + 4 + srnd() * (w - 8), wallTop + srnd() * 22, 2, 1, srnd() < 0.5 ? '#c4a373' : '#e4c99c');
+    R(c, x + 4, wallTop, w - 8, 1, '#a98a5c');
+    const dx = flip ? x + w - 22 : x + 12;
+    R(c, dx, wallTop + 8, 10, 14, '#4a3320'); R(c, dx + 1, wallTop + 9, 8, 13, '#2f2014');         // cửa
+    const wx = flip ? x + 10 : x + w - 20;
+    R(c, wx, wallTop + 6, 8, 7, '#5a4128'); R(c, wx + 1, wallTop + 7, 6, 5, '#caa66e'); R(c, wx + 4, wallTop + 7, 1, 5, '#5a4128');   // cửa sổ
+    for (let r = 0; r < roofH; r++) {                                   // mái lá: tam giác thô, vệt rơm
+      const hw = Math.round(w / 2 - 2 + r * 0.28 - (roofH - r) * 0.9 * (w / 56) + (roofH - r) * 0.9 * (w / 56) - (roofH - r) * (w / 2 - 6) / roofH + 6);
+      const half = Math.round(6 + r * ((w / 2 + 2) - 6) / (roofH - 1));
+      const cx = x + w / 2;
+      R(c, cx - half, roofTop + r, half * 2, 1, r % 4 === 3 ? '#7d5a30' : '#a07844');
+      if (r % 4 !== 3) for (let k = 0; k < half / 3; k++) R(c, cx - half + srnd() * half * 2, roofTop + r, 1, 1, srnd() < 0.5 ? '#b88c52' : '#8a6535');
+      R(c, cx - half, roofTop + r, 1, 1, '#6e4c28'); R(c, cx + half - 1, roofTop + r, 1, 1, '#6e4c28');
+      void hw;
+    }
+    R(c, x + w / 2 - 6, roofTop - 1, 12, 2, '#6e4c28');                 // nóc
+    R(c, x + w / 2 - 1, roofTop - 4, 2, 4, '#6e4c28');                  // chóp
+  }
+  function banana(c, x, base) {
+    R(c, x, base - 16, 2, 16, '#7d9a4a');
+    for (let k = 0; k < 6; k++) {
+      const s = k < 3 ? -1 : 1, len = 8 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) { R(c, x + 1 + s * i, base - 18 + Math.round(i * i * 0.04) + (k % 3) * 2, 2, 1, i % 2 ? '#5d9a3c' : '#74b04a'); }
+    }
+  }
+
+  function cloud(c, x, y, s) {
+    const rows = [[3, 7], [1, 11], [0, 13], [1, 12]];
+    rows.forEach(([a, w], i) => { R(c, x + a * s, y + i * s, Math.round(w * s), Math.max(1, Math.round(s)), i === 3 ? '#e8dcc8' : '#fffbf2'); });
+    if (s > 1.1) R(c, x + 6 * s, y - 1 * s, Math.round(5 * s), Math.max(1, Math.round(s)), '#fffbf2');
+  }
+  function bamboo(c, x, h, t, ph) {
+    const base = 134;
+    for (let j = 0; j < 4; j++) {
+      const bx = x + j * 4 + (j % 2), hh = h - j * 5, sw = Math.sin(t * 1.3 + ph + j);
+      for (let y = 0; y < hh; y++) {
+        const off = Math.round(sw * (y / hh) * (y / hh) * 3);
+        R(c, bx + off, base - y, 2, 1, y % 9 === 0 ? '#3f6a22' : (y % 9 < 4 ? '#7fb246' : '#68a03a'));
+      }
+      const tx = bx + Math.round(sw * 3), ty = base - hh;
+      for (let k = 0; k < 6; k++) {
+        const s = k % 2 ? 1 : -1, len = 6 + (k % 3) * 2;
+        for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * 0.55) + (k >> 1) * 3 + Math.round(Math.sin(t * 2 + k + ph) * 0.6), 2, 1, i % 3 ? '#79b043' : '#5f9a34');
+      }
+    }
+  }
+  function areca(c, x, t) {                 // cây cau
+    const base = 134, h = 66, sw = Math.sin(t * 1.1 + 1.7);
+    for (let y = 0; y < h; y++) R(c, x + Math.round(sw * (y / h) * (y / h) * 2), base - y, 2, 1, y % 6 === 0 ? '#7a6a48' : '#9a8a64');
+    const tx = x + Math.round(sw * 2), ty = base - h;
+    for (let k = 0; k < 6; k++) {
+      const s = k % 2 ? 1 : -1, len = 9 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * i * 0.07) + (k >> 1) * 2 + Math.round(Math.sin(t * 2.2 + k) * 0.7), 2, 1, i % 2 ? '#4f8a35' : '#63a042');
+    }
+  }
+  function chicken(c, x, y, t, ph) {
+    const peck = Math.sin(t * 3 + ph) > 0.5 ? 2 : 0;
+    R(c, x, y - 4, 5, 3, '#a8562a'); R(c, x - 1, y - 5, 2, 2, '#8a4220'); R(c, x + 4, y - 6 + peck, 2, 2, '#b86a30'); R(c, x + 4, y - 8 + peck, 1, 1, '#d33'); R(c, x + 6, y - 5 + peck, 1, 1, '#e8a030');
+    R(c, x + 1, y - 1, 1, 2, '#c8a050'); R(c, x + 3, y - 1, 1, 2, '#c8a050');
+  }
+  function bird(c, b, t) {
+    const x = Math.round(b.x), y = Math.round(b.y + Math.sin(t * 2 + b.p) * 2), up = Math.floor(t * 6 + b.p * 3) % 2;
+    c.fillStyle = '#44403c';
+    if (up) { c.fillRect(x - 3, y - 2, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y - 2, 2, 1); }
+    else { c.fillRect(x - 3, y, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y, 2, 1); }
+  }
+  // ================= NGƯỜI (pixel) =================
+  function person(o, t) {
+    const d = o.d, k = o.k || 1, ph = o.ph, mv = o.moving;
+    const sw = mv ? Math.sin(ph) : 0, bob = mv ? Math.abs(Math.cos(ph)) * 1.2 * k : 0;
+    const X = Math.round(o.x), Y = Math.round(o.y);
+    const r = (x, y, w, h, col) => {
+      const px = d > 0 ? x : -x - w;
+      g.fillStyle = col;
+      g.fillRect(Math.round(X + px * k), Math.round(Y + y * k - bob), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    };
+    g.fillStyle = 'rgba(60,40,15,.28)'; g.fillRect(Math.round(X - 6 * k), Y, Math.round(12 * k), 1);                  // bóng
+    const s = Math.round(sw * 3 * k), lift1 = mv && Math.cos(ph) > 0 ? 1 : 0, lift2 = mv && Math.cos(ph) < 0 ? 1 : 0;
+    const st = o.style;
+    // chân (quần ống rộng) + dép
+    r(-3 - s, -9 + lift2, 3, 9 - lift2, st.pantsD || st.pants); r(-3 - s, -1 - lift2 * 0, 3, 1, '#2b1d12');
+    r(1 + s, -9 + lift1, 3, 9 - lift1, st.pants); r(1 + s, -1, 3, 1, '#2b1d12');
+    if (o.cane) r(6, -14, 1, 14, '#6b4a2a');
+    // tay xa
+    r(-1 + Math.round(sw * 2.2 * k), -18, 2, 7, st.shirtD, 0);
+    // thân áo + khăn
+    r(-3, -19, 7, 10, st.shirt); r(-3, -10, 7, 1, st.shirtD); r(2, -18, 1, 8, st.shirtL);
+    if (st.scarf) { r(-3, -19, 7, 1, '#ece8da'); r(-2, -19, 1, 1, '#555'); r(0, -19, 1, 1, '#555'); r(2, -19, 1, 1, '#555'); r(-3, -18, 1, 5, '#ece8da'); r(-3, -16, 1, 1, '#555'); }
+    // tay gần
+    r(-1 - Math.round(sw * 2.2 * k), -18, 2, 7, st.shirt); r(-1 - Math.round(sw * 2.2 * k), -11, 2, 1, '#e3b184');
+    // đầu
+    const hx = o.stoop ? 1 : 0;
+    r(-1, -20, 3, 1, '#e3b184'); r(-2 + hx, -24, 5, 4, '#e8b98a'); r(2 + hx, -23, 1, 1, '#222');
+    if (st.hat === 'non') {                                   // nón lá
+      for (const [hy, hw] of [[-31, 1], [-30, 3], [-29, 5], [-28, 7], [-27, 11], [-26, 15]]) {
+        r(-(hw >> 1) + hx, hy, hw, 1, '#f1dea4');
+        if (hw > 1) r(1 + hx, hy, (hw >> 1), 1, hy > -28 ? '#d2b672' : '#dcc588');
+      }
+      r(-7 + hx, -25, 15, 1, '#a88b4a'); r(-2 + hx, -24, 1, 3, '#c9485a');
+    } else if (st.hat === 'coi') {                            // mũ cối
+      r(-3 + hx, -28, 7, 1, '#6a8a4c'); r(-4 + hx, -27, 9, 2, '#5f7e44'); r(-6 + hx, -25, 13, 1, '#465f32'); r(0 + hx, -27, 1, 1, '#d24');
+    } else if (st.hat === 'khan') {                           // khăn đội đầu
+      r(-3 + hx, -26, 7, 3, '#cfcab8'); r(-3 + hx, -26, 7, 1, '#e8e4d4'); r(-1 + hx, -24, 1, 1, '#555');
+    }
+    if (o.pole) {                                             // đòn gánh + 2 thúng
+      const b = Math.round(Math.sin(ph * 2) * 1.2 * k);
+      r(-13, -20 + b, 13, 1, '#8a6a3a'); r(0, -20 - b, 14, 1, '#8a6a3a');
+      for (const [bx, by, sg] of [[-13, b, 1], [13, -b, 2]]) {
+        r(bx, -19 + by, 1, 8, '#6b5530');
+        r(bx - 3, -11 + by, 7, 3, '#8a5a2a'); r(bx - 3, -12 + by, 7, 1, '#aa7a3a'); r(bx - 2, -13 + by, 5, 1, sg === 1 ? '#5f9a3a' : '#d9b04a');
+      }
+    }
+  }
+  // ================= TRANG PHỤC (VN ~1980) =================
+  const STY = {
+    woman:  { shirt: '#6b4a32', shirtD: '#563a27', shirtL: '#7e5a40', pants: '#2c2724', hat: 'non', scarf: true },
+    black:  { shirt: '#34302d', shirtD: '#27231f', shirtL: '#4a4540', pants: '#25201d', hat: 'non', scarf: true },
+    indigo: { shirt: '#3d5382', shirtD: '#2f4068', shirtL: '#4f679c', pants: '#2c2724', hat: 'non', scarf: false },
+    white:  { shirt: '#ebe6d6', shirtD: '#cfc9b6', shirtL: '#fffaf0', pants: '#6b5a3a', hat: 'coi', scarf: false },
+    elder:  { shirt: '#8a6f4a', shirtD: '#715a3b', shirtL: '#9b8058', pants: '#2c2724', hat: 'khan', scarf: false },
+    boy:    { shirt: '#c08a44', shirtD: '#a47235', shirtL: '#d09c56', pants: '#5a4a35', hat: 'non', scarf: false },
+    kid:    { shirt: '#b84a3a', shirtD: '#9a3c2e', shirtL: '#c85e4c', pants: '#3a3a52', hat: 'non', scarf: false }
+  };
+  // ================= PHƯƠNG TIỆN (pixel) =================
+  function veh(o, fn) {                       // vẽ với toạ độ cục bộ: x dương = phía mũi xe, y âm = lên trên
+    const d = o.d, X = Math.round(o.x), Y = Math.round(o.y);
+    const r = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(X + (d > 0 ? x : -x - w), Y + y, w, h); };
+    fn(r, d);
+  }
+  function wheel(r, cx, cy, rad, ang, tire, spoke) {
+    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; r(Math.round(cx + Math.cos(a) * rad), Math.round(cy + Math.sin(a) * rad), 1, 1, tire); }
+    r(Math.round(cx + Math.cos(ang) * (rad - 1)), Math.round(cy + Math.sin(ang) * (rad - 1)), 1, 1, spoke);
+    r(Math.round(cx - Math.cos(ang) * (rad - 1)), Math.round(cy - Math.sin(ang) * (rad - 1)), 1, 1, spoke);
+  }
+  function bicycle(o, t) {
+    veh(o, (r) => {
+      const a = o.x * 0.35, pd = Math.round(Math.sin(a) * 2);
+      r(-12, 0, 24, 1, 'rgba(60,40,15,.25)');
+      wheel(r, -5, -3, 3, a, '#2b2622', '#8a8378'); wheel(r, 5, -3, 3, a, '#2b2622', '#8a8378');
+      r(-5, -4, 10, 1, '#4a4038'); r(-1, -9, 1, 6, '#4a4038'); r(4, -9, 1, 6, '#4a4038'); r(-3, -9, 5, 1, '#4a4038'); r(3, -10, 3, 1, '#4a4038');
+      r(-4, -10, 3, 1, '#2b1d12');
+      r(-3 + pd, -8, 1, 5, o.pants); r(0, -8 - pd, 1, 5, o.pants);
+      r(-3, -16, 4, 7, o.shirt); r(1, -15, 4, 1, o.shirt); r(2, -16, 1, 1, '#e3b184');
+      r(-2, -19, 4, 3, '#e8b98a');
+      if (o.hat) { r(-5, -20, 10, 1, '#f1dea4'); r(-3, -21, 6, 1, '#f1dea4'); r(-1, -22, 2, 1, '#dcc588'); }
+    });
+  }
+  function bike(o, t) {                      // xe máy: người lái + (tuỳ chọn) thùng giao hàng
+    veh(o, (r) => {
+      const a = o.x * 0.5;
+      r(-9, 0, 18, 1, 'rgba(0,0,0,.28)');
+      wheel(r, -6, -3, 3, a, '#16171b', '#9a9a9a'); wheel(r, 6, -3, 3, a, '#16171b', '#9a9a9a');
+      r(-5, -7, 9, 3, o.col); r(-5, -8, 5, 1, '#222'); r(3, -7, 3, 1, o.col); r(6, -10, 1, 4, '#333'); r(5, -11, 3, 1, '#333');
+      r(7, -8, 1, 2, '#fff2a8');
+      r(-3, -13, 3, 5, o.pants); r(-1, -11, 4, 1, o.pants);
+      r(-4, -19, 4, 7, o.shirt); r(0, -17, 5, 1, o.shirt);
+      r(-4, -23, 5, 4, o.helm); r(0, -22, 1, 2, '#9fd0e8');
+      if (o.box) { r(-11, -20, 7, 8, '#22a85a'); r(-11, -20, 7, 1, '#6fd69b'); r(-9, -17, 3, 2, '#e9fff1'); }
+      if (o.pill) { r(-4, -12, 3, 3, '#f0c8a0'); r(-5, -17, 5, 1, o.pill); }
+    });
+  }
+  function car(o, t) {
+    veh(o, (r) => {
+      r(-14, 0, 28, 1, 'rgba(0,0,0,.3)');
+      r(-14, -6, 28, 5, o.col); r(-14, -7, 26, 1, o.colL); r(-14, -2, 28, 1, o.colD);
+      r(-8, -11, 15, 4, o.col); r(-7, -12, 12, 1, o.colL);
+      r(-7, -11, 6, 4, '#9fd0e8'); r(0, -11, 6, 4, '#9fd0e8'); r(-7, -11, 6, 1, '#c7e6f4'); r(0, -11, 6, 1, '#c7e6f4');
+      r(-11, -3, 5, 4, '#15161a'); r(6, -3, 5, 4, '#15161a'); r(-10, -2, 3, 2, '#9a9a9a'); r(7, -2, 3, 2, '#9a9a9a');
+      r(13, -6, 1, 2, '#fff6b0'); r(-14, -6, 1, 2, '#e23b3b');
+      g.fillStyle = 'rgba(255,246,176,.16)'; const X = Math.round(o.x); g.fillRect(o.d > 0 ? X + 14 : X - 24, Math.round(o.y) - 6, 10, 3);
+    });
+  }
+  function truck(o, t) {                      // xe tải cũ thùng bạt, xả khói đen
+    veh(o, (r) => {
+      r(-17, 0, 34, 1, 'rgba(50,35,15,.3)');
+      r(-17, -15, 22, 11, '#6d7a52'); r(-17, -15, 22, 1, '#7f8d62'); r(-17, -5, 22, 2, '#4a4a40');
+      r(5, -13, 11, 9, '#5b6a45'); r(5, -13, 11, 1, '#6d7c55'); r(11, -12, 4, 4, '#b8c9a8'); r(15, -6, 2, 3, '#e8d9a0');
+      r(-17, -4, 34, 1, '#3a352c');
+      for (const wx of [-12, -5, 9]) { r(wx, -4, 5, 5, '#1e1b18'); r(wx + 1, -3, 3, 3, '#6a6760'); }
+      r(-18, -9, 1, 4, '#3b3b34');
+    });
+  }
+  // ================= NỀN: một con đường, hai thời đại =================
+  const BASE = 78;                                                     // chân nhà / mép vỉa hè
+  const TOWER = { x: 237, y: 18 };
+  const BLD = [[186, 20, 30, '#6f7f99'], [208, 16, 40, '#8394ad'], [226, 22, 60, '#5d6f8c'], [250, 16, 36, '#7a8ca6']];
+  const WINDOWS = [];
+  const CHIM = [[282, 36], [294, 42], [306, 38]];
+  const skyL = (y) => mix('#d79f70', '#f6dfb4', y / 80), skyR = (y) => y < 50 ? mix('#3f6db5', '#e8a98c', y / 50) : mix('#e8a98c', '#fbd9a8', (y - 50) / 30);
+  function drawBackground() {
+    const c = bg;
+    for (let x = 0; x < W; x++) {
+      const m = smooth(SEAM - 26, SEAM + 26, x);
+      for (let y = 0; y < BASE + 4; y += 2) { R(c, x, y, 1, 2, mix(hexOf(skyL(y)), hexOf(skyR(y)), m)); }
+    }
+    // mặt trời lặn mờ phía 1980
+    c.globalAlpha = 0.22; ellipse(c, 112, 62, 30, 20, '#ffe6a8'); c.globalAlpha = 0.4; ellipse(c, 112, 66, 18, 12, '#ffd27a'); c.globalAlpha = 1; ellipse(c, 112, 68, 10, 7, '#ffcf80');
+    // núi / đường chân trời (pha từ đồi sang đường bao toà nhà xa)
+    for (let x = 0; x < W; x++) {
+      const m = smooth(SEAM - 20, SEAM + 20, x);
+      const y1 = 64 + Math.sin(x * 0.045) * 5 + Math.sin(x * 0.13 + 1) * 2;
+      R(c, x, y1, 1, BASE - y1, mix('#a89678', '#7c8ba6', m));
+    }
+    for (let x = 0; x < SEAM - 10; x += 3) { const h = 5 + srnd() * 6; R(c, x, BASE - h, 4, h, srnd() < 0.5 ? '#6f6a48' : '#7d7650'); }
+    // 1980: nhà tranh, chuối, hàng rào, cột gỗ có bóng đèn
+    hut(c, 6, BASE + 2, 52, false); hut(c, 104, BASE + 2, 48, true);
+    banana(c, 66, BASE - 2); banana(c, 98, BASE - 4);
+    for (let x = 12; x < 52; x += 6) R(c, x, BASE - 3, 1, 6, '#7a5a34'); R(c, 12, BASE - 1, 40, 1, '#8c6b40');
+    R(c, 160, 38, 2, BASE - 38 + 4, '#6b4a2a'); R(c, 154, 44, 14, 1, '#5a3a1e'); R(c, 164, 45, 1, 3, '#d9c28a');
+    L(c, 130, 49, 154, 44, '#3d3a36');
+    // 2020s: toà nhà kính, tháp, nhà máy
+    for (const [bx, bw, bh, col] of BLD) {
+      R(c, bx, BASE - bh, bw, bh, col); R(c, bx, BASE - bh, bw, 1, '#c9d6e8'); R(c, bx + bw - 3, BASE - bh, 3, bh, 'rgba(0,0,0,.16)'); R(c, bx + 1, BASE - bh + 1, 2, bh - 1, 'rgba(255,255,255,.12)');
+      for (let wy = BASE - bh + 4; wy < BASE - 4; wy += 4) for (let wx = bx + 3; wx < bx + bw - 3; wx += 4) WINDOWS.push([wx, wy]);
+    }
+    R(c, TOWER.x + 9, TOWER.y - 6, 1, 8, '#9fb0c8'); R(c, TOWER.x + 8, TOWER.y + 1, 3, 1, '#e23b3b');
+    // nhà máy: mái răng cưa, ống khói sọc đỏ trắng
+    R(c, 270, 60, 76, BASE - 60, '#9c978f'); R(c, 270, 60, 76, 2, '#b4afa6'); R(c, 270, BASE - 4, 76, 4, '#7f7a72');
+    for (let x = 272; x < 340; x += 12) { for (let k = 0; k < 6; k++) R(c, x + k, 55 + (6 - k) - 1, 12 - k, 1, '#827d75'); R(c, x, 58, 1, 3, '#6a665f'); }
+    for (let x = 274; x < 344; x += 7) R(c, x, 66, 4, 3, '#e7c97a');
+    R(c, 296, 70, 12, 8, '#5f5a52'); R(c, 297, 71, 10, 7, '#3a3733');
+    for (const [cx, top] of CHIM) { R(c, cx, top, 5, 60 - top, '#d8d4cc'); for (let y = top; y < 58; y += 6) R(c, cx, y, 5, 2, '#c0463a'); R(c, cx - 1, top, 7, 1, '#6a665f'); }
+    // mặt đất: hoà dần từ đất làng + cỏ sang vỉa hè + nhựa đường
+    for (let x = 0; x < W; x++) {
+      const m = smooth(SEAM - 26, SEAM + 26, x);
+      R(c, x, BASE, 1, 6, mix('#8fae5c', '#b9b6ae', m));
+      R(c, x, BASE + 6, 1, 22, mix('#cba56a', '#44474e', m));
+      R(c, x, BASE + 28, 1, 4, mix('#7f9f4c', '#8f8c85', m));
+    }
+    for (let k = 0; k < 500; k++) { const x = srnd() * SEAM, y = BASE + 7 + srnd() * 20; R(c, x, y, 1 + (srnd() < 0.3 ? 1 : 0), 1, srnd() < 0.5 ? '#bb9559' : '#dcbd86'); }
+    for (let k = 0; k < 400; k++) { const x = SEAM + 10 + srnd() * (W - SEAM - 10), y = BASE + 7 + srnd() * 20; R(c, x, y, 1, 1, srnd() < 0.5 ? '#3b3d43' : '#51545b'); }
+    R(c, 0, BASE, SEAM - 24, 2, '#8fae5c'); for (let k = 0; k < 60; k++) R(c, srnd() * (SEAM - 20), BASE + srnd() * 3, 2, 1, srnd() < 0.5 ? '#7d9c4c' : '#a2c06a');
+    // đèn đường LED
+    for (const lx of [200, 258, 332]) { R(c, lx, 50, 1, BASE - 50, '#5e6670'); R(c, lx, 50, 6, 1, '#5e6670'); R(c, lx + 5, 51, 3, 1, '#e8f4ff'); }
+    // đường ranh: vệt mờ nơi hai thời đại gặp nhau
+    for (let y = 0; y < H; y++) { const a = 0.10 + 0.05 * Math.sin(y * 0.9); R(c, SEAM, y, 1, 1, 'rgba(255,244,220,' + a + ')'); }
+  }
+  function hexOf(rgb) { const m = /(\d+),(\d+),(\d+)/.exec(rgb); return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join(''); }
+  function halo(c, x, y, r, col, a) { for (let i = 4; i >= 1; i--) { c.globalAlpha = a * (5 - i) / 5 * 0.55; ellipse(c, x, y, r * i / 4, r * i / 4 * 0.8, col); } c.globalAlpha = 1; }
+  // ================= HOẠT ĐỘNG =================
+  const MOD = {
+    pp: { shirt: '#d9503f', shirtD: '#b13c2e', shirtL: '#ea6a58', pants: '#2d3a5a', hat: null },
+    pb: { shirt: '#3b8f8a', shirtD: '#2d7570', shirtL: '#52a8a2', pants: '#3a3a42', hat: null },
+    pg: { shirt: '#e6d36a', shirtD: '#c9b552', shirtL: '#f3e48a', pants: '#27303f', hat: null }
+  };
+  const clouds = [{ x: 30, y: 12, s: 1, v: 1.4 }, { x: 140, y: 22, s: 0.8, v: 1.0 }, { x: 250, y: 10, s: 1.1, v: 1.8 }, { x: 330, y: 28, s: 0.7, v: 1.2 }];
+  const birds = [{ x: 60, y: 30, p: 0, v: 6 }, { x: 80, y: 26, p: 1.5, v: 6 }, { x: 40, y: 36, p: 3, v: 6 }];
+  const L_ACT = [   // phía 1980 (cắt ở đường phân chia)
+    { k: 'walk', x: 20, y: 96, d: 1, v: 9, style: STY.woman, pole: true, sc: 0.8 },
+    { k: 'walk', x: 120, y: 102, d: -1, v: 5, style: STY.elder, cane: true, stoop: true, sc: 0.8 },
+    { k: 'walk', x: 60, y: 99, d: 1, v: 15, style: STY.kid, sc: 0.62 },
+    { k: 'stand', x: 76, y: 106, d: 1, style: STY.white, sc: 0.8 }, { k: 'stand', x: 90, y: 106, d: -1, style: STY.indigo, sc: 0.8 },
+    { k: 'bic', x: 10, y: 92, d: 1, v: 22, pants: '#2c2724', shirt: '#3d5382', hat: true },
+    { k: 'bic', x: 100, y: 105, d: 1, v: 17, pants: '#5a4a35', shirt: '#ebe6d6', hat: false },
+    { k: 'truck', x: -30, y: 98, d: 1, v: 11 }
+  ];
+  const R_ACT = [   // phía 2020s
+    { k: 'car', x: 230, y: 100, d: 1, v: 34, col: '#d94a4a', colL: '#ee7a7a', colD: '#9b2f2f' },
+    { k: 'car', x: 330, y: 92, d: -1, v: 30, col: '#e9e9ee', colL: '#ffffff', colD: '#b9b9c4' },
+    { k: 'car', x: 190, y: 92, d: -1, v: 26, col: '#2f5fb8', colL: '#5a86d8', colD: '#1f4388' },
+    { k: 'bike', x: 200, y: 106, d: 1, v: 52, col: '#c0392b', shirt: '#2d3a5a', pants: '#2a2a30', helm: '#f2c335', box: true },
+    { k: 'bike', x: 300, y: 98, d: -1, v: 46, col: '#2b2b30', shirt: '#e6e6ea', pants: '#34344a', helm: '#d94a4a', pill: '#e6b8c8' },
+    { k: 'bike', x: 260, y: 104, d: 1, v: 40, col: '#3a8f6a', shirt: '#d98a3a', pants: '#2a2a30', helm: '#3a3a42', box: false },
+    { k: 'walk', x: 215, y: 84, d: 1, v: 11, style: MOD.pp, sc: 0.8, phone: true },
+    { k: 'walk', x: 330, y: 84, d: -1, v: 11, style: MOD.pb, sc: 0.8, phone: true },
+    { k: 'stand', x: 292, y: 84, d: 1, style: MOD.pg, sc: 0.8, phone: true }, { k: 'stand', x: 301, y: 84, d: -1, style: MOD.pb, sc: 0.8, phone: true }
+  ];
+  const puffs = [], arcs = [];
+  let puffT = 0, arcT = 0;
+  const CARC = ['#d94a4a', '#e9e9ee', '#2f5fb8', '#e6b53a', '#3a8f6a', '#7a4fb0', '#2b2b30'];
+  function stepScene(dt, t) {
+    clouds.forEach((c) => { c.x += c.v * dt; if (c.x > W + 30) c.x = -40; });
+    birds.forEach((b) => { b.x += b.v * dt; if (b.x > SEAM + 20) { b.x = -10; } });
+    puffT -= dt;
+    if (puffT <= 0) { puffT = 0.55; for (const [cx, top] of CHIM) puffs.push({ x: cx + 2, y: top - 2, a: 0, r: 2 }); }
+    for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.a += dt; p.y -= 5 * dt; p.x += (4 + p.a * 3) * dt; p.r = 2 + p.a * 3.2; if (p.a > 5) puffs.splice(i, 1); }
+    arcT -= dt; if (arcT <= 0) { arcT = 0.7; arcs.push({ a: 0 }); }
+    for (let i = arcs.length - 1; i >= 0; i--) { arcs[i].a += dt; if (arcs[i].a > 2.1) arcs.splice(i, 1); }
+  }
+  function stepActors(dt, t) {
+    for (const o of L_ACT) {
+      if (o.k === 'stand') continue;
+      o.x += o.d * o.v * dt; if (o.k === 'walk') o.ph = (o.ph || 0) + dt * (o.v > 12 ? 11 : 7);
+      if (o.d > 0 && o.x > SEAM + 40) o.x = -40 - rnd() * 40;
+      if (o.d < 0 && o.x < -40) o.x = SEAM + 30 + rnd() * 30;
+    }
+    for (const o of R_ACT) {
+      if (o.k === 'stand') continue;
+      o.x += o.d * o.v * dt; if (o.k === 'walk') o.ph = (o.ph || 0) + dt * 7;
+      if (o.d > 0 && o.x > W + 40) { o.x = SEAM - 40 - rnd() * 30; if (o.k === 'car') { const i = Math.floor(rnd() * CARC.length); o.col = CARC[i]; o.colL = mix(CARC[i], '#ffffff', 0.35); o.colD = mix(CARC[i], '#000000', 0.3); } }
+      if (o.d < 0 && o.x < SEAM - 40) { o.x = W + 40 + rnd() * 40; if (o.k === 'car') { const i = Math.floor(rnd() * CARC.length); o.col = CARC[i]; o.colL = mix(CARC[i], '#ffffff', 0.35); o.colD = mix(CARC[i], '#000000', 0.3); } }
+    }
+  }
+  function actor(o, t) {
+    if (o.k === 'walk' || o.k === 'stand') {
+      const moving = o.k === 'walk', b = o.k === 'stand' ? Math.sin(t * 1.6 + o.x) : 0;
+      person({ x: o.x, y: o.y, d: o.d, k: o.sc, ph: o.ph || 0, moving, style: o.style, pole: o.pole, cane: o.cane, stoop: o.stoop }, t);
+      if (o.phone) {                                         // điện thoại: ô sáng xanh trước ngực + quầng sáng
+        const X = Math.round(o.x + o.d * 5 * o.sc), Y = Math.round(o.y - 12 * o.sc);
+        g.fillStyle = 'rgba(150,220,255,.28)'; g.fillRect(X - 2, Y - 2, 5, 5); R(g, X, Y, 1, 2, '#bfe8ff');
+      }
+      if (o.k === 'stand' && !o.phone && Math.sin(t * 2.2 + o.x) > 0.3) {    // hai người nói chuyện: tay vung nhẹ (bong bóng thoại)
+        const X = Math.round(o.x + o.d * 4), Y = Math.round(o.y - 28);
+        R(g, X, Y, 4, 3, '#fffaf0'); R(g, X + (o.d > 0 ? 0 : 3), Y + 3, 1, 1, '#fffaf0'); px(g, X + 1, Y + 1, '#8a6a3a'); px(g, X + 2, Y + 1, '#8a6a3a');
+      }
+    } else if (o.k === 'bic') bicycle({ x: o.x, y: o.y, d: o.d, pants: o.pants, shirt: o.shirt, hat: o.hat }, t);
+    else if (o.k === 'bike') bike(o, t);
+    else if (o.k === 'car') car(o, t);
+    else if (o.k === 'truck') {
+      truck(o, t);
+      for (let i = 0; i < 3; i++) { const q = (t * 1.2 + i / 3) % 1, X = o.x - o.d * (19 + q * 8), Y = o.y - 9 - q * 7; g.globalAlpha = 0.5 * (1 - q); px(g, X, Y, '#2d2a28'); R(g, X, Y, 2, 2, '#35322f'); g.globalAlpha = 1; }
+    }
+  }
+  function sideDraw(x0, x1, list, t) {
+    g.save(); g.beginPath(); g.rect(x0, 0, x1 - x0, H); g.clip();
+    list.slice().sort((a, b) => a.y - b.y).forEach((o) => actor(o, t));
+    g.restore();
+  }
+  function draw(t) {
+    g.drawImage(bgc, 0, 0);
+    clouds.forEach((c) => cloud(g, c.x, c.y, c.s));
+    g.save(); g.beginPath(); g.rect(0, 0, SEAM - 4, H); g.clip(); birds.forEach((b) => bird(g, b, t)); g.restore();
+    // cây tre, cau, gà phía làng (trước nhà, sau người)
+    g.save(); g.beginPath(); g.rect(0, 0, SEAM - 8, H); g.clip(); areca(g, 74, t); areca(g, 140, t + 2); bamboo(g, 112, 30, t, 6.4); chicken(g, 40, 104, t, 0); chicken(g, 132, 96, t, 2.2); g.restore();
+    // cửa sổ toà nhà: lác đác sáng đèn
+    WINDOWS.forEach((w, i) => { const on = Math.sin(i * 12.9898 + Math.floor(t * 0.4 + i * 0.37) * 4.1) > -0.15; R(g, w[0], w[1], 2, 2, on ? (i % 3 ? '#ffe9a0' : '#bfe6ff') : '#3e4a63'); });
+    // khói ống khói
+    puffs.forEach((p) => { g.globalAlpha = Math.max(0, 0.55 - p.a * 0.11); ellipse(g, p.x, p.y, p.r, p.r * 0.8, '#d9d4cf'); ellipse(g, p.x - 1, p.y - 1, p.r * 0.6, p.r * 0.5, '#efeae4'); }); g.globalAlpha = 1;
+    // wifi từ đỉnh tháp
+    const wx = TOWER.x + 9, wy = TOWER.y - 6;
+    arcs.forEach((a) => { const rr = 3 + a.a * 7; g.globalAlpha = Math.max(0, 0.9 - a.a * 0.43); for (let i = 0; i <= 26; i++) { const an = -Math.PI * 0.9 + i / 26 * Math.PI * 0.8; px(g, wx + Math.cos(an) * rr, wy + Math.sin(an) * rr + 2, '#b6ecff'); } }); g.globalAlpha = 1;
+    R(g, wx, wy, 1, 1, '#e23b3b');
+    // drone giao hàng bay ngang nhà cao tầng
+    const dx = 190 + ((t * 9) % 170), dy = 34 + Math.sin(t * 2) * 1.5;
+    R(g, dx - 3, dy, 7, 1, '#2a2d33'); R(g, dx - 4, dy - 1, 2, 1, '#2a2d33'); R(g, dx + 3, dy - 1, 2, 1, '#2a2d33'); R(g, dx - 1, dy + 1, 3, 2, '#e8e8ee'); px(g, dx, dy + 3, '#e23b3b');
+    if (Math.floor(t * 20) % 2) { px(g, dx - 4, dy - 2, '#9fb0c8'); px(g, dx + 4, dy - 2, '#9fb0c8'); }
+    // vạch kẻ đường chạy
+    g.save(); g.beginPath(); g.rect(SEAM + 28, 0, W - SEAM - 28, H); g.clip();
+    for (let x = -14 + ((t * 24) % 18); x < W; x += 18) R(g, x, 96, 9, 1, '#d9d6c8');
+    g.restore();
+    sideDraw(0, SEAM, L_ACT, t);
+    sideDraw(SEAM, W, R_ACT, t);
+    // ánh đèn: bóng đèn dầu/bóng tròn mờ (1980) vs đèn LED trắng (2020s)
+    halo(g, 164, 48, 12, '#ffd98a', 0.6 + 0.12 * Math.sin(t * 7) * Math.sin(t * 3.1));
+    for (const lx of [200, 258, 332]) halo(g, lx + 6, 53, 11, '#dff1ff', 0.8);
+    // cỏ tiền cảnh bên làng
+    for (let i = 0; i < 40; i++) {
+      const x = i * 4.2 + (i % 3), h = 4 + (i * 7 % 4), sw = Math.sin(t * 2 + i * 0.7) * 1.2;
+      for (let y = 0; y < h; y++) R(g, x + Math.round(sw * y / h * 1.5), 109 - y, 1, 1, i % 4 ? '#6f9440' : '#87ac4e');
+    }
+    // bảng năm 1980 -> 2020 chạy dọc theo thời gian
+    const cyc = t % 14, yr = 1980 + Math.floor(40 * smooth(0.6, 8.5, cyc));
+    if (yrEl.textContent !== String(yr)) yrEl.textContent = yr;
+  }
+  const yrEl = document.getElementById('yr');
+
+  drawBackground();
+  let t = 0, last = 0, acc = 0;
+  const FIX = 1 / 60;
+  function stepAll(dt) { t += dt; stepScene(dt, t); stepActors(dt, t); }
+  for (let i = 0; i < 300; i++) stepAll(FIX);                          // khởi động trước để cảnh đã có xe, khói
+  t = 0;
+  function loop(now) {
+    acc += Math.min(0.1, (now - last) / 1000); last = now;
+    while (acc >= FIX) { stepAll(FIX); acc -= FIX; }
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+  if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) stepAll(FIX); draw(t); window.__ready = true; }
+  else { last = performance.now(); requestAnimationFrame(loop); }
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
+
+})();
+
+</script>
+</body>
+</html>

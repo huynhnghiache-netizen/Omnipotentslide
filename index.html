@@ -1121,7 +1121,7 @@
     const tickerTrack = document.getElementById('ticker-track');
     const anim3 = document.getElementById('anim3');
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 9: 'slide10-anim.html?embed' };
+    const ANIM_SRC = { 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 9: 'slide10-anim.html?embed' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const slidePath = (i) => (i === 1 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
