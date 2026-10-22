@@ -867,12 +867,18 @@
     //   cine: { t0, x, y, dx, dy, nx, ny, sans, D, L, w, bend, seed, cur, ev, drops, boneCut }
     //   (x, y) là tâm bone; (dx, dy) hướng từ bone tới Sans; (nx, ny) pháp tuyến
     let cine = null;
-    const CT = { bone: 250, wave: 1000, waveLen: 520, black: 3500 };
-    CT.hit = CT.wave + CT.waveLen;
+    const CT = { bone: 250, wave: 1000, waveLen: 520 };
+    CT.hit = CT.wave + CT.waveLen;     // trúng Sans
+    CT.slump = CT.hit + 1700;          // Sans gục xuống ngồi
+    CT.black = CT.slump + 700 + 1000;  // sau khi ngồi ~1s thì tối màn hình
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
     SANS_HURT.onload = () => { SANS_HURT_O = outlineSprite(SANS_HURT, 5, '#0b0b0b'); };
-    SANS_HURT.src = 'assets/sans-hurt.png';
+    SANS_HURT.src = 'assets/sans-hurt.png';            // Sans ngồi gục
+    const SANS_CUT = new Image();
+    let SANS_CUT_O = null;
+    SANS_CUT.onload = () => { SANS_CUT_O = outlineSprite(SANS_CUT, 4, '#0b0b0b'); };
+    SANS_CUT.src = 'assets/sans-cut.png';              // Sans đứng, vết chém đỏ ngang ngực
     function outlineSprite(img, o, col) {                            // viền đen quanh sprite trắng cho dễ nhìn trên nền sáng
       const c = document.createElement('canvas'); c.width = img.width + o * 2; c.height = img.height + o * 2;
       const g = c.getContext('2d'), k = document.createElement('canvas'); k.width = img.width; k.height = img.height;
@@ -1685,18 +1691,6 @@
         drawCrescent({ x: c.x + c.dx * s, y: c.y + c.dy * s, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy, L: c.L, w: c.w, bend: c.bend, streaks: c.streaks }, 1, al, 1);
       }
     }
-    function drawBoneHalf(c, sg, ce) {                              // nửa bone bị cắt: tách ra, xoay, rơi, mờ dần
-      const al = 1 - ramp(ce, 350, 900), bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale;
-      if (al <= 0) return;
-      const sep = easeOut3(ramp(ce, 0, 400)) * 70, fall = 0.5 * 1800 * Math.pow(Math.max(0, ce - 100) / 1000, 2);
-      const bsb = { x: c.x, y: c.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy };
-      fx.save(); fx.globalAlpha = al;
-      fx.translate(c.dx * sg * sep, c.dy * sg * sep + fall);
-      fx.translate(c.x, c.y); fx.rotate(sg * 0.5 * easeOut3(ramp(ce, 0, 700))); fx.translate(-c.x, -c.y);
-      halfClip(bsb, sg);
-      fx.drawImage(BONE_O, Math.round(c.x - bw / 2), Math.round(c.y - bh / 2), bw, bh);
-      fx.restore();
-    }
     function bloodBurst(c, n, spread) {
       for (let i = 0; i < n; i++) {
         const a = Math.random() * 6.2832, v = (1 + Math.random() * spread);
@@ -1711,41 +1705,59 @@
       }
       fx.globalAlpha = 1;
     }
+    const smooth = (u) => u * u * (3 - 2 * u);
+    function drawBoneCracks(c, bw, bh, a) {                         // vết nứt trên bone ngay trước khi bị xuyên
+      fx.save(); fx.globalAlpha = a; fx.strokeStyle = '#0b0b0b'; fx.lineWidth = 4; fx.lineJoin = 'miter';
+      for (let k = 0; k < 4; k++) {
+        let x = c.x - bw * 0.12 + (hash1(c, k) - 0.5) * bw * 0.3, y = c.y - bh * 0.5;
+        fx.beginPath(); fx.moveTo(x, y);
+        for (let j = 1; j <= 5; j++) { x += (hash1(c, k * 9 + j) - 0.5) * bw * 0.12; y += bh / 5; fx.lineTo(x, y); }
+        fx.stroke();
+      }
+      fx.restore();
+    }
+    function drawSpr(img, cx, cy, h, a) {
+      if (a <= 0.01) return;
+      const s = h / img.height; fx.globalAlpha = a;
+      fx.drawImage(img, Math.round(cx - img.width * s / 2), Math.round(cy - h / 2), img.width * s, h); fx.globalAlpha = 1;
+    }
     function drawCine(now) {
       const c = cine, t = now - c.t0, ev = c.ev, ce = t - CT.hit;
-      const W = innerWidth, H = innerHeight;
+      const W = innerWidth, H = innerHeight, S = c.sans;
+      const bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale, ws = waveS(c, t);
       if (!ev.block && t >= CT.bone) {                              // bone chặn
         ev.block = 1; flash(70, 'rgba(255,255,255,0.45)'); shake(0.7, 3);
         const cols = ['#ffffff', '#ffd0d8', '#ff3344'];
         for (let i = 0; i < 30; i++) particles.push({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 26 + Math.random() * 26, age: 0, c: cols[(Math.random() * 3) | 0], s: PX * (0.5 + Math.random() * 0.6) });
       }
-      if (!ev.tear && t >= CT.wave && waveS(c, t) >= 0) {           // nhát chém đi ngang qua bone: xé màn hình, cắt đôi bone
-        ev.tear = t; flash(80, 'rgba(255,60,80,0.35)'); makeCracks(c.x, c.y, c.nx, c.ny); sparkLine({ x: c.x, y: c.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 90); shake(1.2, 4);
+      if (!ev.tear && t >= CT.wave && ws >= 0) {                    // nhát chém đâm xuyên bone: bone nứt toác, vỡ vụn rồi biến mất
+        ev.tear = t; flash(90, 'rgba(255,70,90,0.4)'); shake(1.1, 4);
+        shatterRect({ left: c.x - bw / 2, top: c.y - bh / 2, width: bw, height: bh }, ['#f2f2f2', '#0b0b0b', '#f2f2f2']);
+        sparkLine({ x: c.x, y: c.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 70);
       }
-      if (!ev.hit && ce >= 0) {                                     // trúng Sans
+      if (!ev.hit && ce >= 0) {                                     // trúng Sans: vết nứt màn hình nằm đúng chỗ Sans, đứng yên
         ev.hit = 1; flash(120, 'rgba(255,255,255,0.7)'); impact(3.2); startGlitch(700, 0.2, 0.22);
-        popDamage(c.sans.x, c.sans.y - 0.27 * H, 9999);
-        bloodBurst(c, 90, 11); sparkLine({ x: c.sans.x, y: c.sans.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 80);
+        makeCracks(S.x, S.y, c.nx, c.ny);
+        popDamage(S.x, S.y - 0.27 * H, 9999);
+        bloodBurst(c, 90, 11); sparkLine({ x: S.x, y: S.y, dx: c.nx, dy: c.ny, nx: c.dx, ny: c.dy }, 80);
         try { navigator.vibrate && navigator.vibrate([60, 30, 120]); } catch (e) { }
       }
-      if (ev.hit && ce < 1500 && Math.random() < 0.55) bloodBurst(c, 1, 2.5);      // máu rỉ chảy
-      // ---- Sans ----
-      const hurt = ce >= 0 && SANS_HURT_O;
-      const img = hurt ? SANS_HURT_O : SANS_O, hs = hurt ? 0.46 * H / SANS_HURT.height : c.sansScale;
-      const sw = img.width * hs, sh = img.height * hs;
-      let sx = c.sans.x, sy = c.sans.y + (hurt ? 0.03 * H : Math.sin(t / 230) * 4);
-      if (hurt) { const kb = easeOut3(ramp(ce, 0, 300)) * 34, tr = 8 * Math.pow(Math.max(0, 1 - ce / 500), 2); sx += c.dx * kb + (Math.random() - 0.5) * tr; sy += c.dy * kb + (Math.random() - 0.5) * tr; }
-      fx.globalAlpha = hurt ? 1 : ramp(t, 0, 380);
-      fx.drawImage(img, Math.round(sx - sw / 2), Math.round(sy - sh / 2), sw, sh);
-      fx.globalAlpha = 1;
-      // ---- bone ----
-      if (t >= CT.bone) {
-        if (!ev.tear) {
-          const bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale, shk = 2 + Math.min(1, (t - CT.bone) / 750) * 6;
-          fx.drawImage(BONE_O, Math.round(c.x - bw / 2 + (Math.random() - 0.5) * shk), Math.round(c.y - bh / 2), bw, bh);
-        } else { const bce = t - ev.tear; drawBoneHalf(c, 1, bce); drawBoneHalf(c, -1, bce); }
+      if (ev.hit && ce < CT.slump - CT.hit + 600 && Math.random() < 0.5) bloodBurst(c, 1, 2.2);   // máu rỉ chảy
+      drawRift(c, t);                                               // vết xé nằm sau Sans để Sans không bị che
+      // ---- Sans: đứng -> trúng đòn (đứng yên tại chỗ, rung tắt dần) -> gục ngồi xuống ----
+      if (ce < 0 || !SANS_CUT_O || !SANS_HURT_O) {
+        drawSpr(SANS_O, S.x, S.y + Math.sin(t / 230) * 4, SANS_O.height * c.sansScale, ramp(t, 0, 380));
+      } else {
+        const k = smooth(ramp(t - CT.slump, 0, 700)), tr = 7 * Math.pow(Math.max(0, 1 - ce / 650), 2) * Math.sin(t / 17);
+        drawSpr(SANS_CUT_O, S.x + tr, S.y + k * 0.075 * H, 0.46 * H, 1 - k);
+        drawSpr(SANS_HURT_O, S.x, S.y + 0.075 * H, 0.34 * H, k);
       }
-      drawRift(c, t);
+      // ---- bone ----
+      if (t >= CT.bone && !ev.tear) {
+        const shk = Math.sin(t / 21) * (1.5 + Math.min(1, (t - CT.bone) / 750) * 4);
+        fx.drawImage(BONE_O, Math.round(c.x - bw / 2 + shk), Math.round(c.y - bh / 2), bw, bh);
+        if (t >= CT.wave && ws > -0.16 * c.D) drawBoneCracks(c, bw, bh, 1);
+      }
       drawWave(c, t);
       drawDrops(c);
       if (ce > 0) {                                                 // viền đỏ nhịp theo cú đánh
