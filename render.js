@@ -35,6 +35,16 @@ const path = require('path');
       console.log('slide6.png (từ slide6-anim.html)');
       continue;
     }
+    if (i === 9) {   // slide 9 có phòng ký ức pixel: xuất từ slide9-anim.html (dừng ở giây thứ 17)
+      const p9 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
+      await p9.goto('file://' + path.join(__dirname, 'slide9-anim.html') + '?still=17', { waitUntil: 'load' });
+      await p9.waitForFunction('window.__ready');
+      await p9.evaluate(() => document.fonts.ready);
+      await p9.locator('#slide9').screenshot({ path: path.join(__dirname, 'slide9.png') });
+      await p9.close();
+      console.log('slide9.png (từ slide9-anim.html)');
+      continue;
+    }
     if (i === 8) {   // slide 8 có dải cảnh 1980 | 2020s: xuất từ slide8-anim.html (dừng ở giây thứ 9)
       const p8 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
       await p8.goto('file://' + path.join(__dirname, 'slide8-anim.html') + '?still=9', { waitUntil: 'load' });

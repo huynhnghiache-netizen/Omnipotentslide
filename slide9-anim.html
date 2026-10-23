@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 9 - preserving memories</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    html, body { background: #1b1412; }
+    body { padding: 0; overflow: hidden; }
+    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
+    /* Bố cục slide 9: phòng ký ức rộng ở trên, hai thẻ ý chính nằm ngay dưới */
+    .s9 .title { top: 34px; left: 68px; font-size: 84px; }
+    .s9 .rule { top: 142px; left: 68px; right: 68px; }
+    .vpanel { left: 68px; top: 160px; width: 1400px; height: 400px; border: 2px solid var(--line); border-radius: 26px; overflow: hidden;
+              box-shadow: 0 8px 20px rgba(60,30,10,.18); background: #2a1c12; }
+    #scene { position: absolute; left: 0; top: 0; width: 1400px; height: 400px; image-rendering: pixelated; }
+    .s9 .card { position: absolute; padding: 16px 40px 0; align-items: stretch; justify-content: flex-start; text-align: center; }
+    .s9 .card h3 { font-size: 42px; padding-bottom: 10px; margin-bottom: 14px; border-bottom: 2px solid var(--line); }
+    .s9 .card p { font: 400 29px/1.35 var(--sans); max-width: none; }
+    .s9 .c1 { left: 68px; top: 586px; width: 690px; height: 250px; }
+    .s9 .c2 { left: 778px; top: 586px; width: 690px; height: 250px; }
+  </style>
+</head>
+<body>
+<!--
+  SLIDE 9 (động): căn phòng ký ức ban đêm - bàn gỗ, cuốn album ảnh cũ tự lật trang (nhà tranh, giếng, xe đạp, trẻ chơi, xe điện),
+  đèn dầu chập chờn, hạt sáng bay lên, đom đóm ngoài cửa sổ. Mỗi 22 giây ngọn lửa truyền từ đèn dầu sang cây nến nhỏ:
+  "giữ lửa" cho thế hệ sau. Cảnh vẽ bằng code trong <canvas id="scene"> (350x100 điểm ảnh, mỗi điểm = 4px).
+  Mở với ?still=giây để dừng ở một khung hình.
+-->
+<main class="deck">
+  <section class="slide s9" id="slide9">
+    <h2 class="title">Preserving Our Memories</h2>
+    <hr class="rule">
+    <div class="vpanel"><canvas id="scene" width="350" height="100"></canvas></div>
+    <article class="card c1"><h3>Valuing History</h3><p>Understanding past hardships helps appreciate today's life</p></article>
+    <article class="card c2"><h3>Keeping Tradition Alive</h3><p>Preserving community spirit for future generations</p></article>
+  </section>
+</main>
+
+<script>
+(() => {
+  const EMBED = location.search.includes('embed');
+  const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const deck = document.querySelector('.deck');
+  function fit() {
+    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
+    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+  }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
+  addEventListener('resize', fit); fit();
+
+  const W = 350, H = 100;
+  const cv = document.getElementById('scene'), g = cv.getContext('2d');
+  const bgc = document.createElement('canvas'); bgc.width = W; bgc.height = H;
+  const bg = bgc.getContext('2d');
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const srnd = mulberry(1980);
+  let seed = 11;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => 'rgb(' + hex(a).map((v, i) => Math.round(lerp(v, hex(b)[i], t))).join(',') + ')';
+  const R = (c, x, y, w, h, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), w, h); };
+  function px(c, x, y, col) { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), 1, 1); }
+  function line(fn, x0, y0, x1, y1) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) fn(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n)); }
+  const L = (c, x0, y0, x1, y1, col) => line((a, b) => px(c, a, b, col), x0, y0, x1, y1);
+  const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function ellipse(c, cx, cy, rx, ry, col) {
+    c.fillStyle = col;
+    for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(1 - (y * y) / (ry * ry + 0.0001))); c.fillRect(Math.round(cx - w), Math.round(cy + y), w * 2, 1); }
+  }
+  function hut(c, x, base, w, flip) {
+    const wallTop = base - 22, roofH = 24, roofTop = wallTop - roofH + 4;
+    ellipse(c, x + w / 2, base, w / 2 + 3, 2, 'rgba(70,50,20,.25)');
+    R(c, x + 4, wallTop, w - 8, 22, '#d6b688');                         // tường đất
+    for (let k = 0; k < 40; k++) R(c, x + 4 + srnd() * (w - 8), wallTop + srnd() * 22, 2, 1, srnd() < 0.5 ? '#c4a373' : '#e4c99c');
+    R(c, x + 4, wallTop, w - 8, 1, '#a98a5c');
+    const dx = flip ? x + w - 22 : x + 12;
+    R(c, dx, wallTop + 8, 10, 14, '#4a3320'); R(c, dx + 1, wallTop + 9, 8, 13, '#2f2014');         // cửa
+    const wx = flip ? x + 10 : x + w - 20;
+    R(c, wx, wallTop + 6, 8, 7, '#5a4128'); R(c, wx + 1, wallTop + 7, 6, 5, '#caa66e'); R(c, wx + 4, wallTop + 7, 1, 5, '#5a4128');   // cửa sổ
+    for (let r = 0; r < roofH; r++) {                                   // mái lá: tam giác thô, vệt rơm
+      const hw = Math.round(w / 2 - 2 + r * 0.28 - (roofH - r) * 0.9 * (w / 56) + (roofH - r) * 0.9 * (w / 56) - (roofH - r) * (w / 2 - 6) / roofH + 6);
+      const half = Math.round(6 + r * ((w / 2 + 2) - 6) / (roofH - 1));
+      const cx = x + w / 2;
+      R(c, cx - half, roofTop + r, half * 2, 1, r % 4 === 3 ? '#7d5a30' : '#a07844');
+      if (r % 4 !== 3) for (let k = 0; k < half / 3; k++) R(c, cx - half + srnd() * half * 2, roofTop + r, 1, 1, srnd() < 0.5 ? '#b88c52' : '#8a6535');
+      R(c, cx - half, roofTop + r, 1, 1, '#6e4c28'); R(c, cx + half - 1, roofTop + r, 1, 1, '#6e4c28');
+      void hw;
+    }
+    R(c, x + w / 2 - 6, roofTop - 1, 12, 2, '#6e4c28');                 // nóc
+    R(c, x + w / 2 - 1, roofTop - 4, 2, 4, '#6e4c28');                  // chóp
+  }
+  function banana(c, x, base) {
+    R(c, x, base - 16, 2, 16, '#7d9a4a');
+    for (let k = 0; k < 6; k++) {
+      const s = k < 3 ? -1 : 1, len = 8 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) { R(c, x + 1 + s * i, base - 18 + Math.round(i * i * 0.04) + (k % 3) * 2, 2, 1, i % 2 ? '#5d9a3c' : '#74b04a'); }
+    }
+  }
+
+  function cloud(c, x, y, s) {
+    const rows = [[3, 7], [1, 11], [0, 13], [1, 12]];
+    rows.forEach(([a, w], i) => { R(c, x + a * s, y + i * s, Math.round(w * s), Math.max(1, Math.round(s)), i === 3 ? '#e8dcc8' : '#fffbf2'); });
+    if (s > 1.1) R(c, x + 6 * s, y - 1 * s, Math.round(5 * s), Math.max(1, Math.round(s)), '#fffbf2');
+  }
+  function bamboo(c, x, h, t, ph) {
+    const base = 134;
+    for (let j = 0; j < 4; j++) {
+      const bx = x + j * 4 + (j % 2), hh = h - j * 5, sw = Math.sin(t * 1.3 + ph + j);
+      for (let y = 0; y < hh; y++) {
+        const off = Math.round(sw * (y / hh) * (y / hh) * 3);
+        R(c, bx + off, base - y, 2, 1, y % 9 === 0 ? '#3f6a22' : (y % 9 < 4 ? '#7fb246' : '#68a03a'));
+      }
+      const tx = bx + Math.round(sw * 3), ty = base - hh;
+      for (let k = 0; k < 6; k++) {
+        const s = k % 2 ? 1 : -1, len = 6 + (k % 3) * 2;
+        for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * 0.55) + (k >> 1) * 3 + Math.round(Math.sin(t * 2 + k + ph) * 0.6), 2, 1, i % 3 ? '#79b043' : '#5f9a34');
+      }
+    }
+  }
+  function areca(c, x, t) {                 // cây cau
+    const base = 134, h = 66, sw = Math.sin(t * 1.1 + 1.7);
+    for (let y = 0; y < h; y++) R(c, x + Math.round(sw * (y / h) * (y / h) * 2), base - y, 2, 1, y % 6 === 0 ? '#7a6a48' : '#9a8a64');
+    const tx = x + Math.round(sw * 2), ty = base - h;
+    for (let k = 0; k < 6; k++) {
+      const s = k % 2 ? 1 : -1, len = 9 + (k % 3) * 2;
+      for (let i = 0; i < len; i++) R(c, tx + s * i, ty + Math.round(i * i * 0.07) + (k >> 1) * 2 + Math.round(Math.sin(t * 2.2 + k) * 0.7), 2, 1, i % 2 ? '#4f8a35' : '#63a042');
+    }
+  }
+  function chicken(c, x, y, t, ph) {
+    const peck = Math.sin(t * 3 + ph) > 0.5 ? 2 : 0;
+    R(c, x, y - 4, 5, 3, '#a8562a'); R(c, x - 1, y - 5, 2, 2, '#8a4220'); R(c, x + 4, y - 6 + peck, 2, 2, '#b86a30'); R(c, x + 4, y - 8 + peck, 1, 1, '#d33'); R(c, x + 6, y - 5 + peck, 1, 1, '#e8a030');
+    R(c, x + 1, y - 1, 1, 2, '#c8a050'); R(c, x + 3, y - 1, 1, 2, '#c8a050');
+  }
+  function bird(c, b, t) {
+    const x = Math.round(b.x), y = Math.round(b.y + Math.sin(t * 2 + b.p) * 2), up = Math.floor(t * 6 + b.p * 3) % 2;
+    c.fillStyle = '#44403c';
+    if (up) { c.fillRect(x - 3, y - 2, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y - 2, 2, 1); }
+    else { c.fillRect(x - 3, y, 2, 1); c.fillRect(x - 1, y - 1, 2, 1); c.fillRect(x + 1, y, 2, 1); }
+  }
+  // ================= NGƯỜI (pixel) =================
+  function person(o, t) {
+    const d = o.d, k = o.k || 1, ph = o.ph, mv = o.moving;
+    const sw = mv ? Math.sin(ph) : 0, bob = mv ? Math.abs(Math.cos(ph)) * 1.2 * k : 0;
+    const X = Math.round(o.x), Y = Math.round(o.y);
+    const r = (x, y, w, h, col) => {
+      const px = d > 0 ? x : -x - w;
+      g.fillStyle = col;
+      g.fillRect(Math.round(X + px * k), Math.round(Y + y * k - bob), Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
+    };
+    g.fillStyle = 'rgba(60,40,15,.28)'; g.fillRect(Math.round(X - 6 * k), Y, Math.round(12 * k), 1);                  // bóng
+    const s = Math.round(sw * 3 * k), lift1 = mv && Math.cos(ph) > 0 ? 1 : 0, lift2 = mv && Math.cos(ph) < 0 ? 1 : 0;
+    const st = o.style;
+    // chân (quần ống rộng) + dép
+    r(-3 - s, -9 + lift2, 3, 9 - lift2, st.pantsD || st.pants); r(-3 - s, -1 - lift2 * 0, 3, 1, '#2b1d12');
+    r(1 + s, -9 + lift1, 3, 9 - lift1, st.pants); r(1 + s, -1, 3, 1, '#2b1d12');
+    if (o.cane) r(6, -14, 1, 14, '#6b4a2a');
+    // tay xa
+    r(-1 + Math.round(sw * 2.2 * k), -18, 2, 7, st.shirtD, 0);
+    // thân áo + khăn
+    r(-3, -19, 7, 10, st.shirt); r(-3, -10, 7, 1, st.shirtD); r(2, -18, 1, 8, st.shirtL);
+    if (st.scarf) { r(-3, -19, 7, 1, '#ece8da'); r(-2, -19, 1, 1, '#555'); r(0, -19, 1, 1, '#555'); r(2, -19, 1, 1, '#555'); r(-3, -18, 1, 5, '#ece8da'); r(-3, -16, 1, 1, '#555'); }
+    // tay gần
+    r(-1 - Math.round(sw * 2.2 * k), -18, 2, 7, st.shirt); r(-1 - Math.round(sw * 2.2 * k), -11, 2, 1, '#e3b184');
+    // đầu
+    const hx = o.stoop ? 1 : 0;
+    r(-1, -20, 3, 1, '#e3b184'); r(-2 + hx, -24, 5, 4, '#e8b98a'); r(2 + hx, -23, 1, 1, '#222');
+    if (st.hat === 'non') {                                   // nón lá
+      for (const [hy, hw] of [[-31, 1], [-30, 3], [-29, 5], [-28, 7], [-27, 11], [-26, 15]]) {
+        r(-(hw >> 1) + hx, hy, hw, 1, '#f1dea4');
+        if (hw > 1) r(1 + hx, hy, (hw >> 1), 1, hy > -28 ? '#d2b672' : '#dcc588');
+      }
+      r(-7 + hx, -25, 15, 1, '#a88b4a'); r(-2 + hx, -24, 1, 3, '#c9485a');
+    } else if (st.hat === 'coi') {                            // mũ cối
+      r(-3 + hx, -28, 7, 1, '#6a8a4c'); r(-4 + hx, -27, 9, 2, '#5f7e44'); r(-6 + hx, -25, 13, 1, '#465f32'); r(0 + hx, -27, 1, 1, '#d24');
+    } else if (st.hat === 'khan') {                           // khăn đội đầu
+      r(-3 + hx, -26, 7, 3, '#cfcab8'); r(-3 + hx, -26, 7, 1, '#e8e4d4'); r(-1 + hx, -24, 1, 1, '#555');
+    }
+    if (o.pole) {                                             // đòn gánh + 2 thúng
+      const b = Math.round(Math.sin(ph * 2) * 1.2 * k);
+      r(-13, -20 + b, 13, 1, '#8a6a3a'); r(0, -20 - b, 14, 1, '#8a6a3a');
+      for (const [bx, by, sg] of [[-13, b, 1], [13, -b, 2]]) {
+        r(bx, -19 + by, 1, 8, '#6b5530');
+        r(bx - 3, -11 + by, 7, 3, '#8a5a2a'); r(bx - 3, -12 + by, 7, 1, '#aa7a3a'); r(bx - 2, -13 + by, 5, 1, sg === 1 ? '#5f9a3a' : '#d9b04a');
+      }
+    }
+  }
+  // ================= TRANG PHỤC (VN ~1980) =================
+  const STY = {
+    woman:  { shirt: '#6b4a32', shirtD: '#563a27', shirtL: '#7e5a40', pants: '#2c2724', hat: 'non', scarf: true },
+    black:  { shirt: '#34302d', shirtD: '#27231f', shirtL: '#4a4540', pants: '#25201d', hat: 'non', scarf: true },
+    indigo: { shirt: '#3d5382', shirtD: '#2f4068', shirtL: '#4f679c', pants: '#2c2724', hat: 'non', scarf: false },
+    white:  { shirt: '#ebe6d6', shirtD: '#cfc9b6', shirtL: '#fffaf0', pants: '#6b5a3a', hat: 'coi', scarf: false },
+    elder:  { shirt: '#8a6f4a', shirtD: '#715a3b', shirtL: '#9b8058', pants: '#2c2724', hat: 'khan', scarf: false },
+    boy:    { shirt: '#c08a44', shirtD: '#a47235', shirtL: '#d09c56', pants: '#5a4a35', hat: 'non', scarf: false },
+    kid:    { shirt: '#b84a3a', shirtD: '#9a3c2e', shirtL: '#c85e4c', pants: '#3a3a52', hat: 'non', scarf: false }
+  };
+  // ================= CĂN PHÒNG KÝ ỨC: bàn gỗ, đèn dầu, album ảnh cũ =================
+  const LAMP = { x: 205, y: 60 }, CAN = { x: 240, y: 64 }, SPINE = 135, CYC = 22;
+  const WALL = '#4a3426';
+  function drawBackground() {
+    const c = bg;
+    R(c, 0, 0, W, 72, WALL);
+    for (let x = 0; x < W; x += 14) { R(c, x, 0, 1, 72, '#3b291d'); R(c, x + 1, 0, 1, 72, '#5a4132'); }
+    for (let k = 0; k < 260; k++) R(c, srnd() * W, srnd() * 72, 1, 1, srnd() < 0.5 ? '#3f2d20' : '#56402f');
+    R(c, 0, 58, W, 14, '#3a281c'); R(c, 0, 58, W, 1, '#6a4a30');                    // ván chân tường
+    // cửa sổ ban đêm
+    R(c, 276, 10, 44, 42, '#241810'); R(c, 279, 13, 38, 36, '#142039');
+    for (let y = 13; y < 49; y++) R(c, 279, y, 38, 1, mix('#0f1a31', '#26365a', (y - 13) / 36));
+    for (let k = 0; k < 26; k++) px(c, 280 + srnd() * 36, 14 + srnd() * 20, srnd() < 0.5 ? '#cfd8f0' : '#8d9cc4');
+    ellipse(c, 306, 22, 5, 5, '#f3e7b8'); ellipse(c, 305, 21, 2, 2, '#e0d3a2');
+    R(c, 297, 13, 2, 36, '#241810'); R(c, 279, 30, 38, 2, '#241810');
+    R(c, 272, 52, 52, 3, '#2f2016');
+    // kệ sách + sách
+    R(c, 14, 40, 96, 3, '#2f2016');
+    const cols = ['#7a2f2a', '#2f5a78', '#c9a24a', '#4a6a3a', '#8a4a6a', '#a05a2a', '#3b3b55'];
+    for (let x = 18, i = 0; x < 106; i++) { const w = 3 + (i * 5 % 3), h = 10 + (i * 7 % 5); R(c, x, 40 - h, w, h, cols[i % cols.length]); R(c, x, 40 - h, 1, h, 'rgba(255,255,255,.14)'); x += w + (i % 4 === 0 ? 1 : 0); }
+    R(c, 14, 44, 96, 1, '#241810');
+    // ảnh đóng khung trên tường
+    const frames = [[26, 8, 17, 13], [50, 12, 11, 15], [70, 7, 19, 14], [150, 6, 22, 16], [182, 12, 14, 12]];
+    frames.forEach(([x, y, w, h], i) => { R(c, x - 2, y - 2, w + 4, h + 4, '#2a1c12'); R(c, x - 1, y - 1, w + 2, h + 2, '#8a6a3a'); R(c, x, y, w, h, '#d9c49a'); vig(c, i, x, y, w, h); });
+    // mặt bàn
+    R(c, 0, 72, W, 4, '#9a6a3c'); R(c, 0, 72, W, 1, '#c28a52'); R(c, 0, 76, W, 24, '#6a4526');
+    for (let x = 0; x < W; x += 3) R(c, x, 77, 1, 23, ((x / 3) | 0) % 5 ? '#5c3a20' : '#744b2a');
+    R(c, 0, 76, W, 1, '#3a2412');
+    // thảm ren dưới album
+    R(c, 88, 74, 96, 3, '#7a4a3a');
+  }
+  // ảnh nhỏ sepia: 0 nhà tranh, 1 giếng, 2 xe đạp, 3 trẻ chơi, 4 chợ/xe điện
+  function vig(c, i, x, y, w, h) {
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+    const sk = '#e3cd9c', gr = '#a8946a', dk = '#4a3626', md = '#76593a', gy = y + h * 0.68;
+    R(c, x, y, w, h, sk); R(c, x, gy, w, h, gr);
+    if (i === 0) { for (let k = 0; k < 5; k++) R(c, x + w * 0.25 + k, y + h * 0.3 + k, w * 0.5 - 2 * k, 1, md); R(c, x + w * 0.3, gy - 3, w * 0.4, 3, '#c8b078'); R(c, x + w * 0.5 - 1, gy - 2, 2, 2, dk); ellipse(c, x + w * 0.8, y + 3, 2, 2, '#f6e8bc'); }
+    if (i === 1) { R(c, x + w * 0.4, gy - 3, w * 0.25, 3, md); R(c, x + w * 0.38, y + 2, 1, gy - y - 2, dk); R(c, x + w * 0.62, y + 2, 1, gy - y - 2, dk); R(c, x + w * 0.38, y + 2, w * 0.25, 1, dk); R(c, x + w * 0.5, y + 3, 1, 4, dk); R(c, x + w * 0.5 - 1, y + 7, 3, 2, md); }
+    if (i === 2) { R(c, x, gy + 1, w, 1, '#8a7650'); const bx = x + w * 0.5; ellipse(c, bx - 4, gy - 1, 2, 2, dk); ellipse(c, bx + 4, gy - 1, 2, 2, dk); ellipse(c, bx - 4, gy - 1, 1, 1, sk); ellipse(c, bx + 4, gy - 1, 1, 1, sk); L(c, bx - 4, gy - 1, bx, gy - 4, dk); L(c, bx, gy - 4, bx + 4, gy - 1, dk); R(c, bx - 1, gy - 8, 2, 4, md); R(c, bx - 1, gy - 10, 2, 2, dk); }
+    if (i === 3) { for (let k = 0; k < 3; k++) { const px0 = x + w * (0.2 + k * 0.3); R(c, px0, gy - 5, 2, 4, k % 2 ? md : dk); R(c, px0, gy - 7, 2, 2, '#c8a070'); R(c, px0, gy - 1, 1, 2, dk); R(c, px0 + 1, gy - 1, 1, 2, dk); } }
+    if (i === 4) { R(c, x + 1, y + 3, w - 2, 5, md); R(c, x + 1, y + 2, w - 2, 1, dk); R(c, x + 2, y + 4, 3, 3, '#e8d8a8'); R(c, x + w - 6, y + 4, 3, 3, '#e8d8a8'); R(c, x, gy + 1, w, 1, dk); R(c, x + 3, y, 1, 3, dk); }
+    c.fillStyle = 'rgba(120,80,30,.18)'; c.fillRect(x, y, w, h);
+    c.restore();
+  }
+  function hexOf(rgb) { const m = /(\d+),(\d+),(\d+)/.exec(rgb); return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join(''); }
+  const lg = document.createElement('canvas'); lg.width = W; lg.height = H; const lc = lg.getContext('2d');
+  const motes = Array.from({ length: 34 }, (_, i) => ({ x: LAMP.x + (srnd() - 0.5) * 150, y: 20 + srnd() * 52, v: 2.5 + srnd() * 3.5, p: srnd() * 6.28, g: i % 5 === 0 }));
+  const flies = Array.from({ length: 7 }, () => ({ x: 281 + srnd() * 34, y: 17 + srnd() * 30, p: srnd() * 6.28 }));
+  function stepScene(dt, t) { motes.forEach((m) => { m.y -= m.v * dt; m.x += Math.sin(t * 0.8 + m.p) * 3 * dt; if (m.y < 6) { m.y = 70; m.x = LAMP.x + (srnd() - 0.5) * 150; } }); }
+  function stepActors() {}
+  const PAGES = [0, 1, 2, 3, 4];
+  function pageAt(t) {                           // trang trái / phải hiện tại + tiến độ lật
+    const per = 4.2, n = Math.floor(t / per), ph = (t % per) / per, fl = Math.max(0, (ph - 0.78) / 0.22);
+    return { a: PAGES[(2 * n) % 5], b: PAGES[(2 * n + 1) % 5], c: PAGES[(2 * n + 2) % 5], fl };
+  }
+  function album(t) {
+    const P = pageAt(t);
+    R(g, 90, 66, 92, 12, '#5e241d'); R(g, 90, 66, 92, 1, '#8a3c30'); R(g, 90, 77, 92, 1, '#3a1410');
+    R(g, 94, 63, 41, 14, '#efe2bf'); R(g, 136, 63, 41, 14, '#e8d8b0'); R(g, 135, 63, 1, 14, '#b8a37a');
+    R(g, 94, 63, 83, 1, '#fff6dc'); R(g, 94, 76, 83, 1, '#cdb98e');
+    const vgi = (i, x) => { R(g, x - 1, 64, 32, 12, '#fff8e4'); vig(g, i, x, 65, 30, 10); };
+    vgi(P.a, 97);
+    if (P.fl <= 0) vgi(P.b, 142);
+    else {
+      vgi(P.c, 142);
+      const ang = P.fl * Math.PI, w = Math.max(1, Math.round(Math.abs(Math.cos(ang)) * 41)), left = P.fl >= 0.5;
+      const x0 = left ? SPINE - w : SPINE;
+      R(g, x0, 62, w, 15, left ? '#e4d3aa' : '#efe2bf'); R(g, x0, 62, w, 1, '#fff6dc');
+      if (w > 14) { const vx = left ? x0 + 3 : x0 + 6; g.save(); g.beginPath(); g.rect(x0, 62, w, 15); g.clip(); R(g, vx - 1, 64, Math.min(32, w - 4), 12, '#fff8e4'); vig(g, P.b, vx, 65, Math.min(30, w - 6), 10); g.restore(); }
+      g.fillStyle = 'rgba(40,20,5,' + (0.25 * Math.sin(ang)) + ')'; g.fillRect(left ? SPINE : SPINE + w, 63, 4, 14);
+    }
+  }
+  function lamp(t) {
+    const fl = 1 + Math.sin(t * 9) * 0.05 + Math.sin(t * 23) * 0.03;
+    R(g, 200, 70, 11, 2, '#7a5a2a'); R(g, 201, 66, 9, 4, '#b8903e'); R(g, 201, 66, 9, 1, '#e0b862');
+    R(g, 202, 56, 7, 10, 'rgba(255,236,190,.45)'); R(g, 202, 56, 1, 10, 'rgba(255,255,255,.35)'); R(g, 203, 54, 5, 2, 'rgba(255,236,190,.5)');
+    const fh = Math.round(5 * fl); R(g, 204, 65 - fh, 3, fh, '#ffb84a'); R(g, 205, 65 - fh + 1, 1, fh - 1, '#fff1b0'); px(g, 205, 65 - fh - 1, '#ff9a3a');
+  }
+  function candle(t, lit, grow) {
+    R(g, 236, 70, 9, 2, '#6a6a70'); R(g, 237, 69, 7, 1, '#8a8a90'); R(g, 239, 62, 3, 8, '#f1e6c8'); R(g, 239, 62, 1, 8, '#fff8e8'); R(g, 241, 62, 1, 8, '#cdbf9c');
+    if (lit) { const fh = 3 + Math.round(1 + Math.sin(t * 11)) * (grow > 0.5 ? 1 : 0); R(g, 240, 61 - fh, 1, fh, '#ffb84a'); px(g, 240, 61 - fh - 1, '#ff8a3a'); R(g, 240, 61 - fh + 1, 1, fh - 1, '#fff1b0'); }
+    else px(g, 240, 61, '#2a2a2a');
+  }
+  function cup(t) {
+    R(g, 272, 66, 8, 6, '#e9e2d0'); R(g, 272, 66, 8, 1, '#8a6a3a'); R(g, 280, 67, 2, 3, '#e9e2d0'); R(g, 271, 72, 10, 1, '#cfc8b4');
+    for (let i = 0; i < 3; i++) { const q = (t * 0.5 + i / 3) % 1; g.globalAlpha = 0.5 * (1 - q); px(g, 275 + Math.sin(q * 7 + i) * 1.6, 64 - q * 12, '#e8e2d4'); g.globalAlpha = 1; }
+  }
+  function draw(t) {
+    g.drawImage(bgc, 0, 0);
+    // đom đóm ngoài cửa sổ
+    flies.forEach((f, i) => { const a = 0.5 + 0.5 * Math.sin(t * 2.2 + f.p); g.globalAlpha = a; px(g, f.x + Math.sin(t * 0.6 + f.p) * 5, f.y + Math.cos(t * 0.5 + f.p) * 3, '#c8f26a'); g.globalAlpha = 1; });
+    const cy = t % CYC, lit = cy >= 15.5, ig = Math.max(0, Math.min(1, (cy - 14) / 1.5));
+    album(t); cup(t); lamp(t);
+    // sách khép, bút lông
+    R(g, 252, 68, 14, 4, '#2f5a78'); R(g, 252, 68, 14, 1, '#4a7a9a'); R(g, 253, 72, 12, 1, '#e8d8b0');
+    candle(t, lit, lit ? 1 : 0);
+    // tia lửa truyền từ đèn sang nến
+    if (ig > 0 && ig < 1) { const sx = lerp(206, 240, ig), sy = lerp(58, 59, ig) - Math.sin(ig * Math.PI) * 14; R(g, sx, sy, 2, 2, '#fff1b0'); g.globalAlpha = 0.5; px(g, sx - 2, sy + 1, '#ffb84a'); px(g, sx - 4, sy + 2, '#ff9a3a'); g.globalAlpha = 1; }
+    // tối đi quanh phòng, sáng ở chỗ đèn
+    lc.globalCompositeOperation = 'source-over'; lc.clearRect(0, 0, W, H); lc.fillStyle = 'rgba(8,5,3,.74)'; lc.fillRect(0, 0, W, H);
+    lc.globalCompositeOperation = 'destination-out';
+    const fk = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 23) * 0.02;
+    for (let i = 0; i < 9; i++) { const rx = (16 + i * 15) * fk; lc.fillStyle = 'rgba(0,0,0,.16)'; lc.beginPath(); lc.ellipse(LAMP.x, 62, rx, rx * 0.72, 0, 0, 7); lc.fill(); }
+    if (lit) for (let i = 0; i < 5; i++) { const rx = (6 + i * 7) * (1 + Math.sin(t * 11) * 0.04); lc.fillStyle = 'rgba(0,0,0,.18)'; lc.beginPath(); lc.ellipse(CAN.x, 60, rx, rx * 0.8, 0, 0, 7); lc.fill(); }
+    // cửa sổ: ánh trăng nhẹ
+    lc.fillStyle = 'rgba(0,0,0,.45)'; lc.fillRect(279, 13, 38, 36);
+    g.drawImage(lg, 0, 0);
+    // quầng ấm
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 5; i >= 1; i--) { g.globalAlpha = 0.045; ellipse(g, LAMP.x, 62, 12 * i * fk, 9 * i * fk, '#ff9a3a'); }
+    if (lit) for (let i = 3; i >= 1; i--) { g.globalAlpha = 0.04; ellipse(g, CAN.x, 60, 7 * i, 6 * i, '#ff9a3a'); }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    // hạt sáng lơ lửng
+    motes.forEach((m) => { const d = Math.hypot(m.x - LAMP.x, (m.y - 62) * 1.4), a = Math.max(0, 1 - d / 110) * (0.55 + 0.45 * Math.sin(t * 3 + m.p)); if (a < 0.05) return; g.globalAlpha = a; R(g, m.x, m.y, 1, 1, m.g ? '#d8ff9a' : '#ffe2a0'); if (a > 0.6) { g.globalAlpha = a * 0.35; R(g, m.x - 1, m.y, 3, 1, '#ffd070'); R(g, m.x, m.y - 1, 1, 3, '#ffd070'); } g.globalAlpha = 1; });
+  }
+
+  drawBackground();
+  let t = 0, last = 0, acc = 0;
+  const FIX = 1 / 60;
+  function stepAll(dt) { t += dt; stepScene(dt, t); }
+  for (let i = 0; i < 240; i++) stepAll(FIX);
+  t = 0;
+  function loop(now) {
+    acc += Math.min(0.1, (now - last) / 1000); last = now;
+    while (acc >= FIX) { stepAll(FIX); acc -= FIX; }
+    draw(t);
+    requestAnimationFrame(loop);
+  }
+  if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) stepAll(FIX); draw(t); window.__ready = true; }
+  else { last = performance.now(); requestAnimationFrame(loop); }
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
+})();
+</script>
+</body>
+</html>
