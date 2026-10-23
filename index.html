@@ -678,6 +678,65 @@
       return m;
     }
 
+    // ---- Vệt chém mới: lưỡi chém trắng-đỏ quét xuống rất nhanh (có đuôi mờ), rồi màn hình toạc ra một khe tối viền đỏ, tia lửa bắn ra ----
+    const SLASH_SWEEP = 130, SLASH_LIFE = 820;
+    function slashPath(sl, yMax) {                                   // tâm vệt chém tại từng độ cao, đi theo đường gấp khúc của rows
+      const pts = [];
+      for (let y = 0; y <= yMax; y += 6) {
+        const r = sl.rows[Math.min(ROWS - 1, Math.floor(y / PX))];
+        pts.push([((r[0] + r[1]) / 2 + 0.5) * PX, y]);
+      }
+      return pts;
+    }
+    function slashBand(pts, wfun) {                                  // dải có độ rộng thay đổi dọc đường chém
+      const L = [], Rr = [], n = pts.length;
+      pts.forEach(([x, y], i) => { const w = wfun(i / Math.max(1, n - 1), y); L.push([x - w, y]); Rr.push([x + w, y]); });
+      const all = L.concat(Rr.reverse());
+      fx.beginPath(); all.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); }); fx.closePath();
+    }
+    function drawSlashFx(now) {
+      const e = now - slash.start; if (e > SLASH_LIFE) { slash = null; return; }
+      const H = innerHeight, full = slash.stop >= ROWS - 1, yStop = H * Math.min(1, slash.stop / ROWS);
+      const sweep = Math.min(1, e / SLASH_SWEEP), pr = 1 - Math.pow(1 - sweep, 2.4), yTip = yStop * pr;
+      fx.save();
+      // lưỡi chém: đầu nhọn ở mũi, rộng dần ở giữa, bay màu theo thời gian
+      const blade = 1 - Math.max(0, Math.min(1, (e - SLASH_SWEEP * 0.9) / 260));
+      if (blade > 0 && yTip > 4) {
+        const pts = slashPath(slash, yTip), wmax = 22 * blade;
+        const tail = (u) => Math.pow(u, 0.55);                       // đầu (u=1) nhọn, đuôi dày dần theo độ dài
+        fx.shadowColor = '#ff2a3a'; fx.shadowBlur = 38 * blade;
+        slashBand(pts, (u, y) => wmax * 0.9 * Math.sin(Math.min(1, (yTip - y) / 140 + 0.05) * Math.PI / 2) * Math.min(1, (yTip - y + 2) / 6 + 0.1) + 1.5);
+        fx.fillStyle = 'rgba(255,42,58,' + (0.55 * blade) + ')'; fx.fill();
+        fx.shadowBlur = 0;
+        slashBand(pts, (u, y) => wmax * 0.32 * Math.min(1, (yTip - y + 2) / 80 + 0.1) + 1);
+        fx.fillStyle = 'rgba(255,255,255,' + blade + ')'; fx.fill();
+        fx.fillStyle = 'rgba(255,208,216,' + (0.9 * blade) + ')'; fx.fillRect(pts[pts.length - 1][0] - 10, yTip - 3, 20, 3);
+      }
+      // khe toạc ra sau cú chém: tối, viền đỏ, mở rồi khép
+      if (full && e > SLASH_SWEEP * 0.8) {
+        const t = e - SLASH_SWEEP * 0.8, open = easeOut3(Math.min(1, t / 160)) * (1 - Math.max(0, Math.min(1, (t - 300) / 420)));
+        if (open > 0.01) {
+          const pts = slashPath(slash, H), wob = (i) => 1 + 0.22 * Math.sin(i * 1.7 + t / 70);
+          fx.shadowColor = '#ff2a3a'; fx.shadowBlur = 26 * open;
+          slashBand(pts, (u, y) => (3 + 15 * open) * wob(y / 12) * Math.min(1, Math.min(y, H - y) / 60 + 0.25));
+          fx.fillStyle = '#10000a'; fx.fill();
+          fx.lineJoin = 'miter'; fx.strokeStyle = 'rgba(255,42,58,' + open + ')'; fx.lineWidth = 3; fx.stroke();
+          fx.shadowBlur = 0; fx.strokeStyle = 'rgba(255,224,230,' + (0.9 * open) + ')'; fx.lineWidth = 1; fx.stroke();
+          // tia sáng đỏ toả ngang từ khe (ánh sáng lọt qua vết cắt)
+          const a = 0.20 * open, g = fx.createLinearGradient(pts[0][0] - 220, 0, pts[0][0] + 220, 0);
+          g.addColorStop(0, 'rgba(255,42,58,0)'); g.addColorStop(0.5, 'rgba(255,42,58,' + a + ')'); g.addColorStop(1, 'rgba(255,42,58,0)');
+          fx.fillStyle = g; fx.fillRect(pts[0][0] - 220, 0, 440, H);
+        }
+      }
+      fx.restore();
+    }
+    function slashSparks(rows) {                                     // tia lửa bắn ra hai bên vệt chém (hạt pixel, dùng hệ hạt chung)
+      for (let i = 0; i < 90 && particles.length < 500; i++) {
+        const y = Math.random() * innerHeight, r = rows[Math.min(ROWS - 1, Math.floor(y / PX))], x = ((r[0] + r[1]) / 2 + 0.5) * PX, d = Math.random() < 0.5 ? -1 : 1, rr = Math.random();
+        particles.push({ x, y, vx: d * (2 + Math.random() * 9), vy: (Math.random() - 0.5) * 3, life: 22 + Math.random() * 34, age: 0, c: rr < 0.3 ? '#ffffff' : (rr < 0.65 ? '#ffd0d8' : '#ff3344'), s: PX * (0.3 + Math.random() * 0.4) });
+      }
+    }
+
     // Vết máu: lấy đúng hình của vệt chém rồi phóng to 2.5 lần (BLOOD_PX = PX * 2.5)
     let splat = null;
     const bloodFade = { a: 1 };
@@ -988,10 +1047,7 @@
         fx.fillRect(0, 0, fxCanvas.width, fxCanvas.height);
       } else flashCol = FLASH_DEFAULT;
       if (cine) drawCineBack(now);
-      if (slash) {
-        const m = slashMask(now);
-        if (m) drawMask(m, '#ff3344');
-      }
+      if (slash) drawSlashFx(now);
       if (splat) drawBlood(splat);
       if (block) drawBlock(now);
       if (cine) drawCine(now);
@@ -1322,18 +1378,18 @@
       }
 
       // Không bị chặn: máu + 1 số damage ngẫu nhiên ở giữa, các thẻ khác tan, thẻ này phóng to
-      setTimeout(() => { shake(); flashUntil = performance.now() + 90; }, 260);
+      setTimeout(() => { shake(); flash(80, 'rgba(255,255,255,0.28)'); slashSparks(rows); }, SLASH_SWEEP);
       setTimeout(() => {
         startSplat(rows);
         popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
-      }, 320);
+      }, SLASH_SWEEP + 100);
       setTimeout(() => {
         dustUntil = performance.now() + DISSOLVE_MS;
         gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
         flyTo(i, () => openSlide(i));
         hideGrid(() => {});
-      }, 320 + BLOOD_TO_DISSOLVE_MS);
+      }, SLASH_SWEEP + 100 + BLOOD_TO_DISSOLVE_MS);
     }
 
     // Bị chặn: hiện bảng chọn slide cầm kiếm
@@ -1674,9 +1730,11 @@
         await soulBlockCut(cur, cx, cy);
         return;
       }
-      await wait(260);
-      impact(0.7);
-      await wait(60);
+      await wait(SLASH_SWEEP);
+      impact(1);
+      slashSparks(rows);
+      flash(80, 'rgba(255,255,255,0.28)');
+      await wait(110);
       startSplat(rows);
       popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       await wait(480);
