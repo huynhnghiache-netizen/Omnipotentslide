@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slide 1 - title</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="slides.css">
+  <style>
+    html, body { background: #1b1412; }
+    body { padding: 0; overflow: hidden; }
+    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
+    .s1 .photo { overflow: hidden; background: #cfc9a8; }
+    .s1 .photo img { width: 100%; height: 100%; object-fit: cover; transform-origin: 62% 70%; will-change: transform, filter; }
+    .s1 .photo canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+    #lite { mix-blend-mode: screen; }
+    .s1 h1 .w { display: inline-block; will-change: transform, opacity, filter; }
+    .s1 .rule { transform-origin: 0 50%; }
+    .tick { position: absolute; left: 57px; top: 150px; font: 400 30px/1 var(--serif); letter-spacing: 6px; color: #a8643a; white-space: nowrap; }
+    .tick b { font-weight: 700; color: var(--ink); letter-spacing: 3px; }
+  </style>
+</head>
+<body>
+<!--
+  SLIDE 1 (động): mở đầu "du hành ngược thời gian": số năm chạy ngược 2025 -> 1985, chữ tiêu đề hiện dần từng từ,
+  ảnh cổng làng ửng nắng bình minh (từ tối sang ấm), tia nắng xiên, sương trôi, bụi sáng, lá rơi, chim bay ngang.
+  Mọi thứ do code điều khiển theo thời gian t (giây). Mở với ?still=giây để dừng ở một khung hình.
+-->
+<main class="deck">
+  <section class="slide s1" id="slide1">
+    <div class="tick" id="tick"><b id="yr">2025</b></div>
+    <h1 id="ttl">Life in My Neighbourhood - 40 Years Ago</h1>
+    <hr class="rule" id="rule">
+    <p class="subtitle" id="sub">Unit 4: Remembering the Past</p>
+    <figure class="photo">
+      <img id="pic" src="assets/s1-gate.jpg" alt="Old village gate with a woman carrying baskets">
+      <canvas id="lite" width="400" height="394"></canvas>
+      <canvas id="dark" width="400" height="394"></canvas>
+    </figure>
+  </section>
+</main>
+<script>
+(() => {
+  const EMBED = location.search.includes('embed');
+  const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const deck = document.querySelector('.deck');
+  function fit() {
+    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
+    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+  }
+  if (EMBED) document.body.style.cssText = 'background:transparent;padding:0;overflow:hidden';
+  addEventListener('resize', fit); fit();
+
+  const W = 400, H = 394;
+  const lite = document.getElementById('lite').getContext('2d'), dark = document.getElementById('dark').getContext('2d');
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const rnd = mulberry(1985);
+  const cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const ease = (u) => 1 - Math.pow(1 - u, 3), smooth = (a, b, x) => { const t = cl((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+
+  // chữ tiêu đề: tách từng từ để hiện dần
+  const ttl = document.getElementById('ttl'), words = ttl.textContent.split(' ');
+  ttl.textContent = '';
+  const spans = words.map((w, i) => { const s = document.createElement('span'); s.className = 'w'; s.textContent = w; ttl.appendChild(s); if (i < words.length - 1) ttl.appendChild(document.createTextNode(' ')); return s; });
+  const rule = document.getElementById('rule'), sub = document.getElementById('sub'), pic = document.getElementById('pic'), tick = document.getElementById('tick'), yr = document.getElementById('yr');
+
+  // tia nắng: dựng một lần
+  const beams = document.createElement('canvas'); beams.width = W; beams.height = H;
+  (() => {
+    const c = beams.getContext('2d'), ox = 40, oy = -30;
+    for (let i = 0; i < 7; i++) {
+      const ang = 0.72 + i * 0.1 + (i % 2) * 0.04, len = 620, wd = 0.04 + (i % 3) * 0.02;
+      const g = c.createLinearGradient(ox, oy, ox + Math.cos(ang) * len, oy + Math.sin(ang) * len);
+      g.addColorStop(0, 'rgba(255,226,170,.34)'); g.addColorStop(1, 'rgba(255,226,170,0)');
+      c.fillStyle = g; c.beginPath(); c.moveTo(ox, oy); c.lineTo(ox + Math.cos(ang - wd) * len, oy + Math.sin(ang - wd) * len); c.lineTo(ox + Math.cos(ang + wd) * len, oy + Math.sin(ang + wd) * len); c.fill();
+    }
+  })();
+  const mist = Array.from({ length: 6 }, (_, i) => ({ x: rnd() * W, y: H * (0.58 + rnd() * 0.36), rx: 110 + rnd() * 90, ry: 26 + rnd() * 28, v: 4 + rnd() * 7, a: 0.2 + rnd() * 0.16 }));
+  const motes = Array.from({ length: 46 }, () => ({ x: rnd() * W * 0.8, y: rnd() * H, v: 2 + rnd() * 5, p: rnd() * 6.28, r: 0.6 + rnd() * 1.3 }));
+  const leaves = Array.from({ length: 9 }, () => ({ x: rnd() * W, y: -20 - rnd() * 300, v: 12 + rnd() * 12, p: rnd() * 6.28, s: 3 + rnd() * 3, c: ['#6b4a1e', '#8a6a2a', '#4a3a1a', '#7a5a22'][Math.floor(rnd() * 4)] }));
+
+  function draw(t) {
+    const dawn = smooth(0, 4.5, t);
+    // chữ
+    spans.forEach((s, i) => { const u = ease(cl((t - 0.7 - i * 0.26) / 0.75)); s.style.opacity = u; s.style.transform = 'translateY(' + ((1 - u) * 20).toFixed(1) + 'px)'; s.style.filter = 'blur(' + ((1 - u) * 7).toFixed(1) + 'px)'; });
+    rule.style.transform = 'scaleX(' + ease(cl((t - 2.9) / 0.9)).toFixed(3) + ')';
+    sub.style.opacity = ease(cl((t - 3.6) / 0.8)); sub.style.transform = 'translateY(' + ((1 - ease(cl((t - 3.6) / 0.8))) * 10) + 'px)';
+    // số năm chạy ngược
+    const u = ease(cl((t - 0.2) / 2.6)), y = 2025 - Math.round(40 * u);
+    yr.textContent = y; tick.style.opacity = cl(t / 0.5) * (1 - 0.0 * 0);
+    // ảnh: ửng nắng + zoom rất chậm
+    pic.style.filter = 'sepia(' + (0.6 - 0.32 * dawn).toFixed(2) + ') brightness(' + (0.55 + 0.45 * dawn).toFixed(2) + ') contrast(1.06) saturate(' + (0.8 + 0.3 * dawn).toFixed(2) + ')';
+    pic.style.transform = 'scale(' + (1.02 + 0.028 * (0.5 - 0.5 * Math.cos(t * 0.16))).toFixed(4) + ')';
+    // lớp sáng
+    lite.clearRect(0, 0, W, H);
+    const gl = lite.createRadialGradient(30, 0, 10, 30, 0, 330); gl.addColorStop(0, 'rgba(255,200,120,' + (0.5 * dawn) + ')'); gl.addColorStop(1, 'rgba(255,200,120,0)');
+    lite.fillStyle = gl; lite.fillRect(0, 0, W, H);
+    lite.globalAlpha = dawn * (0.7 + 0.3 * Math.sin(t * 0.6)); lite.drawImage(beams, 0, 0); lite.globalAlpha = 1;
+    mist.forEach((m) => { const x = ((m.x + m.v * t) % (W + 2 * m.rx)) - m.rx, g = lite.createRadialGradient(x, m.y, 0, x, m.y, m.rx);
+      g.addColorStop(0, 'rgba(255,240,220,' + (m.a * (0.6 + 0.4 * dawn)) + ')'); g.addColorStop(1, 'rgba(255,240,220,0)');
+      lite.save(); lite.translate(x, m.y); lite.scale(1, m.ry / m.rx); lite.translate(-x, -m.y); lite.fillStyle = g; lite.beginPath(); lite.arc(x, m.y, m.rx, 0, 6.283); lite.fill(); lite.restore(); });
+    motes.forEach((m) => { const x = (m.x + Math.sin(t * 0.4 + m.p) * 10 + t * 3) % W, yy = ((m.y - m.v * t) % H + H) % H, a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 2 + m.p)); lite.globalAlpha = a * dawn; lite.fillStyle = '#ffe6b0'; lite.beginPath(); lite.arc(x, yy, m.r, 0, 6.283); lite.fill(); });
+    lite.globalAlpha = 1;
+    // lớp tối: lá rơi + chim
+    dark.clearRect(0, 0, W, H);
+    leaves.forEach((l) => { const tt = t - 1.5; if (tt < 0) return; const yy = ((l.y + l.v * tt) % (H + 60)) - 20, x = l.x + Math.sin(tt * 0.9 + l.p) * 26; dark.save(); dark.translate(x, yy); dark.rotate(Math.sin(tt * 1.3 + l.p) * 1.1 + l.p); dark.fillStyle = l.c; dark.globalAlpha = 0.85; dark.beginPath(); dark.ellipse(0, 0, l.s, l.s * 0.45, 0, 0, 6.283); dark.fill(); dark.restore(); });
+    for (let b = 0; b < 3; b++) { const tt = (t - 4 - b * 0.35) % 14; if (t < 4 || tt < 0 || tt > 10) continue; const x = -20 + tt * 44, yy = 60 + b * 14 + Math.sin(tt * 1.4 + b) * 6, f = Math.sin(tt * 9 + b * 2) * 3.5;
+      dark.strokeStyle = 'rgba(40,28,16,.75)'; dark.lineWidth = 1.6; dark.lineCap = 'round'; dark.beginPath(); dark.moveTo(x - 7, yy - f); dark.quadraticCurveTo(x - 3, yy - 2, x, yy); dark.quadraticCurveTo(x + 3, yy - 2, x + 7, yy - f); dark.stroke(); }
+    // tối góc nhẹ
+    const vg = dark.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 0.82); vg.addColorStop(0, 'rgba(30,15,5,0)'); vg.addColorStop(1, 'rgba(30,15,5,' + (0.38 - 0.1 * dawn) + ')');
+    dark.fillStyle = vg; dark.fillRect(0, 0, W, H);
+  }
+  let t0 = null;
+  if (STILL) { draw(parseFloat(STILL)); window.__ready = true; }
+  else (function loop(now) { if (t0 === null) t0 = now; draw((now - t0) / 1000); requestAnimationFrame(loop); })(performance.now());
+  addEventListener('keydown', (e) => {
+    if (!EMBED || window.parent === window) return;
+    if (e.key === 'Backspace') e.preventDefault();
+    window.parent.postMessage({ type: 'slide-key', key: e.key }, '*');
+  });
+})();
+</script>
+</body>
+</html>
