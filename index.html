@@ -758,42 +758,54 @@
       }
     }
 
-    // Vết máu: lấy đúng hình của vệt chém rồi phóng to 2.5 lần (BLOOD_PX = PX * 2.5)
+    // Vết máu mới: dải máu mượt chạy dọc vệt chém (bắn ra rồi đọng), giọt máu văng hai bên, vệt máu chảy xuống, ánh ướt
     let splat = null;
     const bloodFade = { a: 1 };
     function startSplat(rows) {
-      const bc = Math.ceil(innerWidth / BLOOD_PX), br = Math.ceil(innerHeight / BLOOD_PX);
-      const body = new Uint8Array(bc * br), core = new Uint8Array(bc * br);
-      const set = (m, x, y) => { if (x >= 0 && y >= 0 && x < bc && y < br) m[y * bc + x] = 1; };
-
-      for (let j = 0; j < br; j++) {
-        const s = Math.min(rows.length - 1, Math.floor((j * BLOOD_PX + BLOOD_PX / 2) / PX));
-        const [a, b] = rows[s];
-        const cx = Math.round(((a + b) / 2) * PX / BLOOD_PX);
-        const half = (b - a) / 2;
-        for (let dx = -half; dx <= half; dx++) {
-          set(body, cx + dx, j);
-          if (dx === 0) set(core, cx, j);
-        }
-        if (Math.random() < 0.05) for (let k = 1; k <= 4; k++) set(body, cx, j + k);   // giọt chảy
+      const H = innerHeight, pts = slashPath({ rows }, H), n = pts.length, w = [], sp = [], dr = [];
+      let ph = Math.random() * 6;
+      for (let i = 0; i < n; i++) { ph += 0.35 + Math.random() * 0.25; w.push(4 + 5 * (0.5 + 0.5 * Math.sin(ph)) + (Math.random() < 0.08 ? 6 : 0)); }
+      for (let i = 0; i < 90; i++) {
+        const k = Math.floor(Math.random() * n), d = Math.random() < 0.5 ? -1 : 1, far = Math.pow(Math.random(), 1.8);
+        const r = 1.2 + Math.random() * 3.2 * (1 - far * 0.5);
+        sp.push({ x0: pts[k][0], y0: pts[k][1], x1: pts[k][0] + d * (10 + far * 150), y1: pts[k][1] + (Math.random() - 0.4) * 40 + far * 20, r, dl: Math.random() * 90, fl: 130 + far * 260, tilt: (Math.random() - 0.5) * 0.6, c: Math.random() < 0.35 ? '#c2112a' : '#8a0016' });
       }
-      splat = { body, core, bc, br };
+      for (let i = 0; i < 16; i++) {
+        const k = 4 + Math.floor(Math.random() * (n - 8));
+        dr.push({ x: pts[k][0] + (Math.random() - 0.5) * 6, y: pts[k][1], dl: 250 + Math.random() * 500, v: 0.05 + Math.random() * 0.1, max: 40 + Math.random() * 170, r: 1.6 + Math.random() * 2 });
+      }
+      splat = { pts, w, sp, dr, t0: performance.now() };
       bloodFade.a = 1;
     }
 
     function drawBlood(s) {
-      fx.globalAlpha = bloodFade.a;
-      for (let y = 0; y < s.br; y++) for (let x = 0; x < s.bc; x++) {
-        const i = y * s.bc + x;
-        if (!s.body[i]) continue;
-        fx.fillStyle = '#8a0016';
-        fx.fillRect(x * BLOOD_PX, y * BLOOD_PX, BLOOD_PX, BLOOD_PX);
-        if (s.core[i]) {
-          fx.fillStyle = '#ff3344';
-          fx.fillRect(x * BLOOD_PX + 4, y * BLOOD_PX, BLOOD_PX - 8, BLOOD_PX);
-        }
+      const e = performance.now() - s.t0, ease = (u) => 1 - Math.pow(1 - u, 3), grow = ease(Math.min(1, e / 200));
+      fx.save(); fx.globalAlpha = bloodFade.a;
+      // dải máu chính
+      slashBand(s.pts, (u, y) => s.w[Math.min(s.w.length - 1, Math.round(u * (s.w.length - 1)))] * grow * (0.35 + 0.65 * Math.min(1, Math.min(y, innerHeight - y) / 70)));
+      fx.shadowColor = 'rgba(120,0,16,.7)'; fx.shadowBlur = 14; fx.fillStyle = '#7a0012'; fx.fill(); fx.shadowBlur = 0;
+      slashBand(s.pts, (u, y) => s.w[Math.min(s.w.length - 1, Math.round(u * (s.w.length - 1)))] * 0.55 * grow);
+      fx.fillStyle = '#b00d24'; fx.fill();
+      fx.strokeStyle = 'rgba(255,92,108,' + (0.75 * grow) + ')'; fx.lineWidth = 1.6; fx.beginPath();
+      s.pts.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); }); fx.stroke();
+      // giọt văng: bay ra theo đường cong rồi đọng lại, có điểm sáng ướt
+      for (const p of s.sp) {
+        const u = Math.max(0, Math.min(1, (e - p.dl) / p.fl)); if (u <= 0) continue;
+        const k = ease(u), x = p.x0 + (p.x1 - p.x0) * k, y = p.y0 + (p.y1 - p.y0) * k - Math.sin(u * Math.PI) * 22 * (1 - u * 0.3);
+        const rr = p.r * (u < 1 ? 0.7 : 1), sx = u < 1 ? 1.8 : 1;
+        fx.fillStyle = p.c; fx.beginPath(); fx.ellipse(x, y, rr * sx, rr, p.tilt, 0, 6.283); fx.fill();
+        if (rr > 2.2) { fx.fillStyle = 'rgba(255,170,180,.55)'; fx.fillRect(x - rr * 0.35, y - rr * 0.5, Math.max(1, rr * 0.4), Math.max(1, rr * 0.3)); }
       }
-      fx.globalAlpha = 1;
+      // vệt máu chảy xuống
+      for (const d of s.dr) {
+        const t = e - d.dl; if (t <= 0) continue;
+        const len = Math.min(d.max, d.v * t * (1 + t / 900)), w = d.r * (1 - 0.35 * len / d.max);
+        const g = fx.createLinearGradient(0, d.y, 0, d.y + len); g.addColorStop(0, '#7a0012'); g.addColorStop(1, '#b00d24');
+        fx.fillStyle = g; fx.fillRect(d.x - w / 2, d.y, w, len);
+        fx.fillStyle = '#b00d24'; fx.beginPath(); fx.arc(d.x, d.y + len, w * 0.85, 0, 6.283); fx.fill();
+        fx.fillStyle = 'rgba(255,170,180,.5)'; fx.fillRect(d.x - w * 0.35, d.y + len - w * 0.6, Math.max(1, w * 0.3), Math.max(1, w * 0.4));
+      }
+      fx.restore();
     }
 
     // ================= BỤI / MẢNH VỠ =================
