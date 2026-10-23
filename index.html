@@ -1566,6 +1566,7 @@
       settingsFrom = from;
       slideListEl.innerHTML = '';
       settingsBox.classList.toggle('list', from === 'soul');
+      sansRow.style.display = from === 'soul' ? 'none' : '';      // thanh tỉ lệ Sans chỉ nằm ở bảng Settings của màn danh sách, không hiện trong chế độ tim xanh
       settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
       if (from === 'soul') {                      // chế độ tim xanh: danh sách 10 slide để nhảy nhanh
         SLIDE_NAMES.forEach((name, n) => {
