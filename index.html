@@ -151,7 +151,13 @@
     .settings-close:hover { color: #ff3344; }
     .settings-hint { position: absolute; left: 20px; bottom: 14px; font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.4); }
 
-    .settings-box.list { height: auto; padding: 58px 22px 46px; }
+    .sans-row { position: absolute; left: 22px; right: 22px; top: 86px; font-family: 'Press Start 2P', monospace; color: #fff; }
+    .sans-row .sr-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
+    .sans-row .sr-val { color: #ffe000; font-size: 14px; text-shadow: 2px 2px 0 #000; }
+    .sans-row .sr-note { margin-top: 12px; font-size: 8px; line-height: 1.8; color: rgba(255, 255, 255, 0.45); letter-spacing: 1px; }
+    .sans-row input[type=range] { width: 100%; height: 26px; accent-color: #ff3344; cursor: pointer; background: transparent; }
+    .settings-box.list .sans-row { position: static; margin-top: 18px; padding-top: 14px; border-top: 3px solid #333; }
+    .settings-box.list { height: auto; max-height: 94vh; overflow-y: auto; padding: 58px 22px 46px; }
     .slide-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .slide-item { font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.5; text-align: left; color: #fff; background: #000; border: 3px solid #fff; padding: 11px 10px; cursor: pointer; }
     .slide-item b { color: #ff3344; margin-right: 8px; }
@@ -1540,6 +1546,19 @@
     const SLIDE_NAMES = ['Life in My Neighbourhood', 'Group Members', 'A Glimpse into the Past', 'How People Moved Around', 'Daily Living Conditions', 'Water & Electricity Supply', 'How People Spent Free Time', 'Key Changes Over 40 Years', 'Preserving Our Memories', 'Thank You'];
     const settingsBox = settingsEl.querySelector('.settings-box'), settingsTitle = settingsEl.querySelector('.settings-title');
     const slideListEl = document.createElement('div'); slideListEl.className = 'slide-list'; settingsBox.appendChild(slideListEl);
+    // Tỉ lệ Sans chặn (1-100%): lưu trong trình duyệt, dùng cho cú chém giữa slide 4 và 5 ở chế độ tim xanh
+    let sansChance = 100;
+    try { const v = parseInt(localStorage.getItem('sansBlockChance'), 10); if (v >= 1 && v <= 100) sansChance = v; } catch (e) {}
+    const sansRow = document.createElement('div'); sansRow.className = 'sans-row';
+    sansRow.innerHTML = '<div class="sr-top"><span>SANS BLOCK CHANCE</span><span class="sr-val" id="sansVal"></span></div><input id="sansRange" type="range" min="1" max="100" step="1" aria-label="Sans block chance"><div class="sr-note">1-100%. AT SLIDE 4 > 5 IN SOUL MODE.</div>';
+    settingsBox.appendChild(sansRow);
+    const sansRange = sansRow.querySelector('#sansRange'), sansVal = sansRow.querySelector('#sansVal');
+    sansRange.value = sansChance; sansVal.textContent = sansChance + '%';
+    sansRange.addEventListener('input', () => {
+      sansChance = +sansRange.value; sansVal.textContent = sansChance + '%';
+      try { localStorage.setItem('sansBlockChance', String(sansChance)); } catch (e) {}
+    });
+    sansRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     let settingsFrom = 'grid';
     function openSettings(from) {
       from = from || 'grid';
@@ -1754,13 +1773,13 @@
 
     // Click: vệt chém dọc tại chỗ click. Có thể bị Sans chặn (tối đa 1 lần mỗi lượt tim xanh).
     async function soulSlash(cur, clickX) {
-      const blocked = !soul.blockUsed && soul.i === soul.blockAt;
+      let blocked = false;
+      if (!soul.blockUsed && soul.i === soul.blockAt) { soul.blockUsed = true; blocked = Math.random() * 100 < sansChance; }   // đổ xúc xắc 1 lần mỗi lượt
       const px = blocked ? Math.max(innerWidth * 0.3, Math.min(innerWidth * 0.7, clickX)) : clickX;   // Sans phải nằm trong màn hình
       const hitX = Math.max(2, Math.min(COLS - 3, Math.round(px / PX)));
       const cx = hitX * PX, cy = innerHeight * 0.5;
       const rows = startSlash(hitX, blocked ? Math.floor(cy / PX) : ROWS);
       if (blocked) {
-        soul.blockUsed = true;
         await soulBlockCut(cur, cx, cy);
         return;
       }
