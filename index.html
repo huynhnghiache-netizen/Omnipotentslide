@@ -252,7 +252,7 @@
   <canvas id="fx"></canvas>
   <div id="knStage" aria-hidden="true">
     <div id="knDim"></div>
-    <div id="knWrap"><canvas id="knCv" width="440" height="330"></canvas><video id="knVid" muted playsinline preload="auto"><source src="assets/knight-attack.webm" type="video/webm"><source src="assets/knight-attack.mp4" type="video/mp4"></video></div>
+    <div id="knWrap"><canvas id="knCv" width="578" height="322"></canvas><video id="knVid" muted playsinline preload="auto"><source src="assets/knight-attack.webm" type="video/webm"><source src="assets/knight-attack.mp4" type="video/mp4"></video></div>
   </div>
   <div id="cineBlack"></div>
   <div id="overlay"></div>
@@ -1967,7 +1967,7 @@
     // màn hình nứt ~1.5s, đen 1s, sang slide kế.
     let kn = null;
     const lerp = (a, b, t) => a + (b - a) * t;
-    const KV = { w: 440, h: 330, bx: 120.5, by: 170.5, sx: 50, sy: 100, sw: 141, kx: 345, ky: 150, clipX: 250, dissolveAt: 6.75, endAt: 9.8 };
+    const KV = { w: 578, h: 322, bx: 258.5, by: 170.5, sx: 188, sy: 100, sw: 141, kx: 470, ky: 150, clipX: 388, dissolveAt: 6.75, endAt: 9.8 };
     function drawKnight(now) {                                      // chỉ vẽ nhát chém bay vào màn hình + loé sáng (phần còn lại là video)
       const e = now - kn.sl0; if (e < 0) return;
       const W = innerWidth, H = innerHeight, D = Math.hypot(W, H);
@@ -2038,15 +2038,17 @@
       disposeSlide(cur); soul.cur = null;
       // hiệp sĩ bước ra giữa màn hình: chỉ giữ vùng chứa hiệp sĩ trong video, phóng to, quay lại đoạn đầu video (hiệp sĩ rõ nhất)
       vid.pause(); try { vid.currentTime = 0; } catch (e) {}
-      const K = Math.min(2.3, (0.7 * H) / (KV.h * f * 0.7));
+      const K = Math.min(2.3, (0.7 * H) / (KV.h * f * 0.7)), PERS = 'perspective(' + Math.round(H * 1.6) + 'px) ';
       const ox = KV.kx * f, oy = KV.ky * f, tx = W / 2 - (vl + ox), ty = H * 0.54 - (vtop + oy);
-      Object.assign(wrap.style, { transition: 'none', clipPath: 'inset(0 0 0 ' + (KV.clipX * f) + 'px)', transformOrigin: ox + 'px ' + oy + 'px', transform: 'translate(' + tx + 'px,' + ty + 'px) scale(' + (K * 0.7) + ')', opacity: '0' });
+      Object.assign(wrap.style, { transition: 'none', clipPath: 'inset(0 0 0 ' + (KV.clipX * f) + 'px)', transformOrigin: ox + 'px ' + oy + 'px', transform: PERS + 'translate(' + tx + 'px,' + ty + 'px) scale(' + (K * 0.7) + ') rotateY(0deg)', opacity: '0' });
       void wrap.offsetWidth;
       wrap.style.transition = 'opacity .35s linear, transform .9s cubic-bezier(.2,.7,.2,1)';
-      wrap.style.opacity = '1'; wrap.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + K + ')';
+      wrap.style.opacity = '1'; wrap.style.transform = PERS + 'translate(' + tx + 'px,' + ty + 'px) scale(' + K + ') rotateY(0deg)';
       vid.play().catch(() => {});
       const loopIv = setInterval(() => { if (vid.currentTime > 1.4) vid.currentTime = 0; }, 120);
-      await wait(1500);                                                      // hiệp sĩ nhìn màn hình
+      await wait(1050);                                                      // hiệp sĩ nhìn màn hình
+      wrap.style.transition = 'transform .45s cubic-bezier(.3,.1,.2,1)'; wrap.style.transform = PERS + 'translate(' + tx + 'px,' + ty + 'px) scale(' + (K * 1.06) + ') rotateY(42deg)';   // xoay mặt về phía người xem
+      await wait(450);
       kn.sl0 = performance.now(); kn.kx = W / 2; kn.ky = H * 0.5;
       await wait(300);
       impact(1); shake(1.4, 8);
