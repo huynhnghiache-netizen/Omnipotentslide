@@ -46,6 +46,7 @@
 (() => {
   const EMBED = location.search.includes('embed');
   const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const HOLD = location.search.includes('hold');   // tải sẵn: vẽ khung đầu rồi chờ lệnh 'go'
   const deck = document.querySelector('.deck');
   function fit() {
     const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
@@ -330,6 +331,7 @@
     requestAnimationFrame(loop);
   }
   if (STILL) { const n = Math.round(parseFloat(STILL) / FIX); for (let i = 0; i < n; i++) stepAll(FIX); draw(t); window.__ready = true; }
+  else if (HOLD) { draw(t); parent.postMessage({ type: 'hold-ready' }, '*'); addEventListener('message', function go(ev) { if (ev.data && ev.data.type === 'go') { removeEventListener('message', go); last = performance.now(); requestAnimationFrame(loop); } }); }
   else { last = performance.now(); requestAnimationFrame(loop); }
   addEventListener('keydown', (e) => {
     if (!EMBED || window.parent === window) return;

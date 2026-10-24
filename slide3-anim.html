@@ -163,7 +163,8 @@
     }
   }
 
-  const t0 = performance.now();
+  const HOLD = location.search.includes('hold');
+  let t0 = performance.now();
   function frame(now) {
     const t = (now - t0) / 1000, dt = Math.min(0.033, t - lastT); lastT = t;
 
@@ -195,7 +196,8 @@
     g.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  if (HOLD) { parent.postMessage({ type: 'hold-ready' }, '*'); addEventListener('message', function go(ev) { if (ev.data && ev.data.type === 'go') { removeEventListener('message', go); t0 = performance.now(); requestAnimationFrame(frame); } }); }
+  else requestAnimationFrame(frame);
 
   // Khi nhúng trong index.html: chuyển phím (Backspace) lên trang chính để quay lại danh sách
   addEventListener('keydown', (e) => {

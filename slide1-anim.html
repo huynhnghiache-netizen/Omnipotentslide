@@ -45,6 +45,7 @@
 (() => {
   const EMBED = location.search.includes('embed');
   const STILL = (/[?&]still=([\d.]+)/.exec(location.search) || [])[1];
+  const HOLD = location.search.includes('hold');
   const deck = document.querySelector('.deck');
   function fit() {
     const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
@@ -114,6 +115,7 @@
   }
   let t0 = null;
   if (STILL) { draw(parseFloat(STILL)); window.__ready = true; }
+  else if (HOLD) { draw(0); parent.postMessage({ type: 'hold-ready' }, '*'); addEventListener('message', function go(ev) { if (ev.data && ev.data.type === 'go') { removeEventListener('message', go); (function loop(now) { if (t0 === null) t0 = now; draw((now - t0) / 1000); requestAnimationFrame(loop); })(performance.now()); } }); }
   else (function loop(now) { if (t0 === null) t0 = now; draw((now - t0) / 1000); requestAnimationFrame(loop); })(performance.now());
   addEventListener('keydown', (e) => {
     if (!EMBED || window.parent === window) return;

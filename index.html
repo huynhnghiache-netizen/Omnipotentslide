@@ -260,6 +260,7 @@
   <div id="cineBlack"></div>
   <div id="overlay"></div>
   <iframe id="anim3" title="Slide 3" aria-hidden="true"></iframe>
+  <iframe id="anim3b" title="Slide (tải sẵn)" aria-hidden="true" style="position:fixed;inset:0;width:100%;height:100%;border:0;opacity:0;z-index:-1;pointer-events:none;display:none"></iframe>
 
   <!-- Frame 1: chỉ có chữ START -->
   <div id="start" class="loading">
@@ -1229,7 +1230,25 @@
     const chooseEl = document.getElementById('choose');
     const picksEl = document.getElementById('picks');
     const tickerTrack = document.getElementById('ticker-track');
-    const anim3 = document.getElementById('anim3');
+    let anim3 = document.getElementById('anim3'), animPre = document.getElementById('anim3b');
+    // Tải sẵn slide kế (iframe ẩn, đã vẽ khung đầu, chờ lệnh 'go') để chuyển slide là chạy ngay, không bị khựng
+    const PRE = { idx: -1, ready: false }, HOLD_OK = new Set([0, 2, 3, 4, 5, 6, 7, 8]);
+    const A3STYLE = 'position:fixed;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:transparent;';
+    function prewarm(i) {
+      if (!HOLD_OK.has(i) || !ANIM_SRC[i] || PRE.idx === i) return;
+      PRE.idx = i; PRE.ready = false;
+      animPre.style.cssText = A3STYLE + 'opacity:0;z-index:-1;display:block';
+      animPre.src = ANIM_SRC[i] + '&hold';
+    }
+    function takePre(i) {
+      if (PRE.idx !== i || !PRE.ready) return false;
+      const old = anim3; anim3 = animPre; animPre = old;
+      old.style.cssText = 'display:none'; old.src = 'about:blank';
+      anim3.style.cssText = A3STYLE + 'z-index:20;display:block;opacity:0';
+      PRE.idx = -1; PRE.ready = false;
+      try { anim3.contentWindow.postMessage({ type: 'go' }, '*'); } catch (e) { }
+      return true;
+    }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
     const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
@@ -1394,7 +1413,7 @@
       currentIndex = i;
       if (ANIM_SRC[i]) {                   // slide 2, 3: mở bản động
         animState = i === 1 ? 'loading' : null;
-        anim3.src = ANIM_SRC[i];
+        if (!takePre(i)) anim3.src = ANIM_SRC[i];
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
         window.focus();
@@ -1402,6 +1421,7 @@
       currentSlideObj = createSlide(slidePath(i), 0);
       scene.add(currentSlideObj.group);
       view = 'detail';
+      setTimeout(() => prewarm(i + 1), 900);
     }
 
     // Giết 1 thẻ: vỡ thành mảnh, (tuỳ chọn) hiện 999
@@ -1442,7 +1462,7 @@
         dustUntil = performance.now() + DISSOLVE_MS;
         gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
-        flyTo(i, () => openSlide(i));
+        prewarm(i); flyTo(i, () => openSlide(i));
         hideGrid(() => {});
       }, SLASH_SWEEP + 100 + BLOOD_TO_DISSOLVE_MS);
     }
@@ -1504,7 +1524,7 @@
     function finishSword() {
       const holder = sword.holder;
       sword.endAt = performance.now();
-      flyTo(holder, () => openSlide(holder));
+      prewarm(holder); flyTo(holder, () => openSlide(holder));
       hideGrid(() => {});
     }
 
@@ -1689,11 +1709,12 @@
     // ----- Slide 3 có bản động (iframe) -----
     function showAnim3(i = 2) {
       animState = i === 1 ? 'loading' : null;
-      anim3.src = ANIM_SRC[i];
+      if (!takePre(i)) anim3.src = ANIM_SRC[i];
       anim3.style.display = 'block';
       anim3.style.opacity = '0';
       gsap.to(anim3, { opacity: 1, duration: 0.35, ease: 'none' });
       window.focus();
+      setTimeout(() => prewarm(i + 1), 900);
     }
     function hideAnim3Now() {
       animState = null;
@@ -2207,6 +2228,7 @@
     // Phím bấm trong slide 3 (iframe) được chuyển lên đây: Backspace quay lại danh sách
     window.addEventListener('message', (ev) => {
       const d = ev.data;
+      if (d && d.type === 'hold-ready' && ev.source === animPre.contentWindow) { PRE.ready = true; return; }
       if (ev.source !== anim3.contentWindow || !d) return;
       if (d.type === 'anim-state') {
         animState = d.state;
