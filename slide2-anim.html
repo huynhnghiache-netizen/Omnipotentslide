@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="slides.css">
   <style>
     html, body { background: #050505; }
+    .deck { visibility: hidden; }   /* ẩn tới khi dựng xong nền đen, tránh lộ slide đầy đủ rồi mới đen */
     body { padding: 0; overflow: hidden; }
     .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
     #voidc, #sheen, #ink, #fx { left: 0; top: 0; width: 1536px; height: 864px; pointer-events: none; }
@@ -432,6 +433,7 @@
   const imgs = [BRUSH, PENCIL, ...members.map((m) => m.img)];
   Promise.all([document.fonts ? document.fonts.ready : 0, ...imgs.map((im) => im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))]).then(() => {
     setupMeasure(); resetVisuals();
+    document.querySelector('.deck').style.visibility = 'visible';
     phase = 'wait'; post('wait');
   });
 })();
