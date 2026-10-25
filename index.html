@@ -1000,16 +1000,14 @@
     //   (x, y) là tâm bone; (dx, dy) hướng từ bone tới Sans; (nx, ny) pháp tuyến
     let cine = null;
     // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 nhân vật cúi đầu nhìn xuống (cả cảnh nghiêng theo, không dịch chỗ),
-    // bảng Settings nằm hướng về phía người xem; 2100 cánh tay thò vào; 2950 một ngón nhấp, số 1 -> 999; 3950 ngẩng lên và Sans lùi xa dần;
+    // bảng Settings nằm hướng về phía người xem; 2100 cánh tay thò vào; 2950 một ngón nhấp, số 1 -> 999; 3100 Sans lộ biểu cảm (thêm tai nghe + mắt nhắm,
+    // phần còn lại giữ nguyên); 3300 Sans và slide phía sau lùi xa; 3950 ngẩng lên (lúc này Sans đã ở xa);
     // 4900 đợt chém dày đặc từ phía người xem bay tới Sans; cú đầu tiên tới là Sans (và bone) rụng rời kèm tiếng, các cú còn lại bay xuyên qua rồi tan;
     // sau đó tối màn hình 0.5s rồi sang slide kế.
-    const CT = { bone: 250, down: 1300, arm: 2100, tap: 2950, up: 3950, back: 4000, slash0: 4900, slashN: 46, slashGap: 20, flight: 420 };
+    const CT = { bone: 250, down: 1300, arm: 2100, tap: 2950, reveal: 3100, back: 3300, up: 3950, slash0: 4900, slashN: 46, slashGap: 20, flight: 420 };
     CT.hit = CT.slash0 + CT.flight;
     CT.crumble = CT.hit + 30;
     CT.black = CT.crumble + 1750;
-    const SANS_SMUG = new Image(); let SANS_SMUG_F = null;
-    SANS_SMUG.onload = () => { const c = document.createElement('canvas'); c.width = SANS_SMUG.width; c.height = SANS_SMUG.height; const g = c.getContext('2d'); g.drawImage(SANS_SMUG, 0, 0); g.globalCompositeOperation = 'destination-in'; const gr = g.createLinearGradient(0, 0, 0, c.height); gr.addColorStop(0, '#000'); gr.addColorStop(0.72, '#000'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height); SANS_SMUG_F = c; };
-    SANS_SMUG.src = 'assets/sans-smug.png';       // mặt Sans cười nhắm mắt, đeo tai nghe (ảnh bạn gửi)
     const BONES_SND = new Audio('assets/dry-bones-death.mp3'); BONES_SND.preload = 'auto'; BONES_SND.volume = 0.9;
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
@@ -1029,6 +1027,30 @@
       return c;
     }
     const SANS_O = outlineSprite(SANS_IMG, 6, '#0b0b0b');
+    // Sans lộ biểu cảm: giữ nguyên đầu, thân, tay, chân; chỉ thêm tai nghe + mắt nhắm cười (như ảnh bạn gửi)
+    const HPM = 16;                                                   // chừa chỗ phía trên cho băng tai nghe
+    const SANS_HP = (() => {
+      const c = document.createElement('canvas'); c.width = SANS_O.width; c.height = SANS_O.height + HPM; const g = c.getContext('2d');
+      g.drawImage(SANS_O, 0, HPM);
+      g.fillStyle = '#ffffff';                                          // xoá hốc mắt
+      g.fillRect(58, 42 + HPM, 40, 32); g.fillRect(122, 42 + HPM, 40, 32);
+      g.strokeStyle = '#0b0b0b'; g.lineCap = 'round'; g.lineWidth = 5;
+      for (const ex of [78, 142]) {                                    // mắt nhắm: vòng cung + lông mày phẳng
+        g.beginPath(); g.moveTo(ex - 19, 54 + HPM); g.quadraticCurveTo(ex, 74 + HPM, ex + 19, 54 + HPM); g.stroke();
+        g.beginPath(); g.moveTo(ex - 20, 44 + HPM); g.lineTo(ex + 20, 44 + HPM); g.lineWidth = 4; g.stroke(); g.lineWidth = 5;
+      }
+      g.lineWidth = 3; for (const [x, d] of [[103, 1], [117, -1]]) { g.beginPath(); g.moveTo(x, 36 + HPM); g.quadraticCurveTo(x + 5 * d, 43 + HPM, x, 50 + HPM); g.stroke(); }
+      g.lineCap = 'butt'; g.lineJoin = 'round';
+      g.strokeStyle = '#0b0b0b'; g.lineWidth = 15; g.beginPath(); g.moveTo(30, 84 + HPM - 16); g.quadraticCurveTo(110, -78 + HPM, 190, 84 + HPM - 16); g.stroke();   // băng tai nghe
+      g.strokeStyle = '#3b3b40'; g.lineWidth = 9; g.beginPath(); g.moveTo(30, 84 + HPM - 16); g.quadraticCurveTo(110, -78 + HPM, 190, 84 + HPM - 16); g.stroke();
+      g.strokeStyle = '#8d8d96'; g.lineWidth = 2; g.beginPath(); g.moveTo(34, 78 + HPM - 16); g.quadraticCurveTo(110, -72 + HPM, 186, 78 + HPM - 16); g.stroke();
+      for (const x of [10, 176]) {                                      // hai bên tai nghe
+        g.fillStyle = '#0b0b0b'; g.beginPath(); g.roundRect(x, 38 + HPM, 34, 64, 10); g.fill();
+        g.fillStyle = '#4a4a52'; g.beginPath(); g.roundRect(x + 4, 42 + HPM, 26, 56, 7); g.fill();
+        g.fillStyle = '#8d8d96'; for (const yy of [52, 64, 76, 88]) g.fillRect(x + 6, yy + HPM, 22, 2);
+      }
+      return c;
+    })();
     const BONE_O = outlineSprite(BONE_IMG, 3, '#0b0b0b');
     const ramp = (t, a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
     const easeOut3 = (u) => 1 - Math.pow(1 - u, 3);
@@ -1971,13 +1993,14 @@
       return { x: tx1, y: ty };
     }
     function startCrumble(c) {
-      const R = c.smugRect, img = SANS_SMUG_F, k = R.w / img.width, iw = img.width, ih = img.height;
-      const regs = [[0, 0, 1, 0.2], [0, 0.2, 0.22, 0.5], [0.78, 0.2, 0.22, 0.55], [0.22, 0.2, 0.56, 0.32], [0.22, 0.52, 0.56, 0.26], [0, 0.78, 0.5, 0.22], [0.5, 0.78, 0.5, 0.22]];
-      c.floorY = R.y + R.h + 0.04 * innerHeight; c.gk = innerHeight / 600;
-      c.pieces = regs.map(([fx0, fy0, fw, fh], i) => {
-        const sx = fx0 * iw, sy = fy0 * ih, sw = fw * iw, sh = fh * ih;
-        return { sx, sy, sw, sh, k, x: R.x + (sx + sw / 2) * k, y: R.y + (sy + sh / 2) * k, vx: (fx0 + fw / 2 - 0.5) * 7 + (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 6 * (1 - fy0), rot: 0, vr: (Math.random() - 0.5) * 0.14, delay: i * 30, done: false, bounces: 0 };
-      });
+      const S = c.sans, W0 = SANS_HP.width, H0 = SANS_O.height, kz = c.sansScale * c.z;
+      const regs = [[0, 0, 220, 128], [46, 128, 128, 104], [0, 128, 48, 104], [172, 128, 48, 104], [30, 232, 80, 76], [110, 232, 80, 76]];
+      const topY = S.y - (H0 / 2 + HPM) * kz;
+      c.floorY = topY + SANS_HP.height * kz + 4; c.gk = Math.max(0.5, innerHeight / 600 * c.z);
+      c.pieces = regs.map(([sx, sy, sw, sh], i) => ({
+        sx, sy, sw, sh, k: kz, x: S.x + (sx + sw / 2 - W0 / 2) * kz, y: topY + (sy + sh / 2) * kz,
+        vx: (sx + sw / 2 - W0 / 2) * 0.03 + (Math.random() - 0.5) * 2, vy: i === 0 ? -8 : -3 - Math.random() * 3, rot: 0, vr: (Math.random() - 0.5) * 0.16, delay: i * 35, done: false, bounces: 0
+      }));
       try { BONES_SND.currentTime = 0; BONES_SND.play().catch(() => {}); } catch (e) { }
     }
     function drawPieces(c, t) {
@@ -1994,7 +2017,7 @@
           }
         }
         fx.save(); fx.translate(q.x, q.y); fx.rotate(q.rot);
-        fx.drawImage(SANS_SMUG_F, q.sx, q.sy, q.sw, q.sh, -q.sw * q.k / 2, -q.sh * q.k / 2, q.sw * q.k, q.sh * q.k);
+        fx.drawImage(SANS_HP, q.sx, q.sy, q.sw, q.sh, -q.sw * q.k / 2, -q.sh * q.k / 2, q.sw * q.k, q.sh * q.k);
         fx.restore();
       }
     }
@@ -2023,7 +2046,7 @@
       const tilt = smooth(ramp(t, CT.down, CT.down + 700)) - smooth(ramp(t, CT.up, CT.up + 650));
       if (tilt > 0.002 || ev.tilt) {
         const tf = tilt > 0.002 ? 'perspective(' + Math.round(H * 1.15) + 'px) rotateX(' + (tilt * 16).toFixed(2) + 'deg) translateY(' + (-tilt * H * 0.045).toFixed(1) + 'px)' : '';
-        containerEl.style.transformOrigin = '50% 50%'; fxCanvas.style.transformOrigin = '50% 50%';
+        const org = S.x.toFixed(0) + 'px ' + S.y.toFixed(0) + 'px'; containerEl.style.transformOrigin = org; fxCanvas.style.transformOrigin = org;
         containerEl.style.transform = tf; fxCanvas.style.transform = tf; ev.tilt = tilt > 0.002;
       }
       // ---- bảng Settings (3D, hướng về người xem) ----
@@ -2055,17 +2078,17 @@
         }
       }
       if (t >= CT.up + 700 && !ev.tiltReset) { ev.tiltReset = 1; containerEl.style.transform = ''; fxCanvas.style.transform = ''; pv.panel.style.display = 'none'; }
-      // ---- Sans đứng yên: lùi xa dần (thu nhỏ quanh chỗ đứng), đổi sang mặt cười nhắm mắt ----
-      const back = smooth(ramp(t, CT.back, CT.back + 900)), z = 1 - 0.4 * back;
+      const back = smooth(ramp(t, CT.back, CT.back + 800)), z = 1 - 0.3 * back; c.z = z;
+      if (back > 0) { if (!ev.org) { ev.org = 1; containerEl.style.transformOrigin = S.x.toFixed(0) + 'px ' + S.y.toFixed(0) + 'px'; } containerEl.style.scale = z.toFixed(4); }
+      // ---- Sans đứng yên (không rung): tới lúc chỉnh 999 thì lộ biểu cảm, rồi lùi xa cùng slide phía sau ----
       fx.save(); fx.translate(S.x, S.y); fx.scale(z, z); fx.translate(-S.x, -S.y);
       if (!c.pieces) {
-        const sm0 = ramp(t, CT.back + 250, CT.back + 450);
-        if (sm0 < 1) drawSpr(SANS_O, S.x, S.y, SANS_O.height * c.sansScale, ramp(t, 0, 380) * (1 - sm0));
-        if (sm0 > 0 && SANS_SMUG_F) {
-          const hh = 0.6 * H, ww = hh * SANS_SMUG.width / SANS_SMUG.height, x0 = S.x - ww / 2, y0 = S.y - hh * 0.55;
-          c.smugRect = { x: S.x + (x0 - S.x) * z, y: S.y + (y0 - S.y) * z, w: ww * z, h: hh * z };   // vị trí thật trên màn hình (đã thu nhỏ)
-          fx.save(); fx.globalAlpha = sm0; fx.shadowColor = 'rgba(255,255,255,.55)'; fx.shadowBlur = 24;
-          fx.drawImage(SANS_SMUG_F, Math.round(x0), Math.round(y0), ww, hh); fx.restore();
+        const k = c.sansScale, H0 = SANS_O.height;
+        if (t < CT.reveal) drawSpr(SANS_O, S.x, S.y, H0 * k, ramp(t, 0, 380));
+        else {
+          if (!ev.reveal) { ev.reveal = 1; flash(90, 'rgba(255,255,255,0.5)'); }
+          const pop = 1 + 0.07 * (1 - ramp(t, CT.reveal, CT.reveal + 180)), w = SANS_HP.width * k * pop, h = SANS_HP.height * k * pop;
+          fx.drawImage(SANS_HP, Math.round(S.x - w / 2), Math.round(S.y + H0 * k / 2 - h), w, h);       // chân giữ nguyên chỗ đứng
         }
       }
       if (t >= CT.bone && !ev.tear) {                               // bone chặn (vỡ cùng lúc Sans rụng)
@@ -2094,7 +2117,7 @@
         for (let i = 0; i < 3; i++) popDamage(S.x + (Math.random() - 0.5) * W * 0.2, S.y - H * 0.12 + (Math.random() - 0.5) * H * 0.12, 999);
         try { navigator.vibrate && navigator.vibrate([60, 30, 120]); } catch (e) { }
       }
-      if (!c.pieces && t >= CT.crumble && c.smugRect) startCrumble(c);
+      if (!c.pieces && t >= CT.crumble) startCrumble(c);
     }
 
     // Bị Sans chặn: kết thúc bằng màn hình đen 0.5s, trong lúc đó đổi sang slide kế
@@ -2115,7 +2138,7 @@
       await wait(CT.black);
       blk.style.transition = 'opacity .25s linear'; blk.style.opacity = '1';      // tối đen
       await wait(270);
-      stopGlitch(); crack = null; cine = null; particles.length = 0; containerEl.style.transform = ''; fxCanvas.style.transform = ''; try { c.pov.wrap.remove(); } catch (e) { }
+      stopGlitch(); crack = null; cine = null; particles.length = 0; containerEl.style.transform = ''; containerEl.style.scale = ''; containerEl.style.transformOrigin = ''; fxCanvas.style.transform = ''; fxCanvas.style.transformOrigin = ''; try { c.pov.wrap.remove(); } catch (e) { }
       disposeSlide(cur);                                                // lộ slide kế phía sau lớp đen
       await wait(500);                                                  // giữ đen 0.5s
       blk.style.transition = 'opacity .18s linear'; blk.style.opacity = '0';
