@@ -994,20 +994,10 @@
     }
 
     // ================= CẢNH SANS CHẶN (gọn): bone chặn -> nhát chém đỏ xé màn hình xuyên bone -> trúng Sans (9999) -> Sans chảy máu -> đen 0.5s -> slide kế =================
-    // Trình tự (ms): 0 Sans hiện; 250 bone chặn; 1000 nhát chém đỏ lao từ xa, xé màn hình, cắt đôi bone; ~1520 trúng Sans: 9999, máu;
-    // 3500 màn hình tối, giữ 0.5s trong lúc đổi slide, rồi mở ra. Chỉ chạy 1 lần mỗi lượt tim xanh, cố định giữa slide 4 và slide 5.
-    //   cine: { t0, x, y, dx, dy, nx, ny, sans, D, L, w, bend, seed, cur, ev, drops, boneCut }
-    //   (x, y) là tâm bone; (dx, dy) hướng từ bone tới Sans; (nx, ny) pháp tuyến
     let cine = null;
-    // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 nhân vật cúi đầu nhìn xuống (cả cảnh nghiêng theo, không dịch chỗ),
-    // bảng Settings nằm hướng về phía người xem; 2100 cánh tay thò vào; 2950 một ngón nhấp, số 1 -> 999; 3100 Sans lộ biểu cảm (thêm tai nghe + mắt nhắm,
-    // phần còn lại giữ nguyên); 3300 Sans và slide phía sau lùi xa; 3950 ngẩng lên (lúc này Sans đã ở xa);
-    // 4900 đợt chém dày đặc từ phía người xem bay tới Sans; cú đầu tiên tới là Sans (và bone) rụng rời kèm tiếng, các cú còn lại bay xuyên qua rồi tan;
-    // sau đó tối màn hình 0.5s rồi sang slide kế.
-    const CT = { bone: 250, down: 1300, arm: 2100, tap: 2950, reveal: 3100, back: 3300, up: 3950, slash0: 4900, slashN: 46, slashGap: 20, flight: 420 };
-    CT.hit = CT.slash0 + CT.flight;
-    CT.crumble = CT.hit + 30;
-    CT.black = CT.crumble + 1750;
+    // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 hai Gaster Blaster (nhìn thẳng ra màn hình) hiện ra hai bên Sans;
+    // 1800 nạp năng lượng (mắt + miệng sáng dần); 2600 bắn thẳng vào màn hình; 3150 trắng xoá, màn hình nứt; 4600 tối 0.5s rồi sang slide kế.
+    const CT = { bone: 250, gb: 1300, charge: 1800, fire: 2600, hit: 3150, black: 4600 };
     const BONES_SND = new Audio('assets/dry-bones-death.mp3'); BONES_SND.preload = 'auto'; BONES_SND.volume = 0.9;
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
@@ -1992,132 +1982,103 @@
       fx.restore();
       return { x: tx1, y: ty };
     }
-    function startCrumble(c) {
-      const S = c.sans, W0 = SANS_HP.width, H0 = SANS_O.height, kz = c.sansScale * c.z;
-      const regs = [[0, 0, 220, 128], [46, 128, 128, 104], [0, 128, 48, 104], [172, 128, 48, 104], [30, 232, 80, 76], [110, 232, 80, 76]];
-      const topY = S.y - (H0 / 2 + HPM) * kz;
-      c.floorY = topY + SANS_HP.height * kz + 4; c.gk = Math.max(0.5, innerHeight / 600 * c.z);
-      c.pieces = regs.map(([sx, sy, sw, sh], i) => ({
-        sx, sy, sw, sh, k: kz, x: S.x + (sx + sw / 2 - W0 / 2) * kz, y: topY + (sy + sh / 2) * kz,
-        vx: (sx + sw / 2 - W0 / 2) * 0.03 + (Math.random() - 0.5) * 2, vy: i === 0 ? -8 : -3 - Math.random() * 3, rot: 0, vr: (Math.random() - 0.5) * 0.16, delay: i * 35, done: false, bounces: 0
-      }));
-      try { BONES_SND.currentTime = 0; BONES_SND.play().catch(() => {}); } catch (e) { }
+    // Gaster Blaster nhìn thẳng ra màn hình (assets/blaster.png: ảnh người dùng gửi, đã tách nền)
+    const GB = new Image(); let GB_O = null;
+    GB.onload = () => { GB_O = outlineSprite(GB, 4, '#0b0b0b'); };
+    GB.src = 'assets/blaster.png';
+    const GBO = 4;                                                  // viền của GB_O
+    const GBM = { x: 0.5, y: 0.84, ex: [0.30, 0.71], ey: 0.49 };    // miệng + hai mắt (tỉ lệ theo ảnh)
+    function gbPlace(c) {                                           // vị trí hai Blaster hai bên Sans
+      const W = innerWidth, H = innerHeight, h = 0.34 * H, w = h * GB.width / GB.height, off = 0.12 * W + 0.15 * H;
+      const lo = w * 0.7, hi = W - w * 0.7;
+      return [-1, 1].map(sd => ({ x: Math.max(lo, Math.min(hi, c.sans.x + sd * off)), y: c.sans.y - 0.04 * H, h, w, sd }));
     }
-    function drawPieces(c, t) {
-      const ft = t - CT.crumble;
-      for (const q of c.pieces) {
-        if (ft >= q.delay && !q.done) {
-          q.vy += 0.75 * c.gk; q.x += q.vx * c.gk; q.y += q.vy * c.gk; q.rot += q.vr; q.vx *= 0.996;
-          const half = q.sh * q.k / 2 * 0.7;
-          if (q.y + half > c.floorY) {
-            q.y = c.floorY - half; q.bounces++;
-            for (let i = 0; i < 6 && particles.length < 700; i++) particles.push({ x: q.x, y: c.floorY, vx: (Math.random() - 0.5) * 8, vy: -Math.random() * 5, life: 22 + Math.random() * 20, age: 0, c: Math.random() < 0.7 ? '#f2f2f2' : '#0b0b0b', s: PX * (0.3 + Math.random() * 0.4) });
-            q.vy = -q.vy * 0.36; q.vx *= 0.6; q.vr *= 0.5;
-            if (q.bounces > 3 || Math.abs(q.vy) < 1.2 * c.gk) { q.done = true; q.vy = 0; }
-          }
+    function drawGB(c, t, W, H) {
+      if (!GB_O) return;
+      const fire = ramp(t, CT.fire, CT.fire + 700), chg = ramp(t, CT.charge, CT.fire);
+      for (const g of c.gbs) {
+        const born = easeOut3(ramp(t, CT.gb, CT.gb + 550));
+        if (born <= 0) continue;
+        const rec = easeOut3(ramp(t, CT.fire, CT.fire + 260));    // giật lùi / phóng to về phía người xem khi bắn
+        const sc = (0.55 + 0.45 * born) * (1 + 0.35 * rec), al = Math.min(1, born * 1.5) * (1 - ramp(t, CT.fire + 450, CT.fire + 800));
+        const bob = Math.sin(t / 240 + g.sd) * 0.006 * H, shk = chg * (1 - fire) * Math.sin(t / 23 + g.sd) * 3;
+        const hh = g.h * sc, ww = g.w * sc, x = g.x + shk, y = g.y + bob + (1 - born) * H * 0.06;
+        const mx = x, my = y - hh / 2 + hh * GBM.y;
+        fx.save();
+        if (born > 0.2) {                                          // hào quang xanh phía sau
+          const gl = fx.createRadialGradient(x, y, hh * 0.1, x, y, hh * 0.9);
+          gl.addColorStop(0, 'rgba(120,230,255,' + (0.28 * al) + ')'); gl.addColorStop(1, 'rgba(120,230,255,0)');
+          fx.fillStyle = gl; fx.fillRect(x - hh, y - hh, hh * 2, hh * 2);
         }
-        fx.save(); fx.translate(q.x, q.y); fx.rotate(q.rot);
-        fx.drawImage(SANS_HP, q.sx, q.sy, q.sw, q.sh, -q.sw * q.k / 2, -q.sh * q.k / 2, q.sw * q.k, q.sh * q.k);
+        fx.globalAlpha = al;
+        const k = hh / GB.height, w2 = GB_O.width * k, h2 = GB_O.height * k;
+        fx.drawImage(GB_O, Math.round(x - w2 / 2), Math.round(y - h2 / 2), w2, h2);
+        fx.globalAlpha = 1;
+        const gx0 = x - GB.width * k / 2, gy0 = y - GB.height * k / 2;
+        if (chg > 0 && al > 0.05) {                                // mắt sáng dần + miệng tụ năng lượng
+          fx.globalCompositeOperation = 'lighter';
+          for (const ex of GBM.ex) {
+            const px = gx0 + GB.width * k * ex, py = gy0 + GB.height * k * GBM.ey, r = hh * (0.035 + 0.05 * chg);
+            const eg = fx.createRadialGradient(px, py, 0, px, py, r * 2.4); eg.addColorStop(0, 'rgba(255,255,255,' + al + ')'); eg.addColorStop(0.4, 'rgba(90,220,255,' + (0.8 * al) + ')'); eg.addColorStop(1, 'rgba(90,220,255,0)');
+            fx.fillStyle = eg; fx.beginPath(); fx.arc(px, py, r * 2.4, 0, 6.2832); fx.fill();
+          }
+          const mx2 = gx0 + GB.width * k * GBM.x, my2 = gy0 + GB.height * k * GBM.y, mr = hh * (0.04 + 0.20 * chg * chg + 0.05 * Math.sin(t / 40) * chg);
+          const mg = fx.createRadialGradient(mx2, my2, 0, mx2, my2, mr); mg.addColorStop(0, 'rgba(255,255,255,' + al + ')'); mg.addColorStop(0.5, 'rgba(110,225,255,' + (0.7 * al) + ')'); mg.addColorStop(1, 'rgba(110,225,255,0)');
+          fx.fillStyle = mg; fx.beginPath(); fx.arc(mx2, my2, mr, 0, 6.2832); fx.fill();
+          fx.globalCompositeOperation = 'source-over';
+        }
         fx.restore();
+        g.mx = gx0 + GB.width * k * GBM.x; g.my = gy0 + GB.height * k * GBM.y;
       }
-    }
-    // lớp 3D của cảnh: bảng Settings nằm hướng về phía người xem + cánh tay ở sát màn hình
-    function povMake() {
-      const wrap = document.createElement('div'); wrap.id = 'povWrap';
-      wrap.style.cssText = 'position:fixed;inset:0;z-index:40;pointer-events:none;overflow:hidden';
-      const panel = document.createElement('canvas'); panel.width = 640; panel.height = 320;
-      panel.style.cssText = 'position:absolute;left:19%;width:62%;bottom:5%;aspect-ratio:2/1;opacity:0;transform-origin:50% 100%;will-change:transform,opacity;image-rendering:auto';
-      const arm = document.createElement('canvas'); arm.width = innerWidth; arm.height = innerHeight; arm.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
-      wrap.appendChild(panel); wrap.appendChild(arm); document.body.appendChild(wrap);
-      return { wrap, panel, pg: panel.getContext('2d'), arm, ag: arm.getContext('2d') };
+      if (fire > 0) {                                               // tia bắn thẳng vào màn hình: phình to từ miệng ra kín màn hình
+        const D = Math.hypot(W, H), u = Math.pow(fire, 2.1);
+        for (const g of c.gbs) {
+          if (g.mx == null) continue;
+          const r = lerp(H * 0.03, D * 1.25, u);
+          fx.save(); fx.globalCompositeOperation = 'lighter';
+          const bg = fx.createRadialGradient(g.mx, g.my, r * 0.05, g.mx, g.my, r);
+          bg.addColorStop(0, 'rgba(255,255,255,1)'); bg.addColorStop(0.45, 'rgba(255,255,255,0.95)'); bg.addColorStop(0.75, 'rgba(120,225,255,0.7)'); bg.addColorStop(1, 'rgba(120,225,255,0)');
+          fx.fillStyle = bg; fx.beginPath(); fx.arc(g.mx, g.my, r, 0, 6.2832); fx.fill();
+          fx.strokeStyle = 'rgba(255,255,255,0.6)'; fx.lineWidth = 3;
+          for (let i = 0; i < 22; i++) {                           // tia xuyên ra phía người xem
+            const an = i / 22 * 6.2832 + hash1(c, i) * 0.3, r0 = r * 0.35, r1 = r * (0.9 + hash1(c, i + 40) * 0.6);
+            fx.beginPath(); fx.moveTo(g.mx + Math.cos(an) * r0, g.my + Math.sin(an) * r0); fx.lineTo(g.mx + Math.cos(an) * r1, g.my + Math.sin(an) * r1); fx.stroke();
+          }
+          fx.restore();
+        }
+      }
     }
     function drawCine(now) {
       const c = cine, t = now - c.t0, ev = c.ev;
       const W = innerWidth, H = innerHeight, S = c.sans;
       const bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale;
-      if (!c.pov) c.pov = povMake();
-      const pv = c.pov;
       if (!ev.block && t >= CT.bone) {                              // bone chặn nhát chém
         ev.block = 1; flash(70, 'rgba(255,255,255,0.45)'); shake(0.7, 3);
         const cols = ['#ffffff', '#ffd0d8', '#ff3344'];
         for (let i = 0; i < 30; i++) particles.push({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 26 + Math.random() * 26, age: 0, c: cols[(Math.random() * 3) | 0], s: PX * (0.5 + Math.random() * 0.8) });
       }
-      // ---- nhân vật cúi đầu nhìn xuống rồi ngẩng lên: cả cảnh nghiêng theo (vị trí giữ nguyên), không trượt ----
-      const tilt = smooth(ramp(t, CT.down, CT.down + 700)) - smooth(ramp(t, CT.up, CT.up + 650));
-      if (tilt > 0.002 || ev.tilt) {
-        const tf = tilt > 0.002 ? 'perspective(' + Math.round(H * 1.15) + 'px) rotateX(' + (tilt * 16).toFixed(2) + 'deg) translateY(' + (-tilt * H * 0.045).toFixed(1) + 'px)' : '';
-        const org = S.x.toFixed(0) + 'px ' + S.y.toFixed(0) + 'px'; containerEl.style.transformOrigin = org; fxCanvas.style.transformOrigin = org;
-        containerEl.style.transform = tf; fxCanvas.style.transform = tf; ev.tilt = tilt > 0.002;
-      }
-      // ---- bảng Settings (3D, hướng về người xem) ----
-      const showP = t >= CT.down + 300 && t < CT.up + 700;
-      pv.panel.style.display = showP ? 'block' : 'none';
-      let endX = W * 0.7, endY = H * 0.8;
-      if (showP) {
-        const pin = easeOut3(ramp(t, CT.down + 300, CT.down + 1000)), pout = Math.pow(ramp(t, CT.up, CT.up + 600), 2);
-        const sh = (1 - pin) * 70 + pout * 90;
-        pv.panel.style.opacity = String(Math.min(pin * 1.2, 1) * (1 - pout));
-        pv.panel.style.transform = 'perspective(' + Math.round(H * 1.0) + 'px) translateY(' + sh.toFixed(1) + '%) rotateX(24deg) rotateZ(-1.2deg)';
-        const cp = ramp(t, CT.tap + 70, CT.tap + 700), val = t < CT.tap + 70 ? 1 : Math.round(1 + 998 * (1 - Math.pow(1 - cp, 2.4)));
-        pv.pg.clearRect(0, 0, 640, 320);
-        const e = drawSettings(pv.pg, 0, 0, 640, 320, val, cp < 1 ? 1 - Math.pow(1 - cp, 2.4) : 1, cp > 0 && cp < 1 && Math.floor(t / 60) % 2 === 0);
-        const r = pv.panel.getBoundingClientRect();                  // vị trí thật (đã qua phối cảnh) của đầu thanh trượt
-        endX = r.left + r.width * (e.x / 640); endY = r.top + r.height * (e.y / 320);
-      }
-      pv.ag.clearRect(0, 0, pv.arm.width, pv.arm.height);
-      if (t >= CT.arm && t < CT.up + 100) {                          // cánh tay thò vào, một ngón nhấp vào đầu thanh trượt
-        const u = Math.max(0.8, H / 640), tgx = endX - 10 * u, tgy = endY + 8 * u, ang = Math.atan2(0.5, 1);
-        const inn = easeOut3(ramp(t, CT.arm, CT.arm + 750)), outt = Math.pow(ramp(t, CT.tap + 560, CT.up + 80), 2);
-        const R0 = Math.max(W, H) * 0.7, dist = R0 * (1 - inn) + R0 * outt;
-        const tp = ramp(t, CT.tap, CT.tap + 90), tr = ramp(t, CT.tap + 90, CT.tap + 260), press = tp * (1 - tr);
-        const hover = Math.sin(t / 180) * 3 * (1 - inn) * u;
-        drawArm(pv.ag, tgx + Math.cos(ang) * dist, tgy + Math.sin(ang) * dist + hover, ang, u, press);
-        if (!ev.tapped && t >= CT.tap + 60) { ev.tapped = 1; flash(60, 'rgba(255,255,255,0.18)'); }
-        if (t >= CT.tap + 60 && t < CT.tap + 420) {                  // gợn tròn ở chỗ ngón tay chạm
-          const rp = ramp(t, CT.tap + 60, CT.tap + 420); pv.ag.save(); pv.ag.globalAlpha = 0.7 * (1 - rp); pv.ag.strokeStyle = '#fff'; pv.ag.lineWidth = 4; pv.ag.beginPath(); pv.ag.arc(endX, endY, 10 + rp * 70 * u, 0, 6.2832); pv.ag.stroke(); pv.ag.restore();
+      if (!c.gbs) c.gbs = gbPlace(c);
+      // ---- Sans đứng yên (không rung) + bone chặn ----
+      if (t < CT.hit) {
+        drawSpr(SANS_O, S.x, S.y, SANS_O.height * c.sansScale, ramp(t, 0, 380));
+        if (t >= CT.bone) {
+          const shk = Math.sin(t / 21) * (1.5 + Math.min(1, (t - CT.bone) / 750) * 3);
+          fx.drawImage(BONE_O, Math.round(c.x - bw / 2 + shk), Math.round(c.y - bh / 2), bw, bh);
         }
       }
-      if (t >= CT.up + 700 && !ev.tiltReset) { ev.tiltReset = 1; containerEl.style.transform = ''; fxCanvas.style.transform = ''; pv.panel.style.display = 'none'; }
-      const back = smooth(ramp(t, CT.back, CT.back + 800)), z = 1 - 0.3 * back; c.z = z;
-      if (back > 0) { if (!ev.org) { ev.org = 1; containerEl.style.transformOrigin = S.x.toFixed(0) + 'px ' + S.y.toFixed(0) + 'px'; } containerEl.style.scale = z.toFixed(4); }
-      // ---- Sans đứng yên (không rung): tới lúc chỉnh 999 thì lộ biểu cảm, rồi lùi xa cùng slide phía sau ----
-      fx.save(); fx.translate(S.x, S.y); fx.scale(z, z); fx.translate(-S.x, -S.y);
-      if (!c.pieces) {
-        const k = c.sansScale, H0 = SANS_O.height;
-        if (t < CT.reveal) drawSpr(SANS_O, S.x, S.y, H0 * k, ramp(t, 0, 380));
-        else {
-          if (!ev.reveal) { ev.reveal = 1; flash(90, 'rgba(255,255,255,0.5)'); }
-          const pop = 1 + 0.07 * (1 - ramp(t, CT.reveal, CT.reveal + 180)), w = SANS_HP.width * k * pop, h = SANS_HP.height * k * pop;
-          fx.drawImage(SANS_HP, Math.round(S.x - w / 2), Math.round(S.y + H0 * k / 2 - h), w, h);       // chân giữ nguyên chỗ đứng
-        }
+      drawGB(c, t, W, H);
+      if (t >= CT.fire && !ev.fire) { ev.fire = 1; flash(90, 'rgba(160,235,255,0.5)'); shake(1.2, 6); try { navigator.vibrate && navigator.vibrate([40, 20, 80]); } catch (e) { } }
+      if (t >= CT.hit - 220) {                                      // trắng xoá khi tia phủ kín màn hình
+        const a = ramp(t, CT.hit - 220, CT.hit) * (1 - ramp(t, CT.hit + 150, CT.hit + 900));
+        fx.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; fx.fillRect(0, 0, W, H);
       }
-      if (t >= CT.bone && !ev.tear) {                               // bone chặn (vỡ cùng lúc Sans rụng)
-        const shk = Math.sin(t / 21) * (1.5 + Math.min(1, (t - CT.bone) / 750) * 3);
-        fx.drawImage(BONE_O, Math.round(c.x - bw / 2 + shk), Math.round(c.y - bh / 2), bw, bh);
-      }
-      fx.restore();
-      if (c.pieces) drawPieces(c, t);
-      // ---- hàng loạt cú chém bay từ phía người xem tới Sans; cú đầu tiên tới thì Sans rụng, các cú sau bay xuyên qua rồi tan ----
-      const tip = { x: S.x, y: S.y - 0.02 * H };
-      for (let i = 0; i < CT.slashN; i++) {
-        const ts = CT.slash0 + i * CT.slashGap;
-        if (t < ts) break;
-        const p = (t - ts) / CT.flight;                                // 0 = sát người xem, 1 = chạm Sans, >1 bay xuyên qua
-        if (p > 1.7) continue;
-        const x = lerp(c.sx[i], tip.x, p), y = lerp(c.sy[i], tip.y, p), sc = Math.max(0, 1.2 - 0.72 * p);
-        if (sc < 0.02) continue;
-        const tl = c.tl[i], dx = Math.cos(tl), dy = Math.sin(tl), al = p > 1.15 ? Math.max(0, 1 - (p - 1.15) / 0.55) : 1;
-        drawCrescent({ x, y, dx, dy, nx: dy, ny: -dx, L: c.L * 0.55 * sc, w: c.w * 0.6 * sc, bend: c.bend * 0.6 * sc, streaks: c.streaks }, 1, al, 1);
-      }
-      if (!ev.hit && t >= CT.hit) {                                 // cú đầu tiên tới: sáng loé, nứt màn hình, Sans + bone rụng rời
-        ev.hit = 1; ev.tear = 1; flash(160, 'rgba(255,255,255,0.8)'); impact(3.2); startGlitch(700, 0.2, 0.22);
-        makeCracks(S.x, S.y, 1, 0.2);
-        shatterRect({ left: c.x - bw * 0.35, top: c.y - bh * 0.35, width: bw * 0.7, height: bh * 0.7 }, ['#f2f2f2', '#0b0b0b']);
-        sparkLine({ x: S.x, y: S.y, dx: 1, dy: 0, nx: 0, ny: 1 }, 60);
-        for (let i = 0; i < 3; i++) popDamage(S.x + (Math.random() - 0.5) * W * 0.2, S.y - H * 0.12 + (Math.random() - 0.5) * H * 0.12, 999);
+      if (!ev.hit && t >= CT.hit) {                                 // tia chạm màn hình: nứt, rung, nhiễu
+        ev.hit = 1; impact(3.4); shake(2, 10); startGlitch(900, 0.2, 0.25);
+        makeCracks(W * 0.5, H * 0.5, 1, 0.12); const l1 = crack.lines;
+        makeCracks(W * 0.3, H * 0.4, 1, -0.3); const l2 = crack.lines;
+        makeCracks(W * 0.72, H * 0.62, -1, 0.4); crack.lines = crack.lines.concat(l1, l2); crack.t0 = performance.now();
         try { navigator.vibrate && navigator.vibrate([60, 30, 120]); } catch (e) { }
       }
-      if (!c.pieces && t >= CT.crumble) startCrumble(c);
     }
 
     // Bị Sans chặn: kết thúc bằng màn hình đen 0.5s, trong lúc đó đổi sang slide kế
@@ -2129,8 +2090,6 @@
       const blk = document.getElementById('cineBlack');
       const c = cine = {
         t0: performance.now(), x: cx, y: cy, dx, dy, nx: -dy, ny: dx, sans, D, sH, cur, ev: {}, drops: [], pieces: null,
-        sx: Array.from({ length: CT.slashN }, () => innerWidth * (0.05 + Math.random() * 0.9)), sy: Array.from({ length: CT.slashN }, () => innerHeight * (1.0 + Math.random() * 0.25)),
-        tl: Array.from({ length: CT.slashN }, () => (Math.random() - 0.5) * 0.9),
         L: D * 0.5, w: D * 0.065, bend: D * 0.04, seed: Math.random() * 1000,
         sansScale: 0.36 * H / SANS_IMG.height, boneScale: 1.5,
         streaks: [{ v: 0.22, t0: -0.7, t1: 0.25 }, { v: -0.15, t0: -0.3, t1: 0.8 }, { v: 0.05, t0: 0.1, t1: 0.9 }, { v: 0.32, t0: -0.9, t1: -0.2 }]
@@ -2317,7 +2276,7 @@
       const tasks = [];
       tasks.push(['Fonts', font("16px 'Press Start 2P'", 'font1')], ['Fonts', font("700 20px Tinos", 'font2')], ['Fonts', font("400 20px 'Public Sans'", 'font3')]);
       slideImages.forEach((p, i) => tasks.push(['Slide ' + (i + 1), img(p)]));
-      ['anim-blank.png', 'sans-smug.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
+      ['anim-blank.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
       tasks.push(['Audio', get('assets/dry-bones-death.mp3')]);
