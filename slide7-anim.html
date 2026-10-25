@@ -165,8 +165,8 @@
     rows.forEach(([a, w], i) => { R(c, x + a * s, y + i * s, Math.round(w * s), Math.max(1, Math.round(s)), i === 3 ? '#e8dcc8' : '#fffbf2'); });
     if (s > 1.1) R(c, x + 6 * s, y - 1 * s, Math.round(5 * s), Math.max(1, Math.round(s)), '#fffbf2');
   }
-  function sun(c, t) {
-    const cx = 150, cy = 36, p = 0.5 + 0.5 * Math.sin(t * 1.2);
+  function sun(c, t, cy = 36) {
+    const cx = 150, p = 0.5 + 0.5 * Math.sin(t * 1.2);
     c.globalAlpha = 0.22 + 0.1 * p; ellipse(c, cx, cy, 19, 19, '#fff3c0'); c.globalAlpha = 0.35 + 0.1 * p; ellipse(c, cx, cy, 14, 14, '#ffe8a0'); c.globalAlpha = 1;
     ellipse(c, cx, cy, 9, 9, '#ffd666'); ellipse(c, cx, cy, 7, 7, '#fff0b0');
   }
@@ -214,7 +214,7 @@
     clouds.forEach((c, i) => { c.x += dt * (1.6 + i * 0.7); if (c.x > W + 6) c.x = -20; });
     birds.forEach((b) => { b.x += dt * b.v; if (b.x > W + 8) b.x = -10; });
     smokeT -= dt;
-    if (smokeT < 0) { smokeT = 0.32; smoke.push({ x: 36, y: 100, a: 0 }); smoke.push({ x: 236, y: 98, a: 0 }); }
+    if (smokeT < 0) { smokeT = 0.32; smoke.push({ x: 36, y: 100, a: 0 }); smoke.push({ x: 232, y: 98, a: 0 }); }
     for (let i = smoke.length - 1; i >= 0; i--) { const s = smoke[i]; s.a += dt; s.y -= dt * 7; s.x += dt * 3 + Math.sin(s.a * 3) * dt * 3; if (s.a > 3.2) smoke.splice(i, 1); }
   }
 
@@ -292,14 +292,9 @@
   };
   // người đi: lane = đường chạy (toạ độ y của chân), v = tốc độ (điểm ảnh/giây), pausing = hay dừng lại
   const WALKERS = [
-    { kind: 'person', x: 40,  y: 152, d: 1,  v: 7,  style: STY.woman, pole: true },
-    { kind: 'person', x: 200, y: 152, d: -1, v: 5,  style: STY.elder, cane: true, stoop: true, pausing: true },
-    { kind: 'person', x: 110, y: 164, d: 1,  v: 8,  style: STY.white, pausing: true },
-    { kind: 'person', x: 230, y: 166, d: -1, v: 9,  style: STY.indigo },
-    { kind: 'person', x: 60,  y: 172, d: -1, v: 10, style: STY.black, pole: true },
-    { kind: 'buffalo', x: 30, y: 184, d: 1,  v: 6 },
-    { kind: 'person', x: 170, y: 181, d: -1, v: 13, style: STY.kid, k: 0.7 },
-    { kind: 'person', x: 120, y: 180, d: 1,  v: 8,  style: STY.woman, pausing: true }
+    { kind: 'buffalo', x: 30, y: 186, d: 1,  v: 6 },
+    { kind: 'person', x: 200, y: 182, d: -1, v: 11, style: STY.kid, k: 0.7 },
+    { kind: 'person', x: 120, y: 183, d: 1,  v: 8,  style: STY.woman, pausing: true }
   ];
   WALKERS.forEach((w, i) => { w.ph = i * 1.3; w.moving = true; w.wait = 0; w.next = 2 + i * 0.7; });
 
@@ -312,13 +307,166 @@
     }
   }
 
+  // ================= NGÀY -> CHIỀU -> ĐÊM (một vòng 36 giây) =================
+  const CYC = 36;
+  const sm = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+  const mixc = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+  const rgbs = (c, k = 1) => 'rgb(' + Math.round(c[0] * k) + ',' + Math.round(c[1] * k) + ',' + Math.round(c[2] * k) + ')';
+  const C_DAY = [255, 255, 255], C_DUSK = [255, 182, 132], C_NIGHT = [82, 98, 160];
+  function skyTint(tt) { return tt < 31 ? mixc(mixc(C_DAY, C_DUSK, sm(10, 17, tt)), C_NIGHT, sm(17, 25, tt)) : mixc(C_NIGHT, C_DAY, sm(31, 36, tt)); }
+  const nightOf = (tt) => tt < 31 ? sm(18, 25, tt) : 1 - sm(31, 36, tt);
+  const duskOf = (tt) => tt < 31 ? sm(10, 16, tt) * (1 - sm(19, 25, tt)) : 0;
+  // trẻ chơi ngoài sân: tới chiều thì chạy về nhà xem TV, sáng ra lại ra chơi
+  const goHomeOf = (tt) => sm(17, 21.5, tt) * (1 - sm(32, 33, tt));
+  const outAlpha = (tt) => tt < 17 ? 1 : (tt < 22 ? 1 - sm(20.5, 22, tt) : (tt < 34 ? 0 : sm(34, 35.5, tt)));
+
+  const KS = {
+    k1: { shirt: '#b84a3a', shirtD: '#9a3c2e', shirtL: '#c85e4c', pants: '#3a3a52' },
+    k2: { shirt: '#4a8a6a', shirtD: '#3a7054', shirtL: '#5da07e', pants: '#5a4a35' },
+    k3: { shirt: '#d0a040', shirtD: '#b08430', shirtL: '#e2b858', pants: '#2c2724' },
+    k4: { shirt: '#4f679c', shirtD: '#3d5382', shirtL: '#6580b8', pants: '#3a3a42' },
+    k5: { shirt: '#e8e0cc', shirtD: '#cfc9b6', shirtL: '#fffaf0', pants: '#6b5a3a' },
+    k6: { shirt: '#c87a9a', shirtD: '#a8607e', shirtL: '#dc92b0', pants: '#3a3a52' }
+  };
+  const HAIR = '#2a2018';
+  // người ngồi (nhìn nghiêng): y = mặt sàn, sz = cỡ (trẻ nhỏ hơn)
+  function sit(x, y, d, sz, st, t, ph, hair) {
+    const r = (dx, dy, w, h, col) => { const px = d > 0 ? dx : -dx - w; g.fillStyle = col; g.fillRect(Math.round(x + px * sz), Math.round(y + dy * sz), Math.max(1, Math.round(w * sz)), Math.max(1, Math.round(h * sz))); };
+    const nod = Math.sin(t * 1.3 + ph) > 0.92 ? 1 : 0;
+    r(-2, -2, 8, 2, st.pants); r(5, -2, 2, 2, '#e3b184');
+    r(-2, -8, 5, 6, st.shirt); r(-2, -8, 1, 6, st.shirtD);
+    r(2, -6, 4, 1, st.shirt); r(5, -6, 1, 1, '#e3b184');
+    r(-1, -13 + nod, 4, 5, '#e8b98a'); r(-1, -13 + nod, 4, 1, hair || HAIR); r(-1, -12 + nod, 1, 2, hair || HAIR);
+    r(2, -11 + nod, 1, 1, '#222');
+  }
+  function tvSet(x, y, t, on) {
+    R(g, x + 1, y - 4, 1, 4, '#5a4128'); R(g, x + 9, y - 4, 1, 4, '#5a4128'); R(g, x, y - 5, 11, 1, '#7a5a34');   // bàn
+    R(g, x, y - 13, 11, 8, '#6b5a46'); R(g, x, y - 13, 11, 1, '#85735a'); R(g, x + 9, y - 12, 2, 6, '#4f4234');
+    for (let j = 0; j < 6; j++) for (let i = 0; i < 7; i++) {
+      let col = '#2c3238';
+      if (on) { const q = (Math.floor(t * 14) + j * 5 + i * 3) % 7; col = q < 2 ? '#e6eef0' : (q < 4 ? '#9aa8ae' : '#5f6d74'); }
+      R(g, x + 1 + i, y - 12 + j, 1, 1, col);
+    }
+    if (on) R(g, x + 1, y - 12 + Math.floor((t * 6) % 6), 7, 1, 'rgba(255,255,255,.55)');
+    R(g, x + 9, y - 11, 1, 1, '#222'); R(g, x + 9, y - 9, 1, 1, '#222');
+    for (let k = 0; k < 4; k++) { R(g, x + 4 - k, y - 14 - k, 1, 1, '#c9c2b0'); R(g, x + 6 + k, y - 14 - k, 1, 1, '#c9c2b0'); }                      // ăng-ten
+  }
+  function radioSet(x, y, t) {
+    R(g, x + 1, y - 4, 1, 4, '#5a4128'); R(g, x + 11, y - 4, 1, 4, '#5a4128'); R(g, x, y - 5, 13, 1, '#7a5a34');
+    R(g, x + 2, y - 11, 9, 6, '#8a4e2a'); R(g, x + 2, y - 11, 9, 1, '#a8643a');
+    R(g, x + 3, y - 10, 4, 4, '#3a2a1a'); for (let j = 0; j < 3; j++) R(g, x + 3, y - 9 + j, 4, 1, j % 2 ? '#6a5a40' : '#4a3a28');
+    R(g, x + 8, y - 9, 2, 2, '#e8d9a0'); R(g, x + 8, y - 6, 2, 1, '#e8d9a0');
+    for (let k = 0; k < 5; k++) R(g, x + 9 + k, y - 12 - k, 1, 1, '#c9c2b0');
+    for (let n = 0; n < 3; n++) {                                           // nốt nhạc bay lên
+      const q = ((t * 0.55 + n / 3) % 1), nx = x + 4 + n * 3 + Math.round(Math.sin(t * 2 + n * 2) * 2), ny = y - 13 - q * 9;
+      g.globalAlpha = Math.sin(q * Math.PI); R(g, nx, ny, 1, 3, '#fff2c0'); R(g, nx - 1, ny + 2, 2, 1, '#fff2c0'); g.globalAlpha = 1;
+    }
+  }
+  function lampSet(x, y, t) {
+    R(g, x, y - 1, 3, 1, '#6b4a2a'); R(g, x + 1, y - 3, 1, 2, '#c9a64e'); R(g, x + 1, y - 5, 1, 2, Math.sin(t * 9 + x) > -0.2 ? '#ffd66a' : '#ffb84a');
+  }
+  const HOUSE_L = { x: 12, y0: 118, w: 48, floor: 139 }, HOUSE_R = { x: 210, y0: 118, w: 46, floor: 139 };
+  function house(H, t, tt, night, dusk, drawFn) {
+    g.save(); g.beginPath(); g.rect(H.x, H.y0, H.w, H.floor - H.y0 + 1); g.clip();
+    R(g, H.x, H.y0, H.w, H.floor - H.y0, '#a6845a');                                  // vách trong
+    for (let k = 0; k < 30; k++) R(g, H.x + ((k * 37) % H.w), H.y0 + ((k * 11) % 20), 2, 1, k % 2 ? '#98774f' : '#b8946a');
+    R(g, H.x, H.floor - 2, H.w, 3, '#6b4e30'); R(g, H.x, H.floor - 3, H.w, 1, '#8a6a42');   // sàn
+    drawFn();
+    R(g, H.x, H.y0, H.w, 2, '#4a3320'); R(g, H.x, H.y0 + 2, H.w, 1, '#6e4c28');          // bóng mái hắt xuống
+    // ánh sáng trong nhà: ban ngày hơi tối, ban đêm ấm vàng
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = rgbs(mixc([228, 214, 194], [255, 222, 165], Math.max(night, dusk * 0.6))); g.fillRect(H.x, H.y0, H.w, H.floor - H.y0 + 1);
+    g.globalCompositeOperation = 'source-over';
+    g.restore();
+    R(g, H.x - 1, H.y0, 2, H.floor - H.y0 + 1, '#6b4a2a'); R(g, H.x + H.w - 1, H.y0, 2, H.floor - H.y0 + 1, '#6b4a2a');   // cột nhà
+  }
+  function radioHouse(t, tt, night, dusk) {
+    const H = HOUSE_L, f = H.floor - 2;
+    R(g, H.x + 7, H.y0 + 5, 5, 6, '#a8302e'); R(g, H.x + 8, H.y0 + 6, 3, 1, '#f2e6c0'); R(g, H.x + 8, H.y0 + 8, 3, 1, '#f2e6c0');   // tờ lịch
+    R(g, H.x + 34, H.y0 + 5, 6, 5, '#5a4128'); R(g, H.x + 35, H.y0 + 6, 4, 3, '#cfc9b6');                                         // khung ảnh
+    sit(H.x + 9, f, 1, 1, STY.woman, t, 0.5, HAIR);
+    sit(H.x + 19, f, 1, 1, STY.elder, t, 1.7, '#d8d4cc');
+    sit(H.x + 41, f, -1, 0.72, KS.k5, t, 2.4, HAIR);
+    radioSet(H.x + 26, f, t);
+    lampSet(H.x + 14, f - 6, t);
+  }
+  function tvHouse(t, tt, night, dusk) {
+    const H = HOUSE_R, f = H.floor - 2, on = tt > 15.5 && tt < 34.5;
+    R(g, H.x + 4, H.y0 + 5, 5, 5, '#5a4128'); R(g, H.x + 5, H.y0 + 6, 3, 3, '#cfc9b6');
+    tvSet(H.x + 33, f, t, on);
+    lampSet(H.x + 3, f - 9, t);
+    const a = sm(15.5, 18, tt) * (1 - sm(33, 34.5, tt)), ak = sm(20, 22, tt) * (1 - sm(32.5, 34, tt));
+    g.globalAlpha = a;
+    sit(H.x + 5, f, 1, 1, STY.elder, t, 0.2, '#d8d4cc'); sit(H.x + 12, f, 1, 1, STY.woman, t, 1.1, HAIR);
+    sit(H.x + 19, f, 1, 1, STY.indigo, t, 2.2, HAIR); sit(H.x + 26, f, 1, 0.9, STY.black, t, 3.1, HAIR);
+    g.globalAlpha = ak;
+    sit(H.x + 16, f, 1, 0.7, KS.k1, t, 0.9, HAIR); sit(H.x + 23, f, 1, 0.7, KS.k2, t, 1.6, HAIR); sit(H.x + 29, f, 1, 0.66, KS.k3, t, 2.7, HAIR);
+    g.globalAlpha = 1;
+  }
+  // ---- trò chơi ngoài sân ----
+  function tree(x, base) {                                              // cây xoài giữa sân
+    R(g, x - 3, base - 26, 6, 26, '#6b4a2a'); R(g, x - 3, base - 26, 2, 26, '#85603a'); R(g, x - 4, base - 2, 8, 2, '#5a3d22');
+    ellipse(g, x, base - 32, 16, 9, '#4f8a35'); ellipse(g, x - 6, base - 28, 10, 6, '#5da042'); ellipse(g, x + 7, base - 30, 9, 6, '#447a2e');
+    for (const [qx, qy] of [[-8, -34], [3, -37], [9, -31], [-2, -29]]) R(g, x + qx, base + qy, 2, 1, '#74b04a');
+  }
+  function hay(x, base) {
+    for (let r = 0; r < 10; r++) { const hw = 3 + Math.round(r * 0.75); R(g, x - hw, base - 10 + r, hw * 2, 1, r % 3 === 2 ? '#c9a64e' : '#e2c46a'); }
+    R(g, x - 1, base - 11, 2, 1, '#a8843a');
+  }
+  function jar(x, base) { R(g, x - 3, base - 7, 6, 7, '#8a4e2a'); R(g, x - 2, base - 8, 4, 1, '#a8643a'); R(g, x - 3, base - 5, 6, 1, '#6a3a20'); R(g, x - 2, base - 6, 1, 3, '#b0703e'); }
+  function kidPerson(x, y, d, k, st, moving, ph) { person({ x, y, d, k, ph: ph || 0, moving: !!moving, style: Object.assign({ hat: null, scarf: false }, st) }, 0); }
+  function outsideKids(t, tt) {
+    const al = outAlpha(tt); if (al <= 0.01) return;
+    const wk = goHomeOf(tt), hide = 1 - sm(17, 19, tt) * (tt < 30 ? 1 : 0);
+    g.globalAlpha = al;
+    // kéo co: hai đội 3 bạn, dây căng ở tay, vạch đỏ giữa dây xê dịch theo bên thắng
+    const sh = Math.sin(t * 0.9) * 3, ty = 162, k = 0.84;
+    const L = [66, 77, 88], Rr = [124, 135, 146], mid = 106 + sh;
+    const homeX = 216, lerpx = (x) => lerp(x, homeX + (x % 7), wk);
+    const gl = Math.sin(t * 5) * 0.4;
+    L.forEach((x, i) => kidPerson(lerpx(x + sh * 0.6), ty + (i % 2 ? 1 : 0) + (wk > 0.02 ? 0 : 0), 1, k, [KS.k1, KS.k2, KS.k3][i], wk > 0.02 && wk < 0.98, t * 6 + i));
+    Rr.forEach((x, i) => kidPerson(lerpx(x + sh * 0.6), ty + (i % 2 ? 0 : 1), wk > 0.04 ? 1 : -1, k, [KS.k4, KS.k5, KS.k6][i], wk > 0.02 && wk < 0.98, t * 6 + i + 2));
+    if (wk < 0.08) {
+      g.globalAlpha = al * (1 - wk / 0.08);
+      for (let i = 0; i < 6; i++) { const x = (i < 3 ? L[i] : Rr[i - 3]) + sh * 0.6, dd = i < 3 ? 1 : -1; R(g, x + (dd > 0 ? 3 : -6), 162 - 11, 4, 2, '#e3b184'); }
+      const x1 = L[2] + sh * 0.6 + 6, x2 = Rr[0] + sh * 0.6 - 4;
+      for (let x = x1; x < x2; x++) { const u = (x - x1) / (x2 - x1); R(g, x, 151 + Math.round(Math.sin(u * Math.PI) * 1.4), 1, 2, '#6a4a28'); }
+      R(g, mid - 1, 149, 3, 6, '#d33'); R(g, mid, 148, 1, 1, '#fff');
+      g.globalAlpha = al;
+    }
+    // trốn tìm: bạn bịt mắt đếm số quay vào cây, hai bạn nấp sau đống rơm và chum nước
+    if (hide > 0.02) {
+      g.globalAlpha = al * hide;
+      const cnt = Math.floor(t * 1.2) % 4;
+      kidPerson(168, 154, 1, 0.8, KS.k4, false, 0); R(g, 172, 154 - 20, 3, 2, '#e8b98a'); R(g, 171, 154 - 20, 1, 2, '#e8b98a');
+      R(g, 160, 154 - 33, 11, 6, '#fff'); R(g, 163, 154 - 27, 2, 1, '#fff');
+      for (let i = 0; i < 3; i++) R(g, 162 + i * 3, 154 - 31, 2, 2, i < cnt ? '#222' : '#bbb');
+      hay(197, 165);
+      const pk = Math.sin(t * 1.4) > 0 ? 1 : 0;
+      R(g, 190 + 0, 165 - 14 - pk, 4, 4, '#e8b98a'); R(g, 190, 165 - 14 - pk, 4, 1, HAIR); R(g, 190, 165 - 12 - pk, 1, 1, '#222');
+      jar(150, 174);
+      const pk2 = Math.sin(t * 1.1 + 2) > 0.2 ? 1 : 0;
+      R(g, 153 + pk2, 174 - 11, 4, 4, '#e8b98a'); R(g, 153 + pk2, 174 - 11, 4, 1, HAIR); R(g, 153 + pk2, 174 - 7, 4, 3, '#4a8a6a');
+    }
+    g.globalAlpha = 1;
+  }
+
+  function glowAt(x, y, rx, ry, rgb, a) {
+    g.save(); g.translate(x, y); g.scale(1, ry / rx);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rx, 0, 6.283); g.fill(); g.restore();
+  }
+  const STARS = (() => { const f = mulberry(31); return Array.from({ length: 34 }, () => ({ x: f() * W, y: 4 + f() * 66, p: f() * 6.28, s: f() < 0.2 ? 2 : 1 })); })();
+  const FLIES = Array.from({ length: 14 }, (_, i) => ({ x: 12 + i * 18, y: 138 + (i * 29 % 46), ax: 6 + (i % 4) * 3, ay: 3 + (i % 3) * 2, f: 0.4 + (i % 5) * 0.13, p: i * 1.7 }));
+
   // ================= VẼ MỖI KHUNG =================
   function draw(t) {
+    const tt = ((t % CYC) + CYC) % CYC, night = nightOf(tt), dusk = duskOf(tt), day = 1 - Math.max(night, dusk * 0.6);
     g.drawImage(bgc, 0, 0);
-    sun(g, t);
+    { const sa = 1 - sm(12, 22, tt); if (sa > 0.02 && tt < 31) { g.globalAlpha = sa; sun(g, t, 36 + sm(10, 22, tt) * 44); g.globalAlpha = 1; } }
     clouds.forEach((c) => cloud(g, c.x, c.y, c.s));
-    birds.forEach((b) => bird(g, b, t));
-    bamboo(g, 98, 54, t, 0.4); bamboo(g, 172, 48, t, 2.1);
+    g.globalAlpha = Math.max(0, 1 - night * 1.4); birds.forEach((b) => bird(g, b, t)); g.globalAlpha = 1;
+    bamboo(g, 98, 54, t, 0.4);
     areca(g, 66, t); areca(g, 190, t);
     // ao: sóng nước + sen + vịt
     for (let i = 0; i < 4; i++) { const rx = 118 + i * 9 + Math.round(Math.sin(t * 1.2 + i) * 2); R(g, rx, 133 + (i % 2), 4, 1, '#c8e8ec'); }
@@ -326,8 +474,9 @@
     R(g, 141, 129, 2, 2, '#f08aa8'); R(g, 142, 128, 1, 1, '#ffd0de');
     duck(g, 128 + Math.round(Math.sin(t * 0.4) * 10), 134, Math.cos(t * 0.4) > 0 ? 1 : -1, t, 0);
     duck(g, 146 + Math.round(Math.sin(t * 0.33 + 2) * 8), 137, Math.cos(t * 0.33 + 2) > 0 ? 1 : -1, t, 1.7);
-    chicken(g, 214, 142, t, 0); chicken(g, 240, 143, t, 2.2); chicken(g, 20, 144, t, 4.1);
-    // người, xếp theo y (xa trước, gần sau)
+    chicken(g, 212, 150, t, 0); chicken(g, 36, 150, t, 4.1);
+    tree(176, 154);
+    outsideKids(t, tt);
     WALKERS.slice().sort((a, b) => a.y - b.y).forEach((w) => (w.kind === 'buffalo' ? buffalo(w, t) : person(w, t)));
     // khói bếp
     for (const s of smoke) {
@@ -341,6 +490,30 @@
       for (let y = 0; y < h; y++) R(g, x + Math.round(sw * y / h * 1.5), 199 - y, 1, 1, i % 4 ? '#6f9440' : '#87ac4e');
       if (i % 13 === 0) R(g, x + Math.round(sw * 1.5), 199 - h - 1, 2, 2, i % 2 ? '#f6d65a' : '#f2a0b8');
     }
+    // ---- ánh sáng theo giờ: nhuộm màu cả cảnh ngoài trời ----
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = rgbs(skyTint(tt)); g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+    // ---- trong nhà (sau khi nhuộm, có đèn riêng) ----
+    house(HOUSE_L, t, tt, night, dusk, () => radioHouse(t, tt, night, dusk));
+    house(HOUSE_R, t, tt, night, dusk, () => tvHouse(t, tt, night, dusk));
+    // ---- sao, trăng, đom đóm, ánh đèn hắt ra sân (cộng sáng) ----
+    if (night > 0.02) {
+      for (const s of STARS) { const a = night * (0.45 + 0.55 * Math.sin(t * 1.6 + s.p)); g.globalAlpha = Math.max(0, a); R(g, s.x, s.y, s.s, s.s, '#fff8e0'); }
+      g.globalAlpha = night * 0.5; ellipse(g, 214, 26, 12, 12, '#cfd8ff'); g.globalAlpha = night * 0.9; ellipse(g, 214, 26, 7, 7, '#f6f2d6'); ellipse(g, 216, 25, 6, 6, '#fffbe6'); g.globalAlpha = 1;
+    }
+    g.globalCompositeOperation = 'lighter';
+    if (dusk > 0.01) { g.globalAlpha = dusk * 0.5; glowAt(135, 106, 150, 30, '255,150,70', 0.55); g.globalAlpha = 1; }
+    const lit = Math.max(night, dusk * 0.7);
+    if (lit > 0.02) {
+      g.globalAlpha = lit; glowAt(HOUSE_L.x + 24, 144, 40, 9, '255,196,110', 0.38); glowAt(HOUSE_R.x + 23, 144, 40, 9, '255,196,110', 0.38);
+      glowAt(HOUSE_R.x + 38, 128, 18, 12, '170,210,255', 0.18 * (tt > 15.5 && tt < 34.5 ? 1 : 0)); g.globalAlpha = 1;
+    }
+    if (night > 0.3) for (const f of FLIES) {
+      const x = f.x + Math.sin(t * f.f + f.p) * f.ax, y = f.y + Math.cos(t * f.f * 1.3 + f.p) * f.ay, a = night * Math.max(0, Math.sin(t * 2.4 + f.p));
+      g.globalAlpha = a * 0.35; g.fillStyle = '#d8ff80'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
+      g.globalAlpha = a; g.fillStyle = '#f4ffb0'; g.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    void day;
   }
 
   drawBackground();
@@ -365,6 +538,6 @@
 })();
 </script>
 <script src="fx-post.js"></script>
-<script>PostFX.attach('#scene',{bloom:.34,soft:.4,vign:.45,grade:'rgba(255,200,130,.10)',rays:{x:.9,y:.02,color:'255,226,170',a:.18}});</script>
+<script>PostFX.attach('#scene',{bloom:.34,soft:.4,vign:.45,grade:'rgba(255,200,130,.10)',rays:{x:.9,y:.02,color:'255,226,170',a:.1}});</script>
 </body>
 </html>

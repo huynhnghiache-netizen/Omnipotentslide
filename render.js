@@ -59,9 +59,9 @@ const path = require('path');
       console.log('slide8.png (từ slide8-anim.html)');
       continue;
     }
-    if (i === 7) {   // slide 7 có làng pixel: xuất từ slide7-anim.html (dừng ở giây thứ 6)
+    if (i === 7) {   // slide 7 có làng pixel: xuất từ slide7-anim.html (dừng ở giây thứ 17.5: chiều tà, đèn nhà bật)
       const p7 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
-      await p7.goto('file://' + path.join(__dirname, 'slide7-anim.html') + '?still=6', { waitUntil: 'load' });
+      await p7.goto('file://' + path.join(__dirname, 'slide7-anim.html') + '?still=17.5', { waitUntil: 'load' });
       await p7.waitForFunction('window.__ready');
       await p7.waitForFunction('window.__pfReady');
       await p7.evaluate(() => document.fonts.ready);
