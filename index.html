@@ -325,13 +325,13 @@
     const SLIDE_INFO = [
       { title: 'Life in My Neighbourhood',   desc: 'Unit 4: Remembering the Past - what our neighbourhood was like 40 years ago.' },
       { title: 'Group Members',              desc: 'Presenter, Researcher, Slide Designer and Image Collector.' },
-      { title: 'A Glimpse into the Past',    desc: 'A simple lifestyle and a tight-knit community.' },
+      { title: 'A Look at the Past',    desc: 'A simple lifestyle and a tight-knit community.' },
       { title: 'How People Moved Around',    desc: 'Walking and cycling; quiet streets with fewer vehicles.' },
-      { title: 'Daily Living Conditions',    desc: 'Basic household tools and traditional cooking on wood, straw or charcoal.' },
-      { title: 'Water & Electricity Supply', desc: 'Public water sources and limited power (kerosene lamps).' },
+      { title: 'Daily Life at Home',    desc: 'Basic household tools and traditional cooking on wood, straw or charcoal.' },
+      { title: 'Water and Electricity', desc: 'Village water and not much electricity (oil lamps).' },
       { title: 'How People Spent Free Time', desc: 'Outdoor folk games and communal radio / TV evenings.' },
       { title: 'Key Changes Over 40 Years',  desc: 'From the 1980s (simple, peaceful) to the 2020s (modern, fast-paced).' },
-      { title: 'Preserving Our Memories',    desc: 'Valuing history and keeping tradition alive.' },
+      { title: 'Keeping Our Memories',    desc: 'Valuing the past and keeping tradition alive.' },
       { title: 'Thank You for Listening!',   desc: 'Q&A session - we hope you enjoyed our journey back to the past.' }
     ];
     const PX = 8;                      // kích thước 1 "pixel" của vệt chém và bụi
@@ -1586,7 +1586,7 @@
     gearBtn.appendChild(gearCv);
     heartBtn.appendChild(heartCv);
 
-    const SLIDE_NAMES = ['Life in My Neighbourhood', 'Group Members', 'A Glimpse into the Past', 'How People Moved Around', 'Daily Living Conditions', 'Water & Electricity Supply', 'How People Spent Free Time', 'Key Changes Over 40 Years', 'Preserving Our Memories', 'Thank You'];
+    const SLIDE_NAMES = ['Life in My Neighbourhood', 'Group Members', 'A Look at the Past', 'How People Moved Around', 'Daily Life at Home', 'Water and Electricity', 'How People Spent Free Time', 'Key Changes Over 40 Years', 'Keeping Our Memories', 'Thank You'];
     const settingsBox = settingsEl.querySelector('.settings-box'), settingsTitle = settingsEl.querySelector('.settings-title');
     const slideListEl = document.createElement('div'); slideListEl.className = 'slide-list'; settingsBox.appendChild(slideListEl);
     // Tỉ lệ Sans chặn (1-100%): lưu trong trình duyệt, dùng cho cú chém giữa slide 4 và 5 ở chế độ tim xanh
@@ -1648,7 +1648,7 @@
     // Mỗi lượt có đúng 1 lần Sans chặn, chắc chắn xảy ra, ở một slide ngẫu nhiên từ slide 1 đến 7
     // (lúc bấm tiếp từ slide đó); lần đó có thêm cú chém lưỡi liềm chéo cắt đôi cả màn hình.
     const KNIGHT_AT = 5;       // cảnh Hiệp sĩ chém: chỉ 1 lần, ở cú chuyển từ slide 6 (Water & Electricity) sang slide 7
-    const SOUL_BLOCK_AT = 3;   // Sans chỉ xuất hiện giữa 'How People Moved Around' (slide 4) và 'Daily Living Conditions' (slide 5), 1 lần mỗi lượt
+    const SOUL_BLOCK_AT = 3;   // Sans chỉ xuất hiện giữa 'How People Moved Around' (slide 4) và 'Daily Life at Home' (slide 5), 1 lần mỗi lượt
     const soul = { on: false, i: 0, cur: null, blockUsed: false, blockAt: 0, knightUsed: false };
     const soulIntro = document.getElementById('soulIntro');
     const soulHeartCv = document.getElementById('soulHeart');
