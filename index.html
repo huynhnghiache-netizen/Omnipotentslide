@@ -996,7 +996,7 @@
     let cine = null;
     // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 hai Gaster Blaster (nhìn thẳng ra màn hình) hiện ra hai bên Sans;
     // 1800 nạp năng lượng (mắt + miệng sáng dần); 2600 bắn thẳng vào màn hình; 3150 trắng xoá, màn hình nứt; 4600 tối 0.5s rồi sang slide kế.
-    const CT = { bone: 250, boneGone: 1250, gb: 1400, charge: 1700, fire: 2600, hit: 3350, black: 4600 };
+    const CT = { bone: 250, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
     const BONES_SND = new Audio('assets/dry-bones-death.mp3'); BONES_SND.preload = 'auto'; BONES_SND.volume = 0.9;
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
@@ -1753,11 +1753,9 @@
     // ----- Màn mở đầu: màn hình tối mờ ảo, đồng hồ quay ngược dần từ 2026 về 1980, sáng nhẹ rồi glitch sang slide 1 -----
     // Nhạc assets/clock-reverse.mp3 (9s, cắt từ file người dùng, không tua nhanh): chuông lớn nhất ở giây 6.75 = lúc tới 1980,
     // sau đó nhỏ dần trong 2s, tới giây 8.75 thì glitch.
-    const CLK_IMG = new Image(); CLK_IMG.src = 'assets/clock.png';                         // ảnh đồng hồ cây do người dùng gửi (đã tách nền)
+    const CLK_IMG = new Image(); CLK_IMG.src = 'assets/watch.png';                         // ảnh đồng hồ quả quýt do người dùng gửi (đã tách nền)
     const CLK_SND = new Audio('assets/clock-reverse.mp3'); CLK_SND.preload = 'auto'; CLK_SND.volume = 0.9;
     const CLK = { T1980: 6.75, GLITCH: 8.75, FROM: 2026, TO: 1980 };
-    const CLK_LW = 88, CLK_LH = 361;                                                         // đồng hồ vẽ ở độ phân giải thấp (pixel art) rồi phóng nguyên khối
-    const clkLow = document.createElement('canvas'); clkLow.width = CLK_LW; clkLow.height = CLK_LH;
     const clkSeed = (n) => { const x = Math.sin(n * 91.7 + 13.3) * 43758.5453; return x - Math.floor(x); };
     const CLK_DUST = Array.from({ length: 70 }, (_, i) => ({ x: clkSeed(i), y: clkSeed(i + 100), v: 0.01 + clkSeed(i + 200) * 0.03, s: 2 + Math.floor(clkSeed(i + 300) * 3), ph: clkSeed(i + 400) * 6.28 }));
     function clkLine(g, x0, y0, x1, y1, w, col) {
@@ -1765,27 +1763,24 @@
       for (let i = 0; i <= n; i++) { const u = i / n; g.fillRect(Math.round(x0 + (x1 - x0) * u - w / 2), Math.round(y0 + (y1 - y0) * u - w / 2), w, w); }
     }
     function clkDisk(g, cx, cy, r, col) { g.fillStyle = col; for (let y = -r; y <= r; y++) { const h = Math.floor(Math.sqrt(r * r - y * y)); g.fillRect(cx - h, cy + y, h * 2 + 1, 1); } }
-    function clkPaintLow(yp, s) {
-      const g = clkLow.getContext('2d'); g.clearRect(0, 0, CLK_LW, CLK_LH);
-      g.imageSmoothingEnabled = true; if (CLK_IMG.complete && CLK_IMG.naturalWidth) g.drawImage(CLK_IMG, 0, 0, CLK_LW, CLK_LH);
-      g.imageSmoothingEnabled = false;
-      // mặt đồng hồ: vẽ lại để kim chạy được (kim cũ trong ảnh bị che đi)
-      const cx = 44, cy = 78;
-      clkDisk(g, cx, cy, 28, '#ebdfca'); clkDisk(g, cx, cy, 26, '#f1e6d2');
-      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, big = i % 3 === 0, r0 = big ? 19 : 22; clkLine(g, cx + Math.sin(a) * r0, cy - Math.cos(a) * r0, cx + Math.sin(a) * 24.5, cy - Math.cos(a) * 24.5, big ? 2 : 1, '#3a2418'); }
-      const spin = -Math.min(s, CLK.T1980) * 0.9, wob = s > CLK.T1980 ? Math.sin((s - CLK.T1980) * 26) * 0.09 * Math.exp(-(s - CLK.T1980) * 4) : 0;
-      const am = spin + wob, ah = spin / 12 + wob * 0.3, as = spin * 3;
-      clkLine(g, cx, cy, cx + Math.sin(ah) * 14, cy - Math.cos(ah) * 14, 2, '#2a1810');
-      clkLine(g, cx, cy, cx + Math.sin(am) * 21, cy - Math.cos(am) * 21, 2, '#2a1810');
-      if (s < CLK.T1980) clkLine(g, cx, cy, cx + Math.sin(as) * 23, cy - Math.cos(as) * 23, 1, '#b8321f');
-      g.fillStyle = '#2a1810'; g.fillRect(cx - 1, cy - 1, 3, 3);
-      // ô con lắc: vẽ lại (con lắc đung đưa, hai quả cân chạy ngược lên)
-      g.fillStyle = '#2a1a10'; g.fillRect(27, 137, 34, 144); g.fillStyle = '#0e0b08'; g.fillRect(27, 137, 34, 12);
-      g.save(); g.beginPath(); g.rect(27, 137, 34, 144); g.clip();
-      const lift = yp * 14, sw = Math.sin(s * 3.4) * 0.075 * (1 - 0.3 * Math.max(0, s - CLK.T1980)), bx = 44 + Math.sin(sw) * 98, by = 148 + Math.cos(sw) * 98;
-      clkLine(g, 44, 149, bx, by, 1, '#c98a64'); clkDisk(g, Math.round(bx), Math.round(by), 11, '#a86f4f'); clkDisk(g, Math.round(bx) - 3, Math.round(by) - 3, 4, '#c98a64');
-      g.fillStyle = '#c98a64'; g.fillRect(34, 149, 1, 18 - lift); g.fillRect(53, 149, 1, 38 - lift);
-      g.fillStyle = '#a86f4f'; g.fillRect(31, 167 - lift, 6, 20); g.fillRect(50, 187 - lift, 6, 20);
+    // đồng hồ quả quýt (ảnh người dùng gửi, đã tách nền): mặt đồng hồ được vẽ lại để kim chạy được
+    const WCX = 132, WCY = 218, WR = 132;                                       // tâm + bán kính vỏ trong ảnh đã cắt (264 x 351)
+    const clkWatch = document.createElement('canvas'); clkWatch.width = 528; clkWatch.height = 702;
+    const ROMAN = ['XII', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+    function clkPaintWatch(s) {
+      const g = clkWatch.getContext('2d'); g.clearRect(0, 0, 528, 702); g.save(); g.scale(2, 2);
+      if (CLK_IMG.complete && CLK_IMG.naturalWidth) g.drawImage(CLK_IMG, 0, 0, 264, 351);
+      const cx = WCX, cy = WCY - 1;
+      g.fillStyle = '#fbf6ee'; g.beginPath(); g.arc(cx, cy, 97, 0, 6.2832); g.fill();
+      const yg = g.createRadialGradient(cx - 14, cy - 10, 4, cx, cy, 62); yg.addColorStop(0, '#ffcf6a'); yg.addColorStop(1, '#f7a936');
+      g.fillStyle = yg; g.beginPath(); g.arc(cx, cy, 62, 0, 6.2832); g.fill();
+      g.fillStyle = '#3a2a10'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = "700 22px Tinos, 'Times New Roman', serif";
+      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; g.fillText(ROMAN[i], cx + Math.sin(a) * 79, cy - Math.cos(a) * 79 + 1); }
+      const spin = -Math.min(s, CLK.T1980) * 0.5, wob = s > CLK.T1980 ? Math.sin((s - CLK.T1980) * 26) * 0.09 * Math.exp(-(s - CLK.T1980) * 4) : 0;
+      const hand = (ang, len, w, col, tail) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(cx - Math.sin(ang) * tail, cy + Math.cos(ang) * tail); g.lineTo(cx + Math.sin(ang) * len, cy - Math.cos(ang) * len); g.stroke(); };
+      hand(spin / 12 + wob * 0.3, 50, 7, '#33200a', 8); hand(spin + wob, 78, 5, '#33200a', 10);
+      if (s < CLK.T1980) { const as = -Math.floor(s * 2) / 60 * 6.2832 * 2; hand(as, 88, 1.8, '#c23a1e', 14); }
+      g.fillStyle = '#33200a'; g.beginPath(); g.arc(cx, cy, 6, 0, 6.2832); g.fill();
       g.restore();
     }
     // phông nền: các thời đại lùi dần (ô tô -> xe máy -> xe đạp / xe trâu), vẽ pixel ở độ phân giải thấp rồi phóng to mờ
@@ -1837,20 +1832,19 @@
         const fr = (((clkSeed(i) + s * 0.01 * (i % 2 ? 1 : -1)) % 1) + 1) % 1, px = W * (0.1 + 0.8 * fr), py = H * (0.3 + 0.4 * clkSeed(i + 9)), r = Math.max(W, H) * 0.3;
         const fg = g.createRadialGradient(px, py, 0, px, py, r); fg.addColorStop(0, 'rgba(110,90,190,0.08)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(px - r, py - r, r * 2, r * 2);
       }
-      // đồng hồ: chiếm gần hết chiều cao màn hình, ở giữa
-      const ch = 1.0 * H, cw = ch * CLK_LW / CLK_LH, cxm = W / 2, cym = H / 2, pulse = hit > 0 ? 1 + 0.02 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1;
-      const px0 = cxm - cw / 2, py0 = cym - ch / 2, dialx = cxm, dialy = py0 + ch * 78 / CLK_LH;
-      const gl = g.createRadialGradient(cxm, cym, 0, cxm, cym, ch * 0.6); gl.addColorStop(0, 'rgba(255,200,130,' + (0.05 + 0.25 * Math.min(1, hit * 2)) + ')'); gl.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = gl; g.fillRect(cxm - ch, cym - ch, ch * 2, ch * 2);
-      clkPaintLow(yp, s);
-      g.save(); g.translate(cxm, cym); g.scale(pulse, pulse); g.translate(-cxm, -cym); g.imageSmoothingEnabled = false; g.globalAlpha = 0.5 + 0.45 * Math.min(1, hit * 2.5);
-      g.drawImage(clkLow, Math.round(px0), Math.round(py0), Math.round(cw), Math.round(ch)); g.restore(); g.globalAlpha = 1;
-      if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.6 * (1 - k)) + ')'; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(dialx, dialy, ch * 0.08 + ch * 0.5 * k, 0, 6.2832); g.stroke(); }
-      // số năm: nằm giữa đồng hồ, mờ ảo, tới 1980 mới sáng
-      const fs = Math.round(0.075 * H), yy2 = cym + ch * 0.04, lit = Math.min(1, hit * 3);
+      // đồng hồ quả quýt: vỏ tròn to gần bằng chiều cao màn hình, ở giữa (vòng treo phía trên bị cắt khỏi màn hình)
+      const kk = 0.49 * H / WR, cxm = W / 2, cym = H * 0.52, pulse = hit > 0 ? 1 + 0.02 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
+      const gl = g.createRadialGradient(cxm, cym, 0, cxm, cym, H * 0.7); gl.addColorStop(0, 'rgba(255,200,130,' + (0.05 + 0.25 * Math.min(1, hit * 2)) + ')'); gl.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = gl; g.fillRect(cxm - H, cym - H, H * 2, H * 2);
+      clkPaintWatch(s);
+      g.fillStyle = '#050308'; g.beginPath(); g.arc(cxm, cym, WR * kk * pulse, 0, 6.2832); g.fill();          // nền đặc sau đồng hồ để xe phía sau không lộ qua mặt
+      g.save(); g.translate(cxm, cym); g.scale(pulse, pulse); g.translate(-cxm, -cym); g.imageSmoothingEnabled = true; g.globalAlpha = 0.5 + 0.45 * Math.min(1, hit * 2.5);
+      g.drawImage(clkWatch, cxm - WCX * kk, cym - WCY * kk, 264 * kk, 351 * kk); g.restore(); g.globalAlpha = 1;
+      if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.6 * (1 - k)) + ')'; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(cxm, cym, H * 0.1 + H * 0.5 * k, 0, 6.2832); g.stroke(); }
+      // số năm: nằm giữa đồng hồ (trên mặt vàng), mờ ảo, tới 1980 mới sáng
+      const fs = Math.round(0.092 * H);
       g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fs + "px 'Press Start 2P', monospace";
-      g.shadowColor = lit > 0 ? 'rgba(255,214,140,' + (0.5 + 0.5 * lit) + ')' : 'rgba(150,120,255,0.8)'; g.shadowBlur = fs * (0.7 + 0.5 * lit);
-      g.globalAlpha = 0.42 + 0.58 * lit; g.fillStyle = lit > 0 ? '#fff1cf' : '#b9a9f0'; g.fillText(String(yShown), cxm + (lit > 0 ? 0 : (Math.random() - 0.5) * 1.5), yy2);
-      g.shadowBlur = fs * 1.6; g.globalAlpha = (0.12 + 0.3 * lit); g.fillText(String(yShown), cxm, yy2);
+      g.globalAlpha = 0.6 * (1 - lit); g.fillStyle = '#4a2c0a'; g.fillText(String(yShown), cxm + (Math.random() - 0.5) * 1.5, cym);
+      if (lit > 0) { g.shadowColor = 'rgba(255,240,200,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fffaf0'; g.fillText(String(yShown), cxm, cym); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, cym); }
       g.restore();
       // bụi lơ lửng
       for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.15 + 0.2 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(255,230,190,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
@@ -2113,7 +2107,7 @@
         if (fire > 0) blocks.push(g);
       }
       for (const g of blocks) {                                     // năng lượng bắn từ miệng thẳng tới màn hình (3D): khối pixel phẳng như video, phóng to dần kín màn hình
-        const u = Math.pow(ramp(t, CT.fire, CT.hit - 100), 2.4), s0 = g.gw * 0.30, sz = lerp(s0, Math.hypot(W, H) * 1.1, u);
+        const u = Math.pow(ramp(t, CT.fire, CT.fire + 110), 1.7), s0 = g.gw * 0.30, sz = lerp(s0, Math.hypot(W, H) * 1.1, u);
         const x0 = Math.round((g.mx - sz) / PX) * PX, y0 = Math.round((g.my - sz) / PX) * PX, d = Math.round(sz * 2 / PX) * PX, q = Math.round(Math.min(sz * 0.28, PX * 2.5) / PX) * PX;
         const box = (x, y, w, h, col) => { fx.fillStyle = col; fx.fillRect(x + q, y, w - 2 * q, h); fx.fillRect(x, y + q, w, h - 2 * q); };   // khối vuông bo góc kiểu pixel
         box(x0, y0, d, d, '#e6e6e6');
@@ -2142,8 +2136,8 @@
       }
       drawGB(c, t, W, H);
       if (t >= CT.fire && !ev.fire) { ev.fire = 1; flash(90, 'rgba(255,255,255,0.35)'); shake(1, 5); try { navigator.vibrate && navigator.vibrate([40, 20, 80]); } catch (e) { } }
-      if (t >= CT.hit - 220) {                                      // trắng xoá khi năng lượng phủ kín màn hình (giữ trắng tới lúc tối)
-        const a = ramp(t, CT.hit - 220, CT.hit);
+      if (t >= CT.fire + 50) {                                      // trắng xoá khi năng lượng phủ kín màn hình (giữ trắng tới lúc tối)
+        const a = ramp(t, CT.fire + 50, CT.hit);
         fx.fillStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; fx.fillRect(0, 0, W, H);
       }
       if (!ev.hit && t >= CT.hit) { ev.hit = 1; try { navigator.vibrate && navigator.vibrate([60, 30, 120]); } catch (e) { } }
@@ -2344,7 +2338,7 @@
       const tasks = [];
       tasks.push(['Fonts', font("16px 'Press Start 2P'", 'font1')], ['Fonts', font("700 20px Tinos", 'font2')], ['Fonts', font("400 20px 'Public Sans'", 'font3')]);
       slideImages.forEach((p, i) => tasks.push(['Slide ' + (i + 1), img(p)]));
-      ['anim-blank.png', 'clock.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
+      ['anim-blank.png', 'watch.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
       tasks.push(['Audio', get('assets/clock-reverse.mp3')]);
