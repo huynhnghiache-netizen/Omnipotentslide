@@ -2004,7 +2004,7 @@
         const hh = g.h * sc, x = g.x + shk, y = g.y + bob + (1 - born) * H * 0.05, k = hh / GB.height;
         const w2 = GB_O.width * k, h2 = GB_O.height * k;
         fx.globalAlpha = al; fx.drawImage(GB_O, Math.round(x - w2 / 2), Math.round(y - h2 / 2), w2, h2); fx.globalAlpha = 1;
-        const gw = GB.width * k, mx = x, my = y - GB.height * k / 2 + GB.height * k * 0.86;
+        const gw = GB.width * k, mx = x, my = y - GB.height * k / 2 + GB.height * k * 0.82;
         g.mx = mx; g.my = my; g.gw = gw;
         if (chg > 0 && born > 0.9) {                               // viên năng lượng trong miệng: hình thoi nhỏ -> khối tròn góc to dần
           const sz = Math.round(gw * (0.10 + 0.20 * chg) / PX) * PX, rr = chg > 0.55 ? 0 : 1;
