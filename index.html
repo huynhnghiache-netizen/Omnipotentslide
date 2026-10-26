@@ -1992,7 +1992,7 @@
       const lo = w * 0.7, hi = W - w * 0.7;
       return [-1, 1].map(sd => ({ x: Math.max(lo, Math.min(hi, c.sans.x + sd * off)), y: c.sans.y - 0.04 * H, h, w, sd }));
     }
-    function drawGB(c, t, W, H) {                                   // mô phỏng 2D như video mẫu: nạp viên năng lượng ở miệng, rồi cột sáng bắn thẳng xuống
+    function drawGB(c, t, W, H) {                                   // mô phỏng 2D như video mẫu: nạp viên năng lượng ở miệng, rồi khối năng lượng bắn thẳng vào màn hình
       if (!GB_O) return;
       const chg = ramp(t, CT.charge, CT.fire), fire = ramp(t, CT.fire, CT.fire + 120), wide = ramp(t, CT.fire + 450, CT.hit - 100);
       const blocks = [];
@@ -2015,11 +2015,12 @@
         }
         if (fire > 0) blocks.push(g);
       }
-      for (const g of blocks) {                                     // cột năng lượng bắn thẳng xuống, rồi nở ngang phủ kín màn hình
-        const bw0 = g.gw * 0.62, bwid = lerp(bw0, W * 1.6, Math.pow(wide, 2.2)), len = (H - g.my + 20) * fire;
-        const x0 = Math.round((g.mx - bwid / 2) / PX) * PX;
-        fx.fillStyle = '#e6e6e6'; fx.fillRect(x0, g.my, Math.round(bwid / PX) * PX, len);
-        const cw = bwid * 0.55; fx.fillStyle = '#ffffff'; fx.fillRect(Math.round((g.mx - cw / 2) / PX) * PX, g.my, Math.round(cw / PX) * PX, len);
+      for (const g of blocks) {                                     // năng lượng bắn từ miệng thẳng tới màn hình (3D): khối pixel phẳng như video, phóng to dần kín màn hình
+        const u = Math.pow(ramp(t, CT.fire, CT.hit - 100), 2.4), s0 = g.gw * 0.30, sz = lerp(s0, Math.hypot(W, H) * 1.1, u);
+        const x0 = Math.round((g.mx - sz) / PX) * PX, y0 = Math.round((g.my - sz) / PX) * PX, d = Math.round(sz * 2 / PX) * PX, q = Math.round(Math.min(sz * 0.28, PX * 2.5) / PX) * PX;
+        const box = (x, y, w, h, col) => { fx.fillStyle = col; fx.fillRect(x + q, y, w - 2 * q, h); fx.fillRect(x, y + q, w, h - 2 * q); };   // khối vuông bo góc kiểu pixel
+        box(x0, y0, d, d, '#e6e6e6');
+        const c2 = Math.round(d * 0.6 / PX) * PX; box(Math.round((g.mx - c2 / 2) / PX) * PX, Math.round((g.my - c2 / 2) / PX) * PX, c2, c2, '#ffffff');
       }
     }
     function drawCine(now) {
