@@ -1662,7 +1662,7 @@
     });
 
     // ================= CHẾ ĐỘ TIM XANH (soul mode) =================
-    // Bấm tim xanh: màn đen -> tim đỏ -> đổi xanh -> glitch -> slide 1.
+    // Bấm tim xanh: màn tối mờ ảo -> đồng hồ quay ngược 2026 -> 1980 -> sáng nhẹ -> glitch -> slide 1.
     // Click = slide kế (chém + tan), Backspace = slide trước, tim đỏ ở góc phải = về danh sách.
     // Mỗi lượt có đúng 1 lần Sans chặn, chắc chắn xảy ra, ở một slide ngẫu nhiên từ slide 1 đến 7
     // (lúc bấm tiếp từ slide đó); lần đó có thêm cú chém lưỡi liềm chéo cắt đôi cả màn hình.
@@ -1750,53 +1750,129 @@
       anim3.src = 'about:blank';
     }
 
-    // ----- Màn mở đầu -----
+    // ----- Màn mở đầu: màn hình tối mờ ảo, đồng hồ quay ngược dần từ 2026 về 1980, sáng nhẹ rồi glitch sang slide 1 -----
+    // Nhạc assets/clock-reverse.mp3 (9s, cắt từ file người dùng, không tua nhanh): chuông lớn nhất ở giây 6.75 = lúc tới 1980,
+    // sau đó nhỏ dần trong 2s, tới giây 8.75 thì glitch.
+    const CLK_IMG = new Image(); CLK_IMG.src = 'assets/clock.png';                         // ảnh đồng hồ cây do người dùng gửi (đã tách nền)
+    const CLK_SND = new Audio('assets/clock-reverse.mp3'); CLK_SND.preload = 'auto'; CLK_SND.volume = 0.9;
+    const CLK = { T1980: 6.75, GLITCH: 8.75, FROM: 2026, TO: 1980 };
+    const CLK_LW = 88, CLK_LH = 361;                                                         // đồng hồ vẽ ở độ phân giải thấp (pixel art) rồi phóng nguyên khối
+    const clkLow = document.createElement('canvas'); clkLow.width = CLK_LW; clkLow.height = CLK_LH;
+    const clkSeed = (n) => { const x = Math.sin(n * 91.7 + 13.3) * 43758.5453; return x - Math.floor(x); };
+    const CLK_DUST = Array.from({ length: 70 }, (_, i) => ({ x: clkSeed(i), y: clkSeed(i + 100), v: 0.01 + clkSeed(i + 200) * 0.03, s: 2 + Math.floor(clkSeed(i + 300) * 3), ph: clkSeed(i + 400) * 6.28 }));
+    function clkLine(g, x0, y0, x1, y1, w, col) {
+      g.fillStyle = col; const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+      for (let i = 0; i <= n; i++) { const u = i / n; g.fillRect(Math.round(x0 + (x1 - x0) * u - w / 2), Math.round(y0 + (y1 - y0) * u - w / 2), w, w); }
+    }
+    function clkDisk(g, cx, cy, r, col) { g.fillStyle = col; for (let y = -r; y <= r; y++) { const h = Math.floor(Math.sqrt(r * r - y * y)); g.fillRect(cx - h, cy + y, h * 2 + 1, 1); } }
+    function clkPaintLow(yp, s) {
+      const g = clkLow.getContext('2d'); g.clearRect(0, 0, CLK_LW, CLK_LH);
+      g.imageSmoothingEnabled = true; if (CLK_IMG.complete && CLK_IMG.naturalWidth) g.drawImage(CLK_IMG, 0, 0, CLK_LW, CLK_LH);
+      g.imageSmoothingEnabled = false;
+      // mặt đồng hồ: vẽ lại để kim chạy được (kim cũ trong ảnh bị che đi)
+      const cx = 44, cy = 78;
+      clkDisk(g, cx, cy, 28, '#ebdfca'); clkDisk(g, cx, cy, 26, '#f1e6d2');
+      for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6, big = i % 3 === 0, r0 = big ? 19 : 22; clkLine(g, cx + Math.sin(a) * r0, cy - Math.cos(a) * r0, cx + Math.sin(a) * 24.5, cy - Math.cos(a) * 24.5, big ? 2 : 1, '#3a2418'); }
+      const spin = -yp * 14 * Math.PI * 2, wob = s > CLK.T1980 ? Math.sin((s - CLK.T1980) * 26) * 0.09 * Math.exp(-(s - CLK.T1980) * 4) : 0;
+      const am = spin + wob, ah = spin / 12 + wob * 0.3, as = spin * 5.3;
+      clkLine(g, cx, cy, cx + Math.sin(ah) * 14, cy - Math.cos(ah) * 14, 2, '#2a1810');
+      clkLine(g, cx, cy, cx + Math.sin(am) * 21, cy - Math.cos(am) * 21, 2, '#2a1810');
+      if (s < CLK.T1980) clkLine(g, cx, cy, cx + Math.sin(as) * 23, cy - Math.cos(as) * 23, 1, '#b8321f');
+      g.fillStyle = '#2a1810'; g.fillRect(cx - 1, cy - 1, 3, 3);
+      // ô con lắc: vẽ lại (con lắc đung đưa, hai quả cân chạy ngược lên)
+      g.fillStyle = '#2a1a10'; g.fillRect(27, 137, 34, 144); g.fillStyle = '#0e0b08'; g.fillRect(27, 137, 34, 12);
+      g.save(); g.beginPath(); g.rect(27, 137, 34, 144); g.clip();
+      const lift = yp * 14, sw = Math.sin(s * 3.4) * 0.075 * (1 - 0.3 * Math.max(0, s - CLK.T1980)), bx = 44 + Math.sin(sw) * 98, by = 148 + Math.cos(sw) * 98;
+      clkLine(g, 44, 149, bx, by, 1, '#c98a64'); clkDisk(g, Math.round(bx), Math.round(by), 11, '#a86f4f'); clkDisk(g, Math.round(bx) - 3, Math.round(by) - 3, 4, '#c98a64');
+      g.fillStyle = '#c98a64'; g.fillRect(34, 149, 1, 18 - lift); g.fillRect(53, 149, 1, 38 - lift);
+      g.fillStyle = '#a86f4f'; g.fillRect(31, 167 - lift, 6, 20); g.fillRect(50, 187 - lift, 6, 20);
+      g.restore();
+    }
+    function clkDraw(g, W, H, s) {
+      const u = Math.max(0, Math.min(1, (s - 0.5) / (CLK.T1980 - 0.5))), yp = Math.pow(u, 1.8);
+      const yr = CLK.FROM - (CLK.FROM - CLK.TO) * yp, yShown = Math.round(yr), hit = Math.max(0, s - CLK.T1980);
+      const portrait = W / H < 1.05;
+      // nền tối mờ ảo: sương trôi + tia sáng nhạt + bụi
+      g.fillStyle = '#05040b'; g.fillRect(0, 0, W, H);
+      const bg = g.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.75); bg.addColorStop(0, '#1b1530'); bg.addColorStop(1, '#05040b'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 6; i++) {
+        const fr = (((clkSeed(i) + s * 0.012 * (i % 2 ? 1 : -1)) % 1) + 1) % 1, px = W * (0.15 + 0.7 * fr), py = H * (0.2 + 0.6 * clkSeed(i + 9)), r = Math.max(W, H) * (0.22 + 0.12 * clkSeed(i + 20));
+        const fg = g.createRadialGradient(px, py, 0, px, py, r); fg.addColorStop(0, i % 2 ? 'rgba(120,90,200,0.10)' : 'rgba(210,150,90,0.07)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(px - r, py - r, r * 2, r * 2);
+      }
+      const bx = W * 0.5; g.save(); g.globalAlpha = 0.07 + 0.02 * Math.sin(s * 1.3); const sh = g.createLinearGradient(0, 0, 0, H); sh.addColorStop(0, '#ffe0a8'); sh.addColorStop(1, 'rgba(255,224,168,0)');
+      g.fillStyle = sh; g.beginPath(); g.moveTo(bx - W * 0.05, 0); g.lineTo(bx + W * 0.05, 0); g.lineTo(bx + W * 0.22, H); g.lineTo(bx - W * 0.22, H); g.closePath(); g.fill(); g.restore();
+      // đồng hồ (ở giữa, cao gần hết màn hình)
+      const ch = (portrait ? 0.66 : 0.86) * H, cw = ch * CLK_LW / CLK_LH, cxm = W / 2, cym = portrait ? H * 0.6 : H / 2, pulse = hit > 0 ? 1 + 0.035 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1;
+      const px0 = cxm - cw / 2, py0 = cym - ch / 2, dialx = cxm, dialy = py0 + ch * 78 / CLK_LH;
+      const gl = g.createRadialGradient(dialx, dialy, 0, dialx, dialy, ch * 0.5); gl.addColorStop(0, 'rgba(255,200,130,' + (0.16 + 0.22 * Math.min(1, hit * 2) * Math.exp(-hit * 0.6)) + ')'); gl.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = gl; g.fillRect(dialx - ch, dialy - ch, ch * 2, ch * 2);
+      clkPaintLow(yp, s);
+      g.save(); g.translate(cxm, cym); g.scale(pulse, pulse); g.translate(-cxm, -cym); g.imageSmoothingEnabled = false; g.globalAlpha = 0.82 + 0.18 * Math.min(1, hit * 3);
+      g.drawImage(clkLow, Math.round(px0), Math.round(py0), Math.round(cw), Math.round(ch)); g.restore(); g.globalAlpha = 1;
+      if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.8 * (1 - k)) + ')'; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(dialx, dialy, ch * 0.08 + ch * 0.55 * k, 0, 6.2832); g.stroke(); }
+      // thước năm bên trái: cuộn dần lên khi lùi về quá khứ
+      if (!portrait) {
+        const rx = W * 0.5 - cw / 2 - W * 0.2, sp = H / 22, ycen = H / 2;
+        g.save(); g.beginPath(); g.rect(rx - 0.08 * W, H * 0.08, 0.2 * W, H * 0.84); g.clip();
+        for (let Y = CLK.TO - 14; Y <= CLK.FROM + 14; Y++) {
+          const yy = ycen + (yr - Y) * sp; if (yy < H * 0.06 || yy > H * 0.94) continue;
+          const dist = Math.abs(yy - ycen) / (H * 0.42), a = Math.max(0, 1 - dist * dist), major = Y % 10 === 0, mid = Y % 5 === 0;
+          g.fillStyle = 'rgba(255,233,176,' + (a * (major ? 0.95 : 0.5)) + ')'; const len = (major ? 0.05 : mid ? 0.035 : 0.022) * W;
+          g.fillRect(Math.round(rx), Math.round(yy), Math.round(len), major ? 4 : 2);
+          if (major) { g.font = Math.round(H * 0.026) + "px 'Press Start 2P', monospace"; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(String(Y), rx + len + 12, yy + 2); }
+        }
+        g.restore();
+        const my = ycen; g.fillStyle = '#ffe9b0'; g.beginPath(); g.moveTo(rx - 10, my); g.lineTo(rx - 26, my - 10); g.lineTo(rx - 26, my + 10); g.closePath(); g.fill();
+      }
+      // năm hiện tại (to, phát sáng)
+      const fs = Math.round((portrait ? 0.1 : 0.13) * Math.min(H, W * 0.55)), yx = portrait ? W / 2 : W * 0.5 + cw / 2 + W * 0.2, yy2 = portrait ? H * 0.1 : H * 0.5;
+      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fs + "px 'Press Start 2P', monospace";
+      const hot = hit > 0 ? Math.max(0, 1 - hit * 1.4) : 0;
+      g.shadowColor = hit > 0 ? 'rgba(255,214,140,0.9)' : 'rgba(170,130,255,0.7)'; g.shadowBlur = fs * (0.35 + 0.5 * hot);
+      g.fillStyle = hot > 0 ? '#ffffff' : (hit > 0 ? '#ffe9b0' : '#d9cdf5'); g.fillText(String(yShown), yx + (hit > 0 ? 0 : (Math.random() - 0.5) * 2 * yp), yy2);
+      if (hit > 0.4) { g.shadowBlur = 0; g.globalAlpha = Math.min(1, (hit - 0.4) * 1.5) * 0.85; g.font = Math.round(fs * 0.19) + "px 'Press Start 2P', monospace"; g.fillStyle = '#ffe9b0'; g.fillText('40 YEARS AGO', yx, yy2 + fs * 0.95); }
+      g.restore();
+      // bụi lơ lửng
+      for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.25 + 0.25 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(255,230,190,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
+      // viền tối + sáng nhẹ khi tới 1980
+      const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      if (hit > 0) { g.fillStyle = 'rgba(255,238,205,' + (0.2 * Math.min(1, hit * 6) * (1 - 0.4 * Math.min(1, hit / 2))) + ')'; g.fillRect(0, 0, W, H); }
+    }
     async function enterSoul() {
       if (view !== 'grid') return;
       view = 'busy';
       Object.assign(soul, { on: true, i: 0, cur: null, blockUsed: false, blockAt: SOUL_BLOCK_AT, knightUsed: false });
       gsap.killTweensOf(gridEl);
-      // 1. màn hình tối đen
-      soulIntro.style.display = 'flex';
-      soulIntro.style.background = '#000';
-      soulIntro.style.opacity = '0';
+      const cv = document.createElement('canvas'); cv.width = innerWidth; cv.height = innerHeight; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+      const cg = cv.getContext('2d');
+      soulIntro.insertBefore(cv, soulIntro.firstChild);
+      soulIntro.style.display = 'flex'; soulIntro.style.background = '#000'; soulIntro.style.opacity = '0';
       soulHeartCv.style.visibility = 'hidden';
-      paintHeart(HEART_RED);
-      await tw(soulIntro, { opacity: 1, duration: 0.5, ease: 'steps(6)' });
+      const t0 = performance.now(); let run = true;
+      const frame = () => {
+        if (!run) return;
+        const s = (performance.now() - t0) / 1000;
+        if (cv.width !== innerWidth || cv.height !== innerHeight) { cv.width = innerWidth; cv.height = innerHeight; }
+        clkDraw(cg, cv.width, cv.height, s);
+        requestAnimationFrame(frame);
+      };
+      frame();
+      try { CLK_SND.currentTime = 0; CLK_SND.play().catch(() => {}); } catch (e) { }
+      await tw(soulIntro, { opacity: 1, duration: 0.45, ease: 'power1.out' });
       gridEl.style.display = 'none';
-      await wait(500);
-      // 2. tim đỏ hiện giữa màn hình, đập 2 nhịp
-      soulHeartCv.style.visibility = 'visible';
-      gsap.fromTo(soulHeartCv, { scale: 0.25, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'steps(4)' });
-      await wait(750);
-      for (let b = 0; b < 2; b++) {
-        await tw(soulHeartCv, { scale: 1.3, duration: 0.09, yoyo: true, repeat: 1, ease: 'steps(2)' });
-        await wait(b === 0 ? 420 : 700);
-      }
-      // 3. đổi đỏ -> xanh: chớp trắng, tim rung, vòng sóng lan ra
-      soulIntro.style.background = '#fff';
-      paintHeart(HEART_BLUE);
-      await wait(70);
-      soulIntro.style.background = '#000';
-      const ring = document.createElement('div');
-      ring.className = 'soul-ring';
-      soulIntro.appendChild(ring);
-      gsap.fromTo(ring, { scale: 1, opacity: 1 }, { scale: 6, opacity: 0, duration: 0.6, ease: 'power2.out', onComplete: () => ring.remove() });
-      gsap.fromTo(soulHeartCv, { x: -16 }, { x: 16, duration: 0.04, repeat: 7, yoyo: true, ease: 'none', onComplete: () => gsap.set(soulHeartCv, { x: 0 }) });
-      await wait(750);
-      // 4. glitch: tim xanh vỡ kênh màu, rồi slide 1 lộ ra
+      await wait(Math.max(0, CLK.GLITCH * 1000 - (performance.now() - t0)));
+      // glitch: đồng hồ vỡ kênh màu, rồi slide 1 lộ ra
       startGlitch(1600, 0.45);
       const jit = setInterval(() => {
-        const o = (Math.random() * 18 - 9) | 0;
-        soulHeartCv.style.marginLeft = o + 'px';
-        soulHeartCv.style.filter = Math.random() < 0.7 ? 'drop-shadow(' + (-o - 6) + 'px 0 #00e5ff) drop-shadow(' + (o + 6) + 'px 0 #ff00aa)' : 'none';
+        const o = (Math.random() * 40 - 20) | 0;
+        cv.style.marginLeft = o + 'px';
+        cv.style.filter = Math.random() < 0.7 ? 'drop-shadow(' + (-o - 8) + 'px 0 #00e5ff) drop-shadow(' + (o + 8) + 'px 0 #ff00aa)' + (Math.random() < 0.3 ? ' hue-rotate(' + ((Math.random() * 360) | 0) + 'deg)' : '') : 'none';
       }, 45);
       await wait(420);
       clearInterval(jit);
       soul.cur = createSlide(slideImages[0], 0);
       soul.cur.mesh.renderOrder = 1;
       scene.add(soul.cur.group);
-      soulHeartCv.style.visibility = 'hidden'; soulHeartCv.style.marginLeft = ''; soulHeartCv.style.filter = '';
+      run = false; cv.remove(); try { CLK_SND.pause(); } catch (e) { }
       for (const [o, ms] of [[0, 70], [1, 45], [0, 60], [1, 35], [0, 0]]) {      // màn đen nhấp nháy rồi tắt hẳn
         soulIntro.style.opacity = String(o);
         if (ms) await wait(ms);
@@ -2247,10 +2323,10 @@
       const tasks = [];
       tasks.push(['Fonts', font("16px 'Press Start 2P'", 'font1')], ['Fonts', font("700 20px Tinos", 'font2')], ['Fonts', font("400 20px 'Public Sans'", 'font3')]);
       slideImages.forEach((p, i) => tasks.push(['Slide ' + (i + 1), img(p)]));
-      ['anim-blank.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
+      ['anim-blank.png', 'clock.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
-      tasks.push(['Audio', get('assets/dry-bones-death.mp3')]);
+      tasks.push(['Audio', get('assets/clock-reverse.mp3')]);
       tasks.push(['Video 2', get('assets/knight-front.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       tasks.push(['Video', get('assets/knight-attack.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       Object.keys(ANIM_SRC).forEach((k) => tasks.push(['Animation ' + (+k + 1), get(ANIM_SRC[k].split('?')[0])]));
