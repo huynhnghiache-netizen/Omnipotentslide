@@ -754,7 +754,7 @@
     }
     function drawSlashFx(now) {
       const e = now - slash.start; if (e >= SLASH_LIFE) { slash = null; return; }
-      const H = innerHeight, cs = H / 32, yStop = H * Math.min(1, slash.stop / ROWS), fr = SL_FRAMES[Math.min(8, Math.floor(e / SL_FD))];
+      const H = innerHeight, cs = H / 32, yStop = H * Math.min(1, slash.stop / ROWS), fr = SL_FRAMES[Math.max(0, Math.min(8, Math.floor(e / SL_FD)))];
       const cxp = slash.cx;                                                  // cột 14.5 của lưới nằm đúng tại điểm chém
       fx.save(); fx.beginPath(); fx.rect(0, 0, innerWidth, yStop); fx.clip();
       fx.fillStyle = '#f44336';
@@ -1097,7 +1097,11 @@
       fx.globalAlpha = 1;
     }
 
-    function fxLoop(now) {
+    function fxLoop(now) {                                          // 1 lỗi vẽ không được làm chết cả vòng lặp hiệu ứng
+      try { fxFrame(now); } catch (err) { console.error(err); }
+      requestAnimationFrame(fxLoop);
+    }
+    function fxFrame(now) {
       fx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
       if (now < flashUntil) {
         fx.fillStyle = flashCol;
@@ -1122,7 +1126,6 @@
         fx.fillRect(Math.round(p.x / PX) * PX, Math.round(p.y / PX) * PX, p.s, p.s);
       }
       fx.globalAlpha = 1;
-      requestAnimationFrame(fxLoop);
     }
     requestAnimationFrame(fxLoop);
 
