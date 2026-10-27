@@ -6,422 +6,339 @@
   <title>Slide 2 - animated</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="slides.css">
+  <link href="https://fonts.googleapis.com/css2?family=Tinos:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    html, body { background: #050505; }
-    .deck { visibility: hidden; }   /* ẩn tới khi dựng xong nền đen, tránh lộ slide đầy đủ rồi mới đen */
-    body { padding: 0; overflow: hidden; }
-    .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
-    #voidc, #sheen, #ink, #fx { left: 0; top: 0; width: 1536px; height: 864px; pointer-events: none; }
-    #voidc { z-index: 1; }
-    #sheen { z-index: 2; }
-    .s2 .title, .s2 .rule, .s2 .member { z-index: 3; }
-    .member { border-color: transparent; background: transparent; }
-    #ink { z-index: 4; }
-    #fx { z-index: 6; image-rendering: pixelated; }
-    .ch { display: inline-block; opacity: 0; }
+    html, body { margin: 0; background: #050505; overflow: hidden; width: 100%; height: 100%; }
+    #c { position: absolute; transform-origin: 0 0; visibility: hidden; }
   </style>
 </head>
 <body>
 <!--
-  SLIDE 2 (động): màn đen -> click -> cọ sơn nền (văng mực) -> bút chì vẽ tiêu đề, thẻ, ảnh -> hiện tên thành viên.
-  Nội dung giống hệt slide 2 trong slides.html (cùng slides.css), nên trạng thái cuối trùng với slide2.png.
-  Sửa tên thành viên: sửa các thẻ <p> bên dưới (và trong slides.html, rồi chạy lại "node render.js").
+  SLIDE 2 (động): màn đen -> click -> xô sơn + cọ: cọ nhúng sơn rồi quét lộ ra bãi đất -> bút chì xuất hiện, tờ doodle phủ kín cảnh và
+  chuyển động liên tục trong lúc bút chì viết -> viết xong doodle biến mất, hiện tiêu đề + danh sách tên + 5 người que đi lại (lặp mãi).
+  Tổng thời gian hoạt ảnh < 6.5s. Sửa tên thành viên: mảng NAMES / FIG bên dưới (và slides.html nếu cần).
+  ?still=GIÂY : dựng sẵn khung tại giây đó (render.js dùng ?still=8&bare để xuất slide2.png: không có người que).
 -->
-<main class="deck">
-  <section class="slide s2" id="slide2">
-    <canvas id="voidc" width="1536" height="864"></canvas>
-    <canvas id="sheen" width="1536" height="864"></canvas>
-    <h2 class="title">Group Members</h2>
-    <hr class="rule">
-    <div class="member m1">
-      <img src="assets/icon-presenter.png" alt="">
-      <div><h3>Presenter</h3><p>Huỳnh Nghĩa</p></div>
-    </div>
-    <div class="member m2">
-      <img src="assets/icon-researcher.png" alt="">
-      <div><h3>Researcher</h3><p>Chi Hiếu</p></div>
-    </div>
-    <div class="member m3">
-      <img src="assets/icon-designer.png" alt="">
-      <div><h3>Slide Designer</h3><p>Hoàng My</p></div>
-    </div>
-    <div class="member m4">
-      <img src="assets/icon-image.png" alt="">
-      <div><h3>Image Collector</h3><p>Đăng Khoa</p><p>Ngọc Hân</p></div>
-    </div>
-    <svg id="ink" viewBox="0 0 1536 864" width="1536" height="864"></svg>
-    <canvas id="fx" width="384" height="216"></canvas>
-  </section>
-</main>
-
+<canvas id="c" width="1536" height="864"></canvas>
 <script>
 (() => {
-  const EMBED = location.search.includes('embed');
-  const $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
-  const deck = $('.deck'), slide = $('#slide2');
+  const Q = location.search, EMBED = Q.includes('embed'), BARE = Q.includes('bare');
+  const stillM = Q.match(/still=([\d.]+)/), STILL = stillM ? parseFloat(stillM[1]) : null;
+  const W = 1536, H = 864;
+  if (EMBED) document.documentElement.style.background = document.body.style.background = 'transparent';
+  const cv = document.getElementById('c'), g = cv.getContext('2d');
+  const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  const cover = mk(W, H), cx = cover.getContext('2d');          // lớp đen che, bị cọ "xoá" dần
+  const wet = mk(W, H), wx = wet.getContext('2d');              // vệt sơn ướt mờ dần sau cọ
+  const trail = mk(W, H), tx = trail.getContext('2d');          // vệt chì trên tờ giấy
+  const ground = mk(384, 216);                                  // bãi đất pixel (vẽ 1 lần)
+  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+  const easeOut = (u) => 1 - Math.pow(1 - u, 3);
+  const backOut = (u) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(u - 1, 3) + c * Math.pow(u - 1, 2); };
+  let seed = 20261026;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 
-  // ---------- Khung hiển thị: nhúng thì phủ kín, mở riêng thì vừa khung ----------
   function fit() {
-    const k = EMBED ? Math.max(innerWidth / 1536, innerHeight / 864) : Math.min(innerWidth / 1536, innerHeight / 864);
-    Object.assign(deck.style, { transform: 'scale(' + k + ')', left: ((innerWidth - 1536 * k) / 2) + 'px', top: ((innerHeight - 864 * k) / 2) + 'px' });
+    const k = EMBED ? Math.max(innerWidth / W, innerHeight / H) : Math.min(innerWidth / W, innerHeight / H);
+    Object.assign(cv.style, { transform: 'scale(' + k + ')', left: ((innerWidth - W * k) / 2) + 'px', top: ((innerHeight - H * k) / 2) + 'px' });
   }
   addEventListener('resize', fit); fit();
 
-  // ---------- Thành phần ----------
-  const S = 4;                                   // 1 điểm ảnh pixel = 4px màn hình (canvas #fx 384x216)
-  const voidc = $('#voidc'), vx = voidc.getContext('2d');
-  const sheen = $('#sheen'), sx = sheen.getContext('2d');
-  const ink = $('#ink'), fxc = $('#fx'), fx = fxc.getContext('2d');
-  fx.imageSmoothingEnabled = false;
-  const title = $('.title'), rule = $('.rule');
-  const members = $$('.member').map((el) => ({ el, img: el.querySelector('img'), h3: el.querySelector('h3'), ps: Array.from(el.querySelectorAll('p')) }));
-  const BRUSH = new Image(), PENCIL = new Image();
-  BRUSH.src = 'assets/anim-brush.png'; PENCIL.src = 'assets/anim-pencil.png';
-  const BRUSH_TIP = [34, 8], PENCIL_TIP = [1, 43], SPR = 2;        // điểm chạm (theo pixel gốc) và hệ số phóng của sprite
+  // ---------- Ảnh ----------
+  const IMG = {};
+  const load = (k, src) => new Promise((r) => { const im = new Image(); im.onload = im.onerror = () => r(); im.src = src; IMG[k] = im; });
 
-  // số ngẫu nhiên xác định (mulberry32) để mỗi lần chạy giống nhau
-  let seed = 20261020;
-  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
-  const smooth = (u) => u * u * (3 - 2 * u);
-  const easeOut = (u) => 1 - Math.pow(1 - u, 3);
-  const INK = [58, 34, 20], GOLD = [226, 160, 40];
-
-  function pos(el) {                             // vị trí + kích thước tính theo toạ độ slide 1536x864
-    let x = 0, y = 0, e = el;
-    while (e && e !== slide) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; }
-    return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+  // ---------- Bãi đất (pixel, 384x216 phóng 4 lần) ----------
+  function buildGround() {
+    const x = ground.getContext('2d');
+    const base = ['#8a5b36', '#7f5231', '#94623b', '#876047'];
+    for (let j = 0; j < 216; j++) for (let i = 0; i < 384; i++) { x.fillStyle = base[(rnd() * 4) | 0]; x.fillRect(i, j, 1, 1); }
+    for (let n = 0; n < 70; n++) {                        // mảng đất sáng / tối
+      const cxp = rnd() * 384, cyp = rnd() * 216, r = 6 + rnd() * 20, dark = rnd() < 0.5;
+      x.fillStyle = dark ? 'rgba(60,34,18,0.22)' : 'rgba(190,140,90,0.2)';
+      for (let k = 0; k < r * 2; k++) { const a = rnd() * 6.28, d = rnd() * r; x.fillRect(Math.round(cxp + Math.cos(a) * d * 1.6), Math.round(cyp + Math.sin(a) * d * 0.6), 2, 1); }
+    }
+    for (let n = 0; n < 5; n++) {                         // hai vệt bánh xe
+      const y0 = 40 + n * 40;
+      for (let i = 0; i < 384; i++) { const yy = y0 + Math.round(Math.sin(i / 38 + n) * 5); x.fillStyle = 'rgba(55,30,16,0.35)'; x.fillRect(i, yy, 1, 1); x.fillRect(i, yy + 5, 1, 1); }
+    }
+    for (let n = 0; n < 130; n++) {                       // sỏi
+      const px = (rnd() * 382) | 0, py = (rnd() * 214) | 0;
+      x.fillStyle = rnd() < 0.5 ? '#b99872' : '#5b3b22'; x.fillRect(px, py, 2, 1); x.fillStyle = '#3d2614'; x.fillRect(px, py + 1, 2, 1);
+    }
+    for (let n = 0; n < 34; n++) {                        // cỏ khô lưa thưa
+      const px = (rnd() * 380) | 0, py = (rnd() * 210) | 4;
+      x.fillStyle = rnd() < 0.5 ? '#8c9a45' : '#6f7d35';
+      x.fillRect(px, py, 1, 3); x.fillRect(px - 1, py + 1, 1, 2); x.fillRect(px + 1, py + 1, 1, 2);
+    }
   }
-  const wipe = (el, p) => { el.style.clipPath = 'inset(-30px ' + ((1 - p) * 100).toFixed(2) + '% -30px -12px)'; };
 
-  // ---------- Trạng thái ban đầu ----------
-  let borders = [];
-  let nameLetters = [];
-  function resetVisuals() {
-    vx.globalCompositeOperation = 'source-over'; vx.globalAlpha = 1;
-    vx.fillStyle = '#050505'; vx.fillRect(0, 0, 1536, 864);
-    vx.globalCompositeOperation = 'destination-out';
-    voidc.style.display = 'block'; voidc.style.opacity = '1';
-    sx.clearRect(0, 0, 1536, 864);
-    wipe(title, 0); wipe(rule, 0);
-    members.forEach((m) => {
-      m.el.style.background = 'rgba(255,244,232,0)';
-      m.img.style.clipPath = 'inset(0 0 100% 0)';
-      wipe(m.h3, 0);
+  // ---------- Nội dung ----------
+  const NAMES = ['Huỳnh Nghĩa', 'Chi Hiếu', 'Hoàng My', 'Đăng Khoa', 'Ngọc Hân'];
+  function drawContent(ctx) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '700 100px Tinos, "Liberation Serif", "Times New Roman", serif';
+    ctx.lineWidth = 14; ctx.strokeStyle = '#2b180b'; ctx.fillStyle = '#fff1d8';
+    ctx.strokeText('Group Members', 72, 142); ctx.fillText('Group Members', 72, 142);
+    ctx.fillStyle = '#2b180b'; ctx.fillRect(75, 172, 640, 8); ctx.fillStyle = '#f0c987'; ctx.fillRect(75, 174, 640, 4);
+    ctx.font = '700 58px Tinos, "Liberation Serif", "Times New Roman", serif';
+    NAMES.forEach((n, i) => {
+      const y = 282 + i * 84;
+      ctx.fillStyle = '#2b180b'; ctx.fillRect(84, y - 34, 26, 26); ctx.fillStyle = '#f0c987'; ctx.fillRect(88, y - 30, 18, 18);
+      ctx.lineWidth = 11; ctx.strokeStyle = '#2b180b'; ctx.fillStyle = '#fff1d8';
+      ctx.strokeText(n, 134, y + 4); ctx.fillText(n, 134, y + 4);
     });
-    borders.forEach((b) => { b.path.style.strokeDashoffset = b.len; });
-    nameLetters.forEach((n) => { n.el.style.opacity = '0'; n.el.style.transform = ''; n.el.style.color = ''; });
+    ctx.restore();
   }
-  function setupMeasure() {
-    // chữ cái của tên: tách từng ký tự để hiện lần lượt
-    nameLetters = [];
-    members.forEach((m, mi) => m.ps.forEach((p, pi) => {
-      if (!p.dataset.split) {
-        const txt = p.textContent.normalize('NFC');
-        p.innerHTML = Array.from(txt).map((c) => '<span class="ch">' + (c === ' ' ? '&nbsp;' : c) + '</span>').join('');
-        p.dataset.split = '1';
+
+  // ---------- Người que ----------
+  // path: các điểm (chân) đi vòng lặp; item: đồ cầm
+  const FIG = [
+    { name: 'Huỳnh Nghĩa', f: 0, items: ['mic'], v: 95, path: [[800, 430], [1300, 390], [1430, 610], [1000, 570]] },
+    { name: 'Đăng Khoa', f: 0, items: ['camera'], v: 100, path: [[1450, 810], [1000, 770], [770, 700], [1100, 530], [1450, 520]] },
+    { name: 'Chi Hiếu', f: 0, items: ['lens'], v: 90, path: [[200, 790], [600, 830], [900, 710], [1100, 830], [500, 730]] },
+    { name: 'Hoàng My', f: 1, items: ['pencil', 'palette'], v: 85, path: [[900, 340], [1200, 340], [1450, 430], [1250, 660], [850, 510]] },
+    { name: 'Ngọc Hân', f: 1, items: ['frame', 'flower'], v: 80, path: [[1300, 790], [1450, 660], [1150, 650], [800, 830], [400, 810], [300, 750], [1000, 770]] },
+  ];
+  FIG.forEach((F) => {
+    F.seg = []; let tot = 0;
+    for (let i = 0; i < F.path.length; i++) { const a = F.path[i], b = F.path[(i + 1) % F.path.length], d = Math.hypot(b[0] - a[0], b[1] - a[1]); F.seg.push([a, b, d]); tot += d; }
+    F.len = tot; F.ph = rnd() * tot;
+  });
+  function figAt(F, t) {
+    let s = (F.ph + t * F.v) % F.len;
+    for (const [a, b, d] of F.seg) { if (s <= d) { const u = s / d; return { x: a[0] + (b[0] - a[0]) * u, y: a[1] + (b[1] - a[1]) * u, dx: b[0] - a[0] }; } s -= d; }
+    return { x: F.path[0][0], y: F.path[0][1], dx: 1 };
+  }
+  function line(c, pts) { c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]); c.stroke(); }
+  function drawItem(c, kind, hx, hy) {       // vẽ đồ vật tại bàn tay (hx,hy), hệ toạ độ nhìn nghiêng phải
+    c.save(); c.translate(hx, hy); c.lineWidth = 3; c.lineJoin = 'round';
+    if (kind === 'mic') { c.fillStyle = '#222'; c.fillRect(-3, -26, 6, 26); c.fillStyle = '#d8d8d8'; c.beginPath(); c.arc(0, -32, 9, 0, 7); c.fill(); c.strokeStyle = '#222'; c.stroke(); }
+    else if (kind === 'camera') { c.fillStyle = '#333'; c.fillRect(-14, -16, 30, 20); c.fillStyle = '#9ad'; c.beginPath(); c.arc(4, -6, 6, 0, 7); c.fill(); c.strokeStyle = '#111'; c.strokeRect(-14, -16, 30, 20); c.fillStyle = '#c33'; c.fillRect(-10, -20, 8, 4); }
+    else if (kind === 'lens') { c.strokeStyle = '#4a2f12'; c.lineWidth = 4; line(c, [[0, 0], [-10, -16]]); c.strokeStyle = '#222'; c.fillStyle = 'rgba(190,230,255,0.6)'; c.beginPath(); c.arc(-16, -26, 11, 0, 7); c.fill(); c.stroke(); }
+    else if (kind === 'pencil') { c.fillStyle = '#f2c230'; c.fillRect(-3, -34, 7, 30); c.fillStyle = '#f2b2a0'; c.fillRect(-3, -38, 7, 5); c.fillStyle = '#e8d3a8'; c.beginPath(); c.moveTo(-3, -4); c.lineTo(4, -4); c.lineTo(0, 4); c.fill(); }
+    else if (kind === 'palette') { c.fillStyle = '#d9a566'; c.beginPath(); c.ellipse(0, -12, 17, 12, 0, 0, 7); c.fill(); c.strokeStyle = '#4a2f12'; c.stroke(); ['#d33', '#3a3', '#36d', '#fd3'].forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(-8 + i * 6, -14 + (i % 2) * 5, 2.6, 0, 7); c.fill(); }); }
+    else if (kind === 'frame') { c.fillStyle = '#5a3a1a'; c.fillRect(-16, -30, 32, 28); c.fillStyle = '#9cd0ee'; c.fillRect(-12, -26, 24, 20); c.fillStyle = '#4a8a3a'; c.fillRect(-12, -14, 24, 8); c.fillStyle = '#fd3'; c.beginPath(); c.arc(6, -20, 3, 0, 7); c.fill(); }
+    else if (kind === 'flower') { c.strokeStyle = '#3a8a30'; c.lineWidth = 3; line(c, [[0, 0], [0, -24]]); c.fillStyle = '#ff6b9a'; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(Math.cos(k * 1.256) * 6, -28 + Math.sin(k * 1.256) * 6, 5, 0, 7); c.fill(); } c.fillStyle = '#fd3'; c.beginPath(); c.arc(0, -28, 4, 0, 7); c.fill(); }
+    c.restore();
+  }
+  function drawFig(c, F, t, labelAlpha) {
+    const p = figAt(F, t), dir = p.dx >= 0 ? 1 : -1, sw = Math.sin(t * 7 + F.ph), bob = Math.abs(Math.sin(t * 7 + F.ph)) * 3;
+    const S = 1.25;
+    c.save(); c.translate(p.x, p.y); c.scale(dir * S, S);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const hipY = -52, shY = -100, headY = -122 - bob * 0.5;
+    c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(0, 0, 26, 7, 0, 0, 7); c.fill();
+    const body = (col, lw) => { c.strokeStyle = col; c.lineWidth = lw; };
+    for (const pass of [0, 1]) {                       // lượt 0: viền đen dày, lượt 1: nét trắng kem mảnh (người que dễ đọc trên nền đất)
+      body(pass ? '#fff1d8' : '#1b0f06', pass ? 5 : 10);
+      // chân
+      line(c, [[0, hipY - bob], [sw * 14, -26], [sw * 18, 0]]);
+      line(c, [[0, hipY - bob], [-sw * 14, -26], [-sw * 18, 0]]);
+      // thân
+      line(c, [[0, hipY - bob], [0, shY - bob]]);
+      if (F.f) {                                       // bụng bầu
+        c.beginPath(); c.arc(9, -76 - bob, 17, -1.2, 1.9); c.stroke();
       }
-      const chars = Array.from(p.querySelectorAll('.ch'));
-      chars.forEach((el, i) => nameLetters.push({ el, mi, pi, i, n: chars.length }));
+      // tay sau (không cầm đồ) / tay trước (cầm đồ)
+      const n = F.items.length;
+      if (n === 2) { line(c, [[0, shY + 6 - bob], [14, -78 - bob], [24, -74 - bob + sw * 2]]); }
+      else { line(c, [[0, shY + 6 - bob], [-12, -78 - bob], [-14 - sw * 8, -58 - bob]]); }
+      line(c, [[0, shY + 6 - bob], [18, -86 - bob], [30, -90 - bob + sw * 2]]);
+      // đầu
+      c.beginPath(); c.arc(0, headY, 17, 0, 7); c.stroke();
+    }
+    c.fillStyle = '#fff1d8'; c.beginPath(); c.arc(0, headY, 15.5, 0, 7); c.fill();
+    c.fillStyle = '#1b0f06'; c.fillRect(5, headY - 4, 3, 3); c.fillRect(-4, headY - 4, 3, 3);   // mắt
+    if (F.f) {                                         // tóc dài
+      c.strokeStyle = '#1b0f06'; c.lineWidth = 6;
+      for (let k = 0; k < 4; k++) { const o = -14 + k * 8; c.beginPath(); c.moveTo(o, headY - 10); c.quadraticCurveTo(o - 12, headY + 20, o - 6 + Math.sin(t * 5 + k) * 3, -78 - bob); c.stroke(); }
+      c.beginPath(); c.arc(0, headY - 2, 17, 3.4, 6.1); c.stroke();
+      c.fillStyle = '#ff6b9a'; c.beginPath(); c.arc(-12, headY - 12, 4, 0, 7); c.fill();
+    }
+    // đồ vật
+    if (F.items.length === 1) drawItem(c, F.items[0], 30, -90 - bob + sw * 2);
+    else { drawItem(c, F.items[0], 30, -90 - bob + sw * 2); drawItem(c, F.items[1], 24, -74 - bob + sw * 2); }
+    c.restore();
+    if (labelAlpha > 0) {
+      c.save(); c.globalAlpha = labelAlpha; c.font = '700 24px Tinos, "Liberation Serif", serif'; c.textAlign = 'center'; c.lineJoin = 'round';
+      c.lineWidth = 6; c.strokeStyle = '#1b0f06'; c.fillStyle = '#fff1d8';
+      const ly = p.y - 122 * S - 30 - bob; c.strokeText(F.name, p.x, ly); c.fillText(F.name, p.x, ly); c.restore();
+    }
+  }
+
+  // ---------- Doodle ----------
+  const COMPS = [[549,4,149,149],[729,6,235,179],[325,15,201,144],[163,16,182,174],[17,22,113,222],[102,89,152,232],[484,140,183,111],[851,172,112,169],[696,184,81,199],[270,190,166,125],[773,193,83,150],[401,245,186,211],[24,271,100,193],[553,282,205,213],[148,320,253,210],[792,328,60,69],[754,385,195,137],[429,436,153,196],[530,506,170,246],[8,521,154,179],[172,526,275,239],[771,530,201,232],[673,559,90,122],[266,612,57,76],[302,612,58,66],[228,630,51,57],[457,664,193,164],[664,691,144,275],[77,712,116,111],[178,746,117,179],[820,750,119,213],[346,758,77,111],[397,795,72,68],[434,807,84,81],[34,829,79,87],[276,839,375,138],[46,849,82,112],[98,855,51,98]];
+  let DOO = [];
+  function buildDoodles() {
+    const SC = 0.92, offs = [[10, -30], [775, 5], [400, 330]];     // 3 bản sao tờ doodle phủ kín 1536x864
+    offs.forEach((o, oi) => COMPS.forEach((c, ci) => {
+      const cxp = o[0] + (c[0] + c[2] / 2) * SC, cyp = o[1] + (c[1] + c[3] / 2) * SC;
+      if (cxp < -80 || cxp > W + 80 || cyp < -80 || cyp > H + 80) return;
+      if (oi === 2 && (cxp < 380 || cxp > 1150 || cyp < 380)) return;      // bản thứ 3 chỉ lấp chỗ trống giữa
+      DOO.push({ c, x: cxp, y: cyp, sc: SC * (oi === 2 ? 0.8 : 1), ph: rnd() * 6.28, w: 1.5 + rnd() * 2.2, A: 8 + rnd() * 16, rot: (rnd() - 0.5) * 0.3, d: rnd(), flip: oi === 1 });
     }));
-    // đường viền thẻ do SVG vẽ (đúng màu và độ dày viền CSS)
-    ink.innerHTML = '';
-    borders = members.map((m) => {
-      const b = pos(m.el), x = b.x + 1, y = b.y + 1, w = b.w - 2, h = b.h - 2, r = 25;
-      const d = ['M', x + r, y, 'H', x + w - r, 'A', r, r, 0, 0, 1, x + w, y + r, 'V', y + h - r, 'A', r, r, 0, 0, 1, x + w - r, y + h,
-        'H', x + r, 'A', r, r, 0, 0, 1, x, y + h - r, 'V', y + r, 'A', r, r, 0, 0, 1, x + r, y, 'Z'].join(' ');
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d); path.setAttribute('fill', 'none'); path.setAttribute('stroke', '#c99468'); path.setAttribute('stroke-width', '2');
-      ink.appendChild(path);
-      const len = path.getTotalLength();
-      path.style.strokeDasharray = len + ' ' + len; path.style.strokeDashoffset = len;
-      return { path, len };
-    });
+  }
+  const T_IN = 2.75, T_OUT = 5.3, T_DONE = 6.35;
+
+  // ---------- Hạt khói "poof" ----------
+  const puffs = [];
+  const addPuff = (x, y, big) => { for (let i = 0; i < (big ? 14 : 9); i++) { const a = rnd() * 6.28, s = 60 + rnd() * 160; puffs.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, t: 0, life: 0.35 + rnd() * 0.25, r: 8 + rnd() * 14 }); } };
+  function drawPuffs(c) {
+    puffs.forEach((p) => { const u = p.t / p.life; if (u >= 1) return; c.globalAlpha = 1 - u; c.fillStyle = '#f3e6cf'; const r = Math.round((p.r * (0.6 + u)) / 4) * 4; c.fillRect(Math.round(p.x / 4) * 4 - r / 2, Math.round(p.y / 4) * 4 - r / 2, r, r); });
+    c.globalAlpha = 1;
   }
 
-  // ---------- Hạt: giọt mực, bụi chì, sao lấp lánh ----------
-  const parts = [];
-  function stampBlob(x, y, r, ang, tail) {
-    vx.beginPath(); vx.ellipse(x, y, r * (tail ? 1.7 : 1.15), r, ang, 0, 7); vx.fill();
-    for (let i = 0; i < 2; i++) { const a = rnd() * 6.28, d = r * (1.6 + rnd() * 1.6), rr = r * (0.2 + rnd() * 0.3); vx.beginPath(); vx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, rr, 0, 7); vx.fill(); }
+  // ---------- Đường đi của cọ ----------
+  const BUCKET = { cx: 760, cy: 650, s: 1.3 };          // tâm xô
+  const OPEN = [BUCKET.cx - 119 * BUCKET.s + 110 * BUCKET.s, BUCKET.cy - 123 * BUCKET.s + 40 * BUCKET.s];   // miệng xô
+  const BR_S = 1.4, BR_TIP = [40, 195], BRUSH_R = 175;
+  const PAINT_T0 = 1.3, PAINT_T1 = 2.75;
+  const ROUTE = [[OPEN[0], OPEN[1] - 80], [70, 140], [1480, 140], [1480, 430], [70, 430], [70, 715], [1480, 715]];
+  const ROUTE_D = []; let routeLen = 0;
+  for (let i = 1; i < ROUTE.length; i++) { const d = Math.hypot(ROUTE[i][0] - ROUTE[i - 1][0], ROUTE[i][1] - ROUTE[i - 1][1]); ROUTE_D.push(d); routeLen += d; }
+  function routeAt(s) {
+    s = clamp(s, 0, routeLen);
+    for (let i = 0; i < ROUTE_D.length; i++) { if (s <= ROUTE_D[i]) { const u = s / ROUTE_D[i], a = ROUTE[i], b = ROUTE[i + 1]; return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u + Math.sin(s / 55) * 22]; } s -= ROUTE_D[i]; }
+    const l = ROUTE[ROUTE.length - 1]; return [l[0], l[1]];
   }
-  function spawnDrops(x, y, dx, dy, speed, burst) {
-    const n = burst ? 14 : (rnd() < speed * 0.00022 ? 1 : 0), base = Math.atan2(dy, dx);
-    for (let i = 0; i < n; i++) {
-      const side = rnd() < 0.5 ? -1 : 1;
-      const ang = burst ? rnd() * 6.283 : (rnd() < 0.7 ? base + side * (1.1 + rnd() * 0.7) : base + (rnd() - 0.5) * 1.6);
-      const v = burst ? 260 + rnd() * 720 : 140 + rnd() * 520;
-      parts.push({ t: 'drop', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, life: 0.22 + rnd() * 0.45, age: 0, r: 2 + rnd() * rnd() * 10 });
+  let paintedS = 0;
+  function paintUpTo(s) {
+    while (paintedS < s) {
+      paintedS = Math.min(s, paintedS + 14);
+      const p = routeAt(paintedS);
+      cx.globalCompositeOperation = 'destination-out'; cx.beginPath(); cx.arc(p[0], p[1], BRUSH_R, 0, 7); cx.fill();
+      wx.globalCompositeOperation = 'source-over'; wx.globalAlpha = 1; wx.fillStyle = '#6b3e1f'; wx.beginPath(); wx.arc(p[0], p[1], BRUSH_R - 8, 0, 7); wx.fill();
     }
   }
-  function updateParts(dt) {
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const p = parts[i];
-      p.age += dt;
-      p.x += p.vx * dt; p.y += p.vy * dt;
-      const f = Math.pow(p.t === 'drop' ? 0.05 : 0.3, dt); p.vx *= f; p.vy *= f;
-      if (p.age >= p.life) {
-        if (p.t === 'drop' && voidc.style.display !== 'none') stampBlob(p.x, p.y, p.r, Math.atan2(p.vy, p.vx), true);
-        parts.splice(i, 1);
+
+  // ---------- Pencil ----------
+  const PEN_TIP = [1, 43], PEN_S = 5;
+  function penPos(t) {      // t: giây kể từ khi bút xuất hiện — nguệch ngoạc khắp tờ giấy
+    return [W / 2 + 640 * Math.sin(t * 2.3) * Math.cos(t * 0.7), H / 2 + 330 * Math.sin(t * 3.1 + 1) * (0.7 + 0.3 * Math.sin(t * 1.1))];
+  }
+
+  // ---------- Vẽ khung theo thời gian ----------
+  let T = 0, WT = 0, phase = 'load', lastPen = null, doneAt = -1;
+  function reset() {
+    cx.globalCompositeOperation = 'source-over'; cx.fillStyle = '#050505'; cx.fillRect(0, 0, W, H);
+    wx.clearRect(0, 0, W, H); tx.clearRect(0, 0, W, H); paintedS = 0; puffs.length = 0; lastPen = null;
+  }
+  const penStart = T_IN + 0.1;
+  function drawScene(ctx, figs, labelA) {
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(ground, 0, 0, W, H);
+    drawContent(ctx);
+    if (figs) { const arr = FIG.map((F) => [figAt(F, WT).y, F]).sort((a, b) => a[0] - b[0]); arr.forEach(([, F]) => drawFig(ctx, F, WT, labelA)); }
+  }
+  function draw() {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    // Giai đoạn xong: nền trong suốt để thấy slide WebGL (ảnh slide2.png) bên dưới, chỉ vẽ người que
+    if (phase === 'done' && !BARE && STILL === null) {
+      const a = clamp((T - (T_DONE + 0.6)) / 0.3);
+      g.clearRect(0, 0, W, H);
+      if (a < 1) { g.globalAlpha = 1 - a; drawScene(g, false, 0); g.globalAlpha = 1; }
+      FIG.map((F) => [figAt(F, WT).y, F]).sort((a, b) => a[0] - b[0]).forEach(([, F]) => drawFig(g, F, WT, 1));
+      return;
+    }
+    g.clearRect(0, 0, W, H);
+    const revealed = T >= 3.0 || phase === 'done';
+    if (BARE || revealed || T < 0) {
+      drawScene(g, !BARE && T >= T_OUT, 1);
+    } else { g.imageSmoothingEnabled = false; g.drawImage(ground, 0, 0, W, H); }
+    if (!BARE && T >= 3.0 && T < T_OUT + 0.1) drawScene(g, true, 1);   // (nội dung nằm dưới tờ doodle, chỉ lộ khi doodle tan)
+    // lớp đen + vệt sơn
+    if (phase !== 'done' && T < PAINT_T1 + 0.5) {
+      const fade = clamp((T - PAINT_T1 - 0.1) / 0.3);
+      wx.globalCompositeOperation = 'destination-out'; wx.fillStyle = 'rgba(0,0,0,0.1)'; wx.fillRect(0, 0, W, H);
+      g.globalAlpha = 1 - fade; g.drawImage(cover, 0, 0); g.globalAlpha = 1;
+      g.drawImage(wet, 0, 0);
+    }
+    // xô + cọ
+    if (T < 3.1) {
+      const popIn = clamp(T / 0.35), popOut = clamp((T - 2.8) / 0.25);
+      const bs = BUCKET.s * backOut(popIn) * (1 - popOut);
+      const shake = (T > 0.85 && T < 1.25) ? Math.sin(T * 60) * 3 : 0;
+      if (bs > 0.01 && IMG.bucket.width) { g.save(); g.translate(BUCKET.cx + shake, BUCKET.cy); g.scale(bs, bs); g.imageSmoothingEnabled = true; g.drawImage(IMG.bucket, -IMG.bucket.width / 2, -IMG.bucket.height / 2); g.restore(); }
+      if (T >= 0.35 && T < 2.9 && IMG.brush.width) {
+        let tip;
+        if (T < 0.8) { const u = easeOut((T - 0.35) / 0.45); tip = [1050 + (OPEN[0] - 1050) * u, 280 + (OPEN[1] - 90 - 280) * u]; }
+        else if (T < 1.0) { const u = (T - 0.8) / 0.2; tip = [OPEN[0], OPEN[1] - 90 + u * 120]; }
+        else if (T < PAINT_T0) { const u = easeOut((T - 1.0) / 0.3); tip = [OPEN[0], OPEN[1] + 30 - u * 110]; }
+        else { tip = routeAt(((T - PAINT_T0) / (PAINT_T1 - PAINT_T0)) * routeLen); }
+        const tilt = T >= PAINT_T0 ? Math.sin(T * 9) * 0.12 : 0, popB = T > 2.7 ? 1 - clamp((T - 2.7) / 0.2) : 1;
+        if (popB > 0) { g.save(); g.translate(tip[0], tip[1]); g.rotate(tilt); g.scale(BR_S * popB, BR_S * popB); g.imageSmoothingEnabled = true; g.drawImage(IMG.brush, -BR_TIP[0], -BR_TIP[1]); g.restore(); }
       }
     }
-  }
-  function sparkle(x, y, n) {
-    for (let i = 0; i < n; i++) parts.push({ t: 'spark', x: x + (rnd() - 0.5) * 70, y: y + (rnd() - 0.5) * 50, vx: (rnd() - 0.5) * 30, vy: -20 - rnd() * 30, life: 0.5 + rnd() * 0.4, age: 0, c: rnd() < 0.5 ? '#ffd34a' : '#ffffff' });
-  }
-
-  // ---------- Đám khói hoạt hình (pixel) ----------
-  const puffCache = new Map(), puffs = [];
-  function puffImg(R) {
-    if (puffCache.has(R)) return puffCache.get(R);
-    const sz = Math.ceil(R * 3.4), c = document.createElement('canvas'); c.width = c.height = sz;
-    const g = c.getContext('2d'), im = g.createImageData(sz, sz), d = im.data, C = sz / 2;
-    const circles = [[0, 0, R * 0.66], [-R * 0.18, R * 0.1, R * 0.5]];
-    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + 0.3, rr = R * (0.36 + 0.07 * ((i * 7) % 3)); circles.push([Math.cos(a) * R * 0.64, Math.sin(a) * R * 0.64, rr]); }
-    const A = new Uint8Array(sz * sz);
-    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) {
-      for (const [cx, cy, r] of circles) { const dx = x - C - cx, dy = y - C - cy; if (dx * dx + dy * dy <= r * r) { A[y * sz + x] = 1; break; } }
-    }
-    const at = (x, y) => (x < 0 || y < 0 || x >= sz || y >= sz) ? 0 : A[y * sz + x];
-    const put = (x, y, col) => { if (x < 0 || y < 0 || x >= sz || y >= sz) return; const k = (y * sz + x) * 4; d[k] = col[0]; d[k + 1] = col[1]; d[k + 2] = col[2]; d[k + 3] = 255; };
-    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) {
-      if (!A[y * sz + x]) continue;
-      if (!at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1)) put(x, y, [24, 24, 32]);
-      else put(x, y, at(x + 2, y - 2) ? [255, 255, 255] : [176, 216, 240]);
-    }
-    for (let i = 0; i < 7; i++) {                    // gai nhọn toả ra như ảnh tham khảo
-      const a = i / 7 * 6.283 + 0.55, L0 = R * 0.92, L1 = R * (1.4 + 0.25 * (i % 2));
-      for (let t = 0; t <= 1; t += 0.02) {
-        const rr = L0 + (L1 - L0) * t, w = (1 - t) * 2.4, px = C + Math.cos(a) * rr, py = C + Math.sin(a) * rr, nx = -Math.sin(a), ny = Math.cos(a);
-        for (let s = -w; s <= w; s += 0.5) { const x = Math.round(px + nx * s), y = Math.round(py + ny * s); if (!at(x, y)) put(x, y, [24, 24, 32]); }
+    // tờ giấy + doodle
+    if (!BARE && T >= T_IN && T < T_OUT + 0.9) {
+      const paperA = T < T_OUT + 0.3 ? clamp((T - T_IN) / 0.25) : 1 - clamp((T - T_OUT - 0.3) / 0.4);
+      g.globalAlpha = paperA; g.fillStyle = '#f7ecd9'; g.fillRect(0, 0, W, H);
+      g.drawImage(trail, 0, 0); g.globalAlpha = 1;
+      const bt = Math.floor(T * 9) / 9;       // "rung" 9 khung/giây như nét vẽ tay
+      g.imageSmoothingEnabled = true;
+      for (const d of DOO) {
+        const inU = clamp((T - T_IN - d.d * 0.35) / 0.3), outU = clamp((T - T_OUT - d.d * 0.45) / 0.35);
+        const sc = d.sc * backOut(inU) * (1 - outU * outU);
+        if (sc <= 0.01) continue;
+        const x = d.x + Math.sin(bt * d.w + d.ph) * d.A + Math.sin(T * 1.3 + d.ph) * 10, y = d.y + Math.cos(bt * d.w * 0.8 + d.ph) * d.A;
+        g.save(); g.translate(x, y); g.rotate(Math.sin(bt * d.w * 1.2 + d.ph) * d.rot + outU * 2.2); g.scale(sc * (d.flip ? -1 : 1), sc * (1 + 0.06 * Math.sin(bt * 5 + d.ph)));
+        g.drawImage(IMG.doodles, d.c[0], d.c[1], d.c[2], d.c[3], -d.c[2] / 2, -d.c[3] / 2, d.c[2], d.c[3]);
+        g.restore();
       }
     }
-    g.putImageData(im, 0, 0);
-    puffCache.set(R, c); return c;
-  }
-  function addPuff(x, y, big) { puffs.push({ x, y, t: 0, dur: 0.5, R: big ? 21 : 15 }); }
-  function drawPuffs() {
-    for (let i = puffs.length - 1; i >= 0; i--) {
-      const p = puffs[i], u = p.t / p.dur;
-      if (u >= 1) { puffs.splice(i, 1); continue; }
-      const g = clamp(u / 0.32);
-      const R = Math.max(3, Math.round(p.R * (1 - Math.pow(1 - g, 3)) * (1 + 0.06 * (u > 0.32 ? (u - 0.32) : 0))));
-      const img = puffImg(R);
-      fx.globalAlpha = u > 0.55 ? 1 - (u - 0.55) / 0.45 : 1;
-      fx.drawImage(img, Math.round(p.x / S - img.width / 2), Math.round(p.y / S - img.height / 2 - u * 6));
-      fx.globalAlpha = 1;
+    // bút chì
+    if (!BARE && T >= penStart && T < T_OUT + 0.85) {
+      const pt = T - penStart, pp = penPos(pt), popIn = clamp(pt / 0.15), popOut = clamp((T - (T_OUT + 0.55)) / 0.2);
+      const jx = Math.round((rnd() - 0.5) * 6), jy = Math.round((rnd() - 0.5) * 6), s = PEN_S * backOut(popIn) * (1 - popOut);
+      if (s > 0.1 && IMG.pencil.width) { g.imageSmoothingEnabled = false; g.drawImage(IMG.pencil, Math.round(pp[0] - PEN_TIP[0] * s) + jx, Math.round(pp[1] - PEN_TIP[1] * s) + jy, IMG.pencil.width * s, IMG.pencil.height * s); }
     }
+    drawPuffs(g);
   }
 
-  // ---------- Pha 1: cọ sơn nền ----------
-  const BW = 190, ROWS = 6;
-  const segs = [];
-  (function buildBrush() {
-    const ys = Array.from({ length: ROWS }, (_, k) => 68 + k * (728 / (ROWS - 1)));
-    segs.push({ x0: -340, y0: -200, x1: -70, y1: ys[0] - 14, dur: 0.3, kind: 'in' });
-    for (let k = 0; k < ROWS; k++) {
-      const dir = k % 2 ? -1 : 1, xa = dir > 0 ? -70 : 1606, xb = dir > 0 ? 1606 : -70;
-      segs.push({ x0: xa, y0: ys[k] - 14, x1: xb, y1: ys[k] + 14, dur: 0.3, kind: 'row', row: k });
-      if (k < ROWS - 1) segs.push({ x0: xb, y0: ys[k] + 14, x1: xb, y1: ys[k + 1] - 14, dur: 0.1, kind: 'turn', row: k });
-    }
-    segs.push({ x0: -70, y0: ys[ROWS - 1] + 14, x1: 800, y1: 470, dur: 0.4, kind: 'out' });
-    let t = 0; segs.forEach((s) => { s.t0 = t; t += s.dur; }); segs.total = t;
-  })();
-  function brushAt(T) {
-    let s = segs[segs.length - 1];
-    for (const q of segs) if (T < q.t0 + q.dur) { s = q; break; }
-    const u = clamp((T - s.t0) / s.dur), e = s.kind === 'in' ? easeOut(u) : s.kind === 'out' ? easeOut(u) : smooth(u);
-    let x = s.x0 + (s.x1 - s.x0) * e, y = s.y0 + (s.y1 - s.y0) * e;
-    if (s.kind === 'row') y += Math.sin(x * 0.012 + s.row) * 9;
-    return { x, y, seg: s };
-  }
-  let brush = { x: -340, y: -200, vis: false, last: null };
-  function paintTo(x0, y0, x1, y1, row) {
-    const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 7));
-    vx.fillStyle = '#000';
-    for (let i = 1; i <= n; i++) {
-      const x = x0 + dx * i / n, y = y0 + dy * i / n;
-      const half = BW / 2 + Math.sin(x * 0.011 + row * 1.7) * 8 + Math.sin(x * 0.047 + row * 3.1) * 4;
-      vx.fillRect(x - 6, y - half, 12, half * 2);
-      for (let j = 0; j < 4; j++) { const up = rnd() < 0.5 ? -1 : 1; vx.fillRect(x - 4, y + up * (half + rnd() * 12) - 1.5, 6 + rnd() * 14, 3); }   // lông cọ xơ ở mép
-      if (i % 2 === 0) for (let j = 0; j < 3; j++) {                       // vệt lông cọ trên mặt sơn
-        sx.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,.16)' : 'rgba(150,95,55,.07)';
-        sx.fillRect(x - 5, y - half + rnd() * half * 2, 14 + rnd() * 22, 1 + rnd() * 2.2);
-      }
-    }
-  }
-  function stepPaint(T, dt) {
-    const b = brushAt(T), prev = brush.last || { x: b.x, y: b.y };
-    const kind = b.seg.kind;
-    if (kind === 'row' || kind === 'turn') {
-      paintTo(prev.x, prev.y, b.x, b.y, b.seg.row || 0);
-      const dx = b.x - prev.x, dy = b.y - prev.y, sp = Math.hypot(dx, dy) / dt;
-      if (sp > 1) spawnDrops(b.x, b.y, dx, dy, sp, false);
-    }
-    if (brush.seg && brush.seg !== b.seg && brush.seg.kind === 'row') {        // cuối mỗi đường quét: văng mực thành chùm
-      spawnDrops(prev.x, prev.y, b.x - prev.x, b.y - prev.y, 1, true);
-    }
-    brush.seg = b.seg; brush.x = b.x; brush.y = b.y; brush.last = { x: b.x, y: b.y };
-  }
-
-  // ---------- Pha 2: bút chì vẽ ----------
-  let tasks = [], taskTotal = 0, taskDone = 0, penTip = { x: 80, y: 110 };
-  function buildTasks() {
-    tasks = []; taskDone = 0;
-    let last = null;
-    const add = (start, dur, tip, upd, wiggle) => {
-      if (last) tasks.push({ dur: 0.06, tip: ((a, b) => (p) => ({ x: a.x + (b.x - a.x) * smooth(p), y: a.y + (b.y - a.y) * smooth(p) }))(last, start), upd: null, move: true });
-      tasks.push({ dur, tip, upd, wiggle });
-      last = tip(1);
-    };
-    const T = pos(title), R = pos(rule);
-    add({ x: T.x, y: T.y + T.h * 0.55 }, 0.6,
-      (p) => ({ x: T.x + smooth(p) * T.w, y: T.y + T.h * 0.55 + Math.sin(p * 44) * 26 }),
-      (p) => wipe(title, smooth(p)), true);
-    add({ x: R.x, y: R.y }, 0.25,
-      (p) => ({ x: R.x + smooth(p) * R.w, y: R.y }),
-      (p) => wipe(rule, smooth(p)));
-    members.forEach((m, k) => {
-      const B = pos(m.el), I = pos(m.img), H = pos(m.h3), bd = borders[k];
-      const a0 = bd.path.getPointAtLength(0);
-      add({ x: a0.x, y: a0.y }, 0.3,
-        (p) => { const q = bd.path.getPointAtLength(bd.len * smooth(p)); return { x: q.x, y: q.y }; },
-        (p) => { bd.path.style.strokeDashoffset = bd.len * (1 - smooth(p)); m.el.style.background = 'rgba(255,244,232,' + (0.55 * smooth(p)).toFixed(3) + ')'; });
-      add({ x: I.x, y: I.y }, 0.25,
-        (p) => { const u = p * 6, row = Math.floor(Math.min(5.999, u)), f = u - row; return { x: I.x + (row % 2 ? 1 - f : f) * I.w, y: I.y + I.h * p }; },
-        (p) => { m.img.style.clipPath = 'inset(0 0 ' + ((1 - p) * 100).toFixed(2) + '% 0)'; });
-      add({ x: H.x, y: H.y + H.h * 0.6 }, 0.2,
-        (p) => ({ x: H.x + smooth(p) * H.w, y: H.y + H.h * 0.6 + Math.sin(p * 30) * 8 }),
-        (p) => wipe(m.h3, smooth(p)), true);
-    });
-    let t = 0; tasks.forEach((q) => { q.t0 = t; t += q.dur; }); taskTotal = t;
-  }
-  function stepPencil(tt, dt) {
-    if (tt < 0) return;
-    let i = tasks.findIndex((q) => tt < q.t0 + q.dur); if (i < 0) i = tasks.length - 1;
-    for (; taskDone < i; taskDone++) if (tasks[taskDone].upd) tasks[taskDone].upd(1);
-    const q = tasks[i], p = clamp((tt - q.t0) / q.dur);
-    penTip = q.tip(p);
-    if (q.upd) { q.upd(p); if (!q.move && rnd() < 0.8) parts.push({ t: 'dust', x: penTip.x + (rnd() - 0.5) * 10, y: penTip.y + 4, vx: (rnd() - 0.5) * 50, vy: 20 + rnd() * 60, life: 0.35 + rnd() * 0.3, age: 0, c: rnd() < 0.5 ? '#8a8077' : '#5a5048' }); }
-  }
-
-  // ---------- Pha 3: hiện tên ----------
-  const NAME_STAGGER = 0.18, LETTER_GAP = 0.035, LETTER_DUR = 0.22;
-  let namesTotal = 0, sparkDone = new Set();
-  function nameStart(mi, pi) { return mi * NAME_STAGGER + pi * 0.3; }
-  function stepNames(tt, final) {
-    nameLetters.forEach((n) => {
-      const q = final ? 1 : clamp((tt - nameStart(n.mi, n.pi) - n.i * LETTER_GAP) / LETTER_DUR);
-      if (q >= 1) { n.el.style.opacity = '1'; n.el.style.transform = ''; n.el.style.color = ''; return; }
-      n.el.style.opacity = String(clamp(q * 2.2));
-      n.el.style.transform = 'translateY(' + (-16 * (1 - easeOut(q))).toFixed(1) + 'px)';
-      n.el.style.color = 'rgb(' + GOLD.map((g, k) => Math.round(g + (INK[k] - g) * q)).join(',') + ')';
-    });
-    if (!final) members.forEach((m, mi) => m.ps.forEach((p, pi) => {
-      const key = mi + ':' + pi, last = nameLetters.filter((n) => n.mi === mi && n.pi === pi).pop();
-      const endT = nameStart(mi, pi) + last.i * LETTER_GAP + LETTER_DUR;
-      if (tt >= endT && !sparkDone.has(key)) { sparkDone.add(key); const P = pos(last.el); sparkle(P.x + P.w, P.y + P.h * 0.45, 5); }
-    }));
+  function updatePen() {
+    if (T < penStart || T > T_OUT + 0.3) return;
+    const p = penPos(T - penStart);
+    if (lastPen) { tx.strokeStyle = 'rgba(70,56,40,0.55)'; tx.lineWidth = 3; tx.lineCap = 'round'; tx.beginPath(); tx.moveTo(lastPen[0], lastPen[1]); tx.lineTo(p[0], p[1]); tx.stroke(); }
+    lastPen = p;
   }
 
   // ---------- Máy trạng thái ----------
-  let phase = 'load', T = 0, started = false, raf = 0, acc = 0, lastNow = 0;
   const post = (state) => { if (window.parent !== window) window.parent.postMessage({ type: 'anim-state', state }, '*'); };
   const FIX = 1 / 60;
-
+  let started = false, puffed = [false, false, false, false];
   function step(dt) {
-    T += dt;
-    puffs.forEach((p) => { p.t += dt; });
-    if (phase === 'paint') {
-      stepPaint(Math.min(T, segs.total), dt);
-      if (T >= segs.total) {
-        phase = 'poof1'; T = 0; addPuff(brush.x, brush.y, true);
-      }
-    } else if (phase === 'poof1') {
-      voidc.style.opacity = String(1 - clamp(T / 0.3));
-      if (T > 0.1) brush.vis = false;
-      if (T >= 0.45) {
-        voidc.style.display = 'none'; phase = 'pencil'; T = 0;
-        buildTasks(); penTip = tasks[0].tip(0); penVis = false; penPuffed = false;
-      }
-    } else if (phase === 'pencil') {
-      if (!penPuffed) { penPuffed = true; addPuff(penTip.x, penTip.y, false); }
-      if (T > 0.08) penVis = true;
-      const tt = T - 0.15;
-      stepPencil(tt, dt);
-      if (tt >= taskTotal) {
-        tasks.forEach((q) => { if (q.upd) q.upd(1); });
-        phase = 'poof2'; T = 0; addPuff(penTip.x, penTip.y, true);
-      }
-    } else if (phase === 'poof2') {
-      if (T > 0.1) penVis = false;
-      if (T >= 0.4) { phase = 'names'; T = 0; }
-    } else if (phase === 'names') {
-      stepNames(T, false);
-      if (T >= 3 * NAME_STAGGER + 0.3 + 9 * LETTER_GAP + LETTER_DUR + 0.3) { stepNames(0, true); phase = 'done'; post('done'); }
-    }
-    updateParts(dt);
+    T += dt; WT += dt;
+    puffs.forEach((p) => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.95; p.vy *= 0.95; });
+    if (T > PAINT_T0) paintUpTo(clamp((T - PAINT_T0) / (PAINT_T1 - PAINT_T0)) * routeLen);
+    if (T >= 2.8 && !puffed[0]) { puffed[0] = true; addPuff(routeAt(routeLen)[0], routeAt(routeLen)[1], true); addPuff(BUCKET.cx, BUCKET.cy, true); }
+    if (T >= penStart && !puffed[1]) { puffed[1] = true; const p = penPos(0); addPuff(p[0], p[1], false); }
+    updatePen();
+    if (T >= T_OUT + 0.55 && !puffed[2]) { puffed[2] = true; const p = penPos(T - penStart); addPuff(p[0], p[1], true); }
+    if (T >= T_DONE && phase !== 'done') { phase = 'done'; post('done'); }
   }
-  let penVis = false, penPuffed = false;
-
-  function draw() {
-    fx.clearRect(0, 0, 384, 216);
-    for (const p of parts) {
-      if (p.t === 'drop') { fx.fillStyle = '#f3e0cb'; const s = Math.max(1, Math.round(p.r / 3.5)); fx.fillRect(Math.round(p.x / S), Math.round(p.y / S), s, s); }
-      else if (p.t === 'dust') { fx.globalAlpha = 1 - p.age / p.life; fx.fillStyle = p.c; fx.fillRect(Math.round(p.x / S), Math.round(p.y / S), 1, 1); fx.globalAlpha = 1; }
-      else if (p.t === 'spark') {
-        if (Math.floor(p.age * 18) % 2) continue;
-        fx.fillStyle = p.c; const x = Math.round(p.x / S), y = Math.round(p.y / S);
-        fx.fillRect(x, y - 1, 1, 3); fx.fillRect(x - 1, y, 3, 1);
-      }
-    }
-    if (brush.vis) {
-      const jx = Math.round(Math.sin(T * 60) * 0.5), jy = Math.round(Math.cos(T * 47) * 0.5);
-      fx.drawImage(BRUSH, Math.round(brush.x / S - BRUSH_TIP[0] * SPR) + jx, Math.round(brush.y / S - BRUSH_TIP[1] * SPR) + jy, BRUSH.width * SPR, BRUSH.height * SPR);
-    }
-    if (penVis) {
-      const moving = phase === 'pencil', jx = moving ? Math.round((rnd() - 0.5) * 1.6) : 0, jy = moving ? Math.round((rnd() - 0.5) * 1.6) : 0;
-      fx.drawImage(PENCIL, Math.round(penTip.x / S - PENCIL_TIP[0] * SPR) + jx, Math.round(penTip.y / S - PENCIL_TIP[1] * SPR) + jy, PENCIL.width * SPR, PENCIL.height * SPR);
-    }
-    drawPuffs();
-  }
-
+  let raf = 0, last = 0, acc = 0;
   function loop(now) {
-    raf = 0;
-    if (phase === 'wait' || phase === 'load') return;
-    acc += Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
+    raf = requestAnimationFrame(loop);
+    if (phase === 'wait') { draw(); return; }
+    acc += Math.min(0.1, (now - last) / 1000); last = now;
     while (acc >= FIX) { step(FIX); acc -= FIX; }
     draw();
-    if (phase !== 'done') raf = requestAnimationFrame(loop);
-    else { fx.clearRect(0, 0, 384, 216); }
   }
-  function kick() { if (!raf) { lastNow = performance.now(); acc = 0; raf = requestAnimationFrame(loop); } }
-
-  function start() {
-    if (phase !== 'wait') return;
-    phase = 'paint'; T = 0; brush.vis = true; brush.last = null; brush.seg = null;
-    post('busy'); kick();
-  }
+  function start() { if (phase !== 'wait') return; phase = 'run'; T = 0; post('busy'); }
   function skip() {
     if (phase === 'wait') start();
     if (phase === 'done' || phase === 'load') return;
     let guard = 0;
-    while (phase !== 'done' && guard++ < 6000) step(1 / 30);
-    parts.length = 0; puffs.length = 0; brush.vis = false; penVis = false;
-    voidc.style.display = 'none';
-    tasks.forEach((q) => { if (q.upd) q.upd(1); });
-    stepNames(0, true);
-    fx.clearRect(0, 0, 384, 216);
+    while (phase !== 'done' && guard++ < 3000) step(1 / 30);
+    puffs.length = 0;
   }
   addEventListener('message', (ev) => {
-    const d = ev.data;
-    if (!d) return;
+    const d = ev.data; if (!d) return;
     if (d.type === 'anim-start') { if (phase === 'wait') start(); else if (phase !== 'done') skip(); }
     else if (d.type === 'anim-skip') skip();
   });
-  addEventListener('click', () => { if (phase === 'wait') start(); else if (phase !== 'done') skip(); });
+  addEventListener('click', () => { if (EMBED) return; if (phase === 'wait') start(); else if (phase !== 'done') skip(); });
   addEventListener('keydown', (e) => {
     if (!EMBED || window.parent === window) return;
     if (e.key === 'Backspace') e.preventDefault();
@@ -429,12 +346,18 @@
   });
   window.__anim = { step, skip, start, get phase() { return phase; }, get T() { return T; } };
 
-  // ---------- Khởi động: đợi phông + ảnh rồi báo "sẵn sàng" ----------
-  const imgs = [BRUSH, PENCIL, ...members.map((m) => m.img)];
-  Promise.all([document.fonts ? document.fonts.ready : 0, ...imgs.map((im) => im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))]).then(() => {
-    setupMeasure(); resetVisuals();
-    document.querySelector('.deck').style.visibility = 'visible';
-    phase = 'wait'; post('wait');
+  Promise.all([document.fonts ? document.fonts.ready : 0, load('brush', 'assets/paint-brush.png'), load('bucket', 'assets/paint-bucket.png'), load('doodles', 'assets/doodles.png'), load('pencil', 'assets/anim-pencil.png')]).then(() => {
+    buildGround(); buildDoodles(); reset();
+    cv.style.visibility = 'visible';
+    if (STILL !== null) {
+      WT = STILL;
+      if (BARE) { phase = 'done'; T = STILL; }
+      else { phase = 'run'; T = 0; while (T < STILL) step(1 / 60); }
+      draw(); window.__ready = true;
+      if (!BARE) raf = requestAnimationFrame(loop);
+      return;
+    }
+    phase = 'wait'; post('wait'); raf = requestAnimationFrame(loop);
   });
 })();
 </script>

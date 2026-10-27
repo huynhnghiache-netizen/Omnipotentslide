@@ -1255,7 +1255,7 @@
     let anim3 = document.getElementById('anim3');
     // Tải sẵn slide kế và slide trước (2 iframe ẩn, đã vẽ khung đầu, chờ lệnh 'go') để chuyển slide là chạy ngay, không bị khựng
     const POOL = [{ el: document.getElementById('anim3b'), idx: -1, ready: false }, { el: document.getElementById('anim3c'), idx: -1, ready: false }];
-    const HOLD_OK = new Set([0, 2, 3, 4, 5, 6, 7, 8]);
+    const HOLD_OK = new Set([0, 3, 4, 5, 6, 7, 8]);
     const A3STYLE = 'position:fixed;inset:0;width:100%;height:100%;border:0;pointer-events:none;background:transparent;';
     function prewarm(...list) {
       const want = list.filter((i) => HOLD_OK.has(i) && ANIM_SRC[i]);
@@ -1281,7 +1281,8 @@
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
     const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
-    const slidePath = (i) => (i === 1 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
+    const slidePath = (i) => (i === 1 || i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
+    const GATED = new Set([1, 2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
     // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
     function animGate() {
@@ -1290,7 +1291,7 @@
         return true;
       }
       const idx = view === 'soul' ? soul.i : currentIndex;
-      if (idx !== 1 || animState === null || animState === 'done') return false;
+      if (!GATED.has(idx) || animState === null || animState === 'done') return false;
       const w = anim3.contentWindow;
       if (animState === 'wait' && w) w.postMessage({ type: 'anim-start' }, '*');
       else if (animState === 'busy' && w && performance.now() - animBusyAt > 900) w.postMessage({ type: 'anim-skip' }, '*');
@@ -1298,17 +1299,16 @@
     }
     // Vẽ xong: thay nền đen bằng ảnh slide 2 đầy đủ (giống hệt) để chém / tan được như các slide khác
     function animFinished() {
-      let cur, set;
-      if (view === 'soul' && soul.i === 1) { cur = soul.cur; set = (n) => { soul.cur = n; }; }
-      else if (view === 'detail' && currentIndex === 1) { cur = currentSlideObj; set = (n) => { currentSlideObj = n; }; }
+      let cur, set, gi = view === 'soul' ? soul.i : currentIndex;
+      if (view === 'soul' && GATED.has(soul.i)) { cur = soul.cur; set = (n) => { soul.cur = n; }; }
+      else if (view === 'detail' && GATED.has(currentIndex)) { cur = currentSlideObj; set = (n) => { currentSlideObj = n; }; }
       else return;
-      const n = createSlide(slideImages[1], 0);
+      const n = createSlide(slideImages[gi], 0);
       n.mesh.renderOrder = cur.mesh.renderOrder;
       scene.add(n.group);
       set(n);
       setTimeout(() => {
         disposeSlide(cur);
-        if (animState === 'done') anim3.style.display = 'none';
       }, 350);
     }
 
@@ -1441,7 +1441,7 @@
     function openSlide(i) {
       currentIndex = i;
       if (ANIM_SRC[i]) {                   // slide 2, 3: mở bản động
-        animState = i === 1 ? 'loading' : null;
+        animState = GATED.has(i) ? 'loading' : null;
         if (!takePre(i)) anim3.src = ANIM_SRC[i];
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
@@ -1737,7 +1737,7 @@
 
     // ----- Slide 3 có bản động (iframe) -----
     function showAnim3(i = 2) {
-      animState = i === 1 ? 'loading' : null;
+      animState = GATED.has(i) ? 'loading' : null;
       if (!takePre(i)) anim3.src = ANIM_SRC[i];
       anim3.style.display = 'block';
       anim3.style.opacity = '0';
@@ -2323,7 +2323,7 @@
       view = 'soul';
     }
     window.addEventListener('click', (e) => {
-      if (view === 'detail' && (currentIndex === 1 || currentIndex === slideImages.length - 1)) { animGate(); return; }
+      if (view === 'detail' && (GATED.has(currentIndex) || currentIndex === slideImages.length - 1)) { animGate(); return; }
       if (view !== 'soul' || e.target.closest('#soulBack') || e.target.closest('#soulGear')) return;
       if (animGate()) return;
       soulStep(1, e.clientX);
@@ -2403,7 +2403,7 @@
         if (view === 'settings') closeSettings();
         else if (view === 'grid' || view === 'choose') backToStart();
         else if (view === 'detail') closeDetail();
-      } else if ((e.key === 'Enter' || e.key === ' ') && view === 'detail' && (currentIndex === 1 || currentIndex === slideImages.length - 1)) {
+      } else if ((e.key === 'Enter' || e.key === ' ') && view === 'detail' && (GATED.has(currentIndex) || currentIndex === slideImages.length - 1)) {
         e.preventDefault();
         animGate();
       }
