@@ -71,8 +71,49 @@
       x.fillStyle = rnd() < 0.5 ? '#8c9a45' : '#6f7d35';
       x.fillRect(px, py, 1, 3); x.fillRect(px - 1, py + 1, 1, 2); x.fillRect(px + 1, py + 1, 1, 2);
     }
+    // bầu trời + núi + mặt trời (hàng 0..61 = y 0..247)
+    const HZ = 62;
+    for (let j = 0; j < HZ; j++) {
+      const u = j / HZ, band = Math.floor(u * 7) / 7;
+      x.fillStyle = 'rgb(' + Math.round(96 + band * 100) + ',' + Math.round(170 + band * 62) + ',' + Math.round(228 + band * 12) + ')'; x.fillRect(0, j, 384, 1);
+    }
+    for (let j = 0; j < HZ; j += 2) for (let i = (j % 4); i < 384; i += 4) { x.fillStyle = 'rgba(255,255,255,0.05)'; x.fillRect(i, j, 1, 1); }
+    // mặt trời
+    const SX = 330, SY = 26;
+    x.fillStyle = '#ffe9a0'; for (let a = 0; a < 16; a++) { const an = a / 16 * 6.283; for (let r = 16; r < 24; r++) x.fillRect(Math.round(SX + Math.cos(an) * r), Math.round(SY + Math.sin(an) * r), 1, 1); }
+    for (let j = -14; j <= 14; j++) for (let i = -14; i <= 14; i++) { const d = i * i + j * j; if (d <= 196) { x.fillStyle = d > 150 ? '#ffb02e' : d > 80 ? '#ffd23f' : '#fff2a8'; x.fillRect(SX + i, SY + j, 1, 1); } }
+    // núi xa (xanh nhạt) rồi núi gần (xanh rêu), có chóp tuyết
+    const ridge = (base, amp, f1, f2, ph) => { const a = []; for (let i = 0; i < 384; i++) a.push(Math.round(base - amp * (0.55 + 0.45 * Math.sin(i / f1 + ph)) - amp * 0.35 * Math.abs(Math.sin(i / f2 + ph * 2)))); return a; };
+    const far = ridge(HZ - 4, 30, 38, 17, 1.1), near = ridge(HZ, 22, 27, 11, 3.2);
+    for (let i = 0; i < 384; i++) {
+      for (let j = far[i]; j < HZ; j++) { x.fillStyle = j < far[i] + 3 && far[i] < 28 ? '#f4f8ff' : (j < far[i] + 1 ? '#a9b9d6' : '#8196bb'); x.fillRect(i, j, 1, 1); }
+    }
+    for (let i = 0; i < 384; i++) {
+      for (let j = near[i]; j < HZ; j++) { x.fillStyle = (j - near[i]) < 1 ? '#7aa65a' : ((i + j) % 7 === 0 ? '#3f6b3c' : '#4c7d45'); x.fillRect(i, j, 1, 1); }
+    }
+    x.fillStyle = '#2b180b'; x.fillRect(0, HZ, 384, 1);
   }
 
+
+  // ---------- Bầu trời động: mây trôi, máy bay bay ngang (vẽ trực tiếp, không nằm trong slide2.png) ----------
+  function drawSky(c, t) {
+    c.save(); c.imageSmoothingEnabled = false;
+    const cloud = (cx, cy, s) => {
+      c.fillStyle = 'rgba(0,0,0,0.08)'; [[0, 8, 120], [20, 0, 70], [60, -8, 60]].forEach(([dx, dy, w]) => c.fillRect(cx + dx * s, cy + (dy + 22) * s, w * s, 8 * s));
+      c.fillStyle = '#ffffff'; [[0, 8, 120, 16], [20, -4, 70, 20], [60, -12, 56, 20], [-4, 14, 128, 8]].forEach(([dx, dy, w, h]) => c.fillRect(Math.round((cx + dx * s) / 4) * 4, Math.round((cy + dy * s) / 4) * 4, Math.round(w * s / 4) * 4, Math.round(h * s / 4) * 4));
+    };
+    [[0.0, 40, 1.0, 14], [0.4, 120, 0.7, 9], [0.75, 70, 1.3, 19]].forEach(([o, y, s, v]) => { const x = ((o * 1900 + t * v * 4) % 1900) - 260; cloud(x, y, s); });
+    // máy bay: bay từ trái sang phải mỗi 15s, hơi chao nghiêng, để lại vệt khói trắng
+    const P = 15, ph = (t % P) / P, px = -200 + ph * (1536 + 400), py = 190 + Math.sin(t * 1.3) * 8 - ph * 18;
+    c.fillStyle = 'rgba(255,255,255,0.7)'; for (let k = 0; k < 28; k++) { const tx = px - 70 - k * 18; c.globalAlpha = 0.7 * (1 - k / 28); c.fillRect(Math.round(tx / 4) * 4, Math.round((py + 14) / 4) * 4, 16, 6); }
+    c.globalAlpha = 1; c.translate(Math.round(px / 4) * 4, Math.round(py / 4) * 4);
+    const rects = [['#1b0f06', -4, 0, 120, 28], ['#f2f2f2', 0, 4, 112, 20], ['#c9d3de', 0, 16, 112, 8], ['#e0392f', 8, 12, 88, 4],
+      ['#1b0f06', 76, 24, 40, 12], ['#c9d3de', 80, 24, 32, 8], ['#1b0f06', -8, -24, 28, 28], ['#e0392f', -4, -20, 20, 24],
+      ['#1b0f06', 112, 8, 16, 12], ['#7ec8ff', 96, 6, 12, 8], ['#7ec8ff', 80, 6, 12, 8], ['#7ec8ff', 64, 6, 12, 8],
+      ['#1b0f06', 30, 22, 48, 24], ['#d9e2ec', 34, 22, 40, 16]];
+    rects.forEach(([col, x, y, w, h]) => { c.fillStyle = col; c.fillRect(x, y, w, h); });
+    c.restore();
+  }
   // ---------- Nội dung ----------
   const NAMES = ['Huỳnh Nghĩa', 'Chi Hiếu', 'Hoàng My', 'Đăng Khoa', 'Ngọc Hân'];
   function drawContent(ctx) {
@@ -95,11 +136,11 @@
   // ---------- Người que ----------
   // path: các điểm (chân) đi vòng lặp; item: đồ cầm
   const FIG = [
-    { name: 'Huỳnh Nghĩa', f: 0, items: ['mic'], v: 95, path: [[800, 430], [1300, 390], [1430, 610], [1000, 570]] },
-    { name: 'Đăng Khoa', f: 0, items: ['camera'], v: 100, path: [[1450, 810], [1000, 770], [770, 700], [1100, 530], [1450, 520]] },
-    { name: 'Chi Hiếu', f: 0, items: ['lens'], v: 90, path: [[200, 790], [600, 830], [900, 710], [1100, 830], [500, 730]] },
-    { name: 'Hoàng My', f: 1, items: ['pencil', 'palette'], v: 85, path: [[900, 340], [1200, 340], [1450, 430], [1250, 660], [850, 510]] },
-    { name: 'Ngọc Hân', f: 1, items: ['frame', 'flower'], v: 80, path: [[1300, 790], [1450, 660], [1150, 650], [800, 830], [400, 810], [300, 750], [1000, 770]] },
+    { name: 'Huỳnh Nghĩa', f: 0, col: '#ff5a4f', items: ['mic'], v: 95, path: [[800, 430], [1300, 390], [1430, 610], [1000, 570]] },
+    { name: 'Đăng Khoa', f: 0, col: '#5fe06a', items: ['camera'], v: 100, path: [[1450, 810], [1000, 770], [770, 700], [1100, 530], [1450, 520]] },
+    { name: 'Chi Hiếu', f: 0, col: '#4fb0ff', items: ['lens'], v: 90, path: [[200, 790], [600, 830], [900, 710], [1100, 830], [500, 730]] },
+    { name: 'Hoàng My', f: 0, col: '#ff7be5', items: ['palette'], v: 85, path: [[900, 340], [1200, 340], [1450, 430], [1250, 660], [850, 510]] },
+    { name: 'Ngọc Hân', f: 0, col: '#ffd23f', items: ['frame'], v: 80, path: [[1300, 790], [1450, 660], [1150, 650], [800, 830], [400, 810], [300, 750], [1000, 770]] },
   ];
   FIG.forEach((F) => {
     F.seg = []; let tot = 0;
@@ -132,7 +173,7 @@
     c.fillStyle = 'rgba(0,0,0,0.22)'; c.beginPath(); c.ellipse(0, 0, 26, 7, 0, 0, 7); c.fill();
     const body = (col, lw) => { c.strokeStyle = col; c.lineWidth = lw; };
     for (const pass of [0, 1]) {                       // lượt 0: viền đen dày, lượt 1: nét trắng kem mảnh (người que dễ đọc trên nền đất)
-      body(pass ? '#fff1d8' : '#1b0f06', pass ? 5 : 10);
+      body(pass ? F.col : '#1b0f06', pass ? 5 : 10);
       // chân
       line(c, [[0, hipY - bob], [sw * 14, -26], [sw * 18, 0]]);
       line(c, [[0, hipY - bob], [-sw * 14, -26], [-sw * 18, 0]]);
@@ -149,7 +190,7 @@
       // đầu
       c.beginPath(); c.arc(0, headY, 17, 0, 7); c.stroke();
     }
-    c.fillStyle = '#fff1d8'; c.beginPath(); c.arc(0, headY, 15.5, 0, 7); c.fill();
+    c.fillStyle = F.col; c.beginPath(); c.arc(0, headY, 15.5, 0, 7); c.fill();
     c.fillStyle = '#1b0f06'; c.fillRect(5, headY - 4, 3, 3); c.fillRect(-4, headY - 4, 3, 3);   // mắt
     if (F.f) {                                         // tóc dài
       c.strokeStyle = '#1b0f06'; c.lineWidth = 6;
@@ -163,7 +204,7 @@
     c.restore();
     if (labelAlpha > 0) {
       c.save(); c.globalAlpha = labelAlpha; c.font = '700 24px Tinos, "Liberation Serif", serif'; c.textAlign = 'center'; c.lineJoin = 'round';
-      c.lineWidth = 6; c.strokeStyle = '#1b0f06'; c.fillStyle = '#fff1d8';
+      c.lineWidth = 6; c.strokeStyle = '#1b0f06'; c.fillStyle = F.col;
       const ly = p.y - 122 * S - 30 - bob; c.strokeText(F.name, p.x, ly); c.fillText(F.name, p.x, ly); c.restore();
     }
   }
@@ -228,6 +269,7 @@
   const penStart = T_IN + 0.1;
   function drawScene(ctx, figs, labelA) {
     ctx.imageSmoothingEnabled = false; ctx.drawImage(ground, 0, 0, W, H);
+    if (!BARE) drawSky(ctx, WT);
     drawContent(ctx);
     if (figs) { const arr = FIG.map((F) => [figAt(F, WT).y, F]).sort((a, b) => a[0] - b[0]); arr.forEach(([, F]) => drawFig(ctx, F, WT, labelA)); }
   }
@@ -238,6 +280,7 @@
       const a = clamp((T - (T_DONE + 0.6)) / 0.3);
       g.clearRect(0, 0, W, H);
       if (a < 1) { g.globalAlpha = 1 - a; drawScene(g, false, 0); g.globalAlpha = 1; }
+      else drawSky(g, WT);
       FIG.map((F) => [figAt(F, WT).y, F]).sort((a, b) => a[0] - b[0]).forEach(([, F]) => drawFig(g, F, WT, 1));
       return;
     }
