@@ -710,18 +710,12 @@
     function flash(ms, col) { flashCol = col || FLASH_DEFAULT; flashUntil = performance.now() + ms; }
     function startSlash(hitX, stopRow = ROWS) {
       sfxPlay(SFX.slash);
-      const rows = new Array(ROWS);
-      let x = hitX, half = 2, left = 0;
+      const rows = new Array(ROWS), cs = innerHeight / 32;            // đường tâm = sống lưỡi liềm của video mẫu (lưới 32x32)
       for (let y = 0; y < ROWS; y++) {
-        if (left <= 0) {
-          left = 4 + ((Math.random() * 12) | 0);
-          x = hitX + ((Math.random() * 7) | 0) - 3;
-          half = 1 + ((Math.random() * 3) | 0);
-        }
-        left--;
-        rows[y] = [x - half, x + half];
+        const gy = Math.min(31, Math.floor((y + 0.5) * PX / cs)), x = hitX + Math.round((SL_SPINE[gy] - 14.5) * cs / PX);
+        rows[y] = [x - 1, x + 1];
       }
-      slash = { start: performance.now(), rows, stop: Math.max(0, Math.min(ROWS, stopRow)) };
+      slash = { start: performance.now(), cx: hitX * PX + PX / 2, rows, stop: Math.max(0, Math.min(ROWS, stopRow)) };
       return rows;
     }
 
@@ -739,7 +733,11 @@
     }
 
     // ---- Vệt chém mới: lưỡi chém trắng-đỏ quét xuống rất nhanh (có đuôi mờ), rồi màn hình toạc ra một khe tối viền đỏ, tia lửa bắn ra ----
-    const SLASH_SWEEP = 130, SLASH_LIFE = 820;
+    // Lưỡi chém: 9 khung pixel 32x32 lấy từ video mẫu (đỏ phẳng #f44336), mỗi khung chạy SL_FD ms -> chậm hơn video để kịp theo âm thanh.
+    // Khung 1-6: lưỡi liềm mọc dần từ trên xuống; 7-9: đuôi tan từ trên xuống, vỡ thành vài điểm ở đáy.
+    const SL_FRAMES = [[0,32768,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,32768,49152,49152,49152,49152,16384,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,32768,49152,49152,49152,49152,16384,24576,24576,24576,24576,24576,16384,16384,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,0,16384,16384,16384,16384,16384,24576,24576,24576,24576,24576,24576,24576,24576,24576,57344,49152,49152,49152,49152,49152,49152,32768,32768,65536,0,0,0,0],[0,32768,32768,0,16384,16384,16384,16384,16384,24576,24576,24576,24576,24576,24576,24576,24576,24576,57344,49152,49152,49152,49152,49152,49152,32768,32768,65536,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,16384,0,0,8192,8192,24576,24576,24576,24576,24576,49152,49152,49152,49152,622592,491520,131072,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1048576,16384,589824,491520,196608,0,0,0]];
+    const SL_SPINE = [16.0,15.0,14.5,14.5,14.5,14.5,14.5,14.5,14.0,13.5,13.5,13.5,13.5,13.5,13.5,13.5,13.5,13.5,14.0,14.5,14.5,14.5,14.5,14.5,14.5,15.0,15.0,16.0,16.0,16.0,16.0,16.0];
+    const SL_FD = 85, SLASH_LIFE = 9 * SL_FD, SLASH_SWEEP = 400, SLASH_BLOOD = SLASH_LIFE + 30;   // 400ms: lưỡi gần chạm đáy -> rung/loé; máu chỉ hiện SAU khi chém xong
     function slashPath(sl, yMax) {                                   // tâm vệt chém tại từng độ cao, đi theo đường gấp khúc của rows
       const pts = [];
       for (let y = 0; y <= yMax; y += 6) {
@@ -755,37 +753,14 @@
       fx.beginPath(); all.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); }); fx.closePath();
     }
     function drawSlashFx(now) {
-      const e = now - slash.start; if (e > SLASH_LIFE) { slash = null; return; }
-      const H = innerHeight, full = slash.stop >= ROWS - 1, yStop = H * Math.min(1, slash.stop / ROWS);
-      const sweep = Math.min(1, e / SLASH_SWEEP), pr = 1 - Math.pow(1 - sweep, 2.4), yTip = yStop * pr;
-      fx.save();
-      // lưỡi chém pixel đỏ phẳng (giống video mẫu): lưỡi liềm mảnh cong về bên trái, mũi quét xuống, đuôi tan dần từ trên
-      const tu = Math.max(0, Math.min(1, (e - SLASH_SWEEP * 0.45) / (SLASH_SWEEP + 240))), yTail = yTip * tu * tu * (3 - 2 * tu);
-      if (yTip - yTail > 2 && yTip > 4) {
-        const pts = slashPath(slash, yTip), x0 = pts[0][0], len = yTip - yTail, bw = Math.max(1, Math.round((14 * Math.min(1, len / 160)) / PX));
-        fx.fillStyle = '#f44336';
-        for (let y = Math.floor(yTail / PX) * PX; y < yTip; y += PX) {
-          const pt = pts[Math.min(pts.length - 1, Math.floor(y / 6))], u = (y - yTail) / len, sn = Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
-          const hw = Math.max(1, Math.round(bw * Math.pow(sn, 0.7) * (u > 0.85 ? (1 - u) / 0.15 + 0.3 : 1)));
-          const cxp = Math.round((x0 - sn * PX * 1.5) / PX) * PX;
-          fx.fillRect(cxp - hw * PX, y, hw * 2 * PX, PX);
-        }
-      }
-      // khe toạc ra sau cú chém: tối, viền đỏ, mở rồi khép
-      if (full && e > SLASH_SWEEP * 0.8) {
-        const t = e - SLASH_SWEEP * 0.8, open = easeOut3(Math.min(1, t / 160)) * (1 - Math.max(0, Math.min(1, (t - 300) / 420)));
-        if (open > 0.01) {
-          const pts = slashPath(slash, H), wob = (i) => 1 + 0.22 * Math.sin(i * 1.7 + t / 70);
-          fx.shadowColor = '#ff2a3a'; fx.shadowBlur = 26 * open;
-          slashBand(pts, (u, y) => (3 + 15 * open) * wob(y / 12) * Math.min(1, Math.min(y, H - y) / 60 + 0.25));
-          fx.fillStyle = '#10000a'; fx.fill();
-          fx.lineJoin = 'miter'; fx.strokeStyle = 'rgba(255,42,58,' + open + ')'; fx.lineWidth = 3; fx.stroke();
-          fx.shadowBlur = 0; fx.strokeStyle = 'rgba(255,224,230,' + (0.9 * open) + ')'; fx.lineWidth = 1; fx.stroke();
-          // tia sáng đỏ toả ngang từ khe (ánh sáng lọt qua vết cắt)
-          const a = 0.20 * open, g = fx.createLinearGradient(pts[0][0] - 220, 0, pts[0][0] + 220, 0);
-          g.addColorStop(0, 'rgba(255,42,58,0)'); g.addColorStop(0.5, 'rgba(255,42,58,' + a + ')'); g.addColorStop(1, 'rgba(255,42,58,0)');
-          fx.fillStyle = g; fx.fillRect(pts[0][0] - 220, 0, 440, H);
-        }
+      const e = now - slash.start; if (e >= SLASH_LIFE) { slash = null; return; }
+      const H = innerHeight, cs = H / 32, yStop = H * Math.min(1, slash.stop / ROWS), fr = SL_FRAMES[Math.min(8, Math.floor(e / SL_FD))];
+      const cxp = slash.cx;                                                  // cột 14.5 của lưới nằm đúng tại điểm chém
+      fx.save(); fx.beginPath(); fx.rect(0, 0, innerWidth, yStop); fx.clip();
+      fx.fillStyle = '#f44336';
+      for (let r = 0; r < 32; r++) {
+        const m = fr[r]; if (!m) continue;
+        for (let c = 0; c < 32; c++) if ((m >>> c) & 1) { let n = 1; while (c + n < 32 && ((m >>> (c + n)) & 1)) n++; fx.fillRect(Math.round(cxp + (c - 14.5) * cs), Math.round(r * cs), Math.ceil(n * cs), Math.ceil(cs)); c += n - 1; }
       }
       fx.restore();
     }
@@ -1013,7 +988,7 @@
     let cine = null;
     // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 hai Gaster Blaster (nhìn thẳng ra màn hình) hiện ra hai bên Sans;
     // 1800 nạp năng lượng (mắt + miệng sáng dần); 2600 bắn thẳng vào màn hình; 3150 trắng xoá, màn hình nứt; 4600 tối 0.5s rồi sang slide kế.
-    const CT = { bone: 250, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
+    const CT = { bone: 340, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
     const BONES_SND = mkAudio('assets/dry-bones-death.mp3', 0.9);
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
@@ -1502,7 +1477,7 @@
       setTimeout(() => {
         startSplat(rows);
         popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
-      }, SLASH_SWEEP + 100);
+      }, SLASH_BLOOD);
       setTimeout(() => {
         sfxPlay(SFX.finish);
         dustUntil = performance.now() + DISSOLVE_MS;
@@ -1510,7 +1485,7 @@
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
         prewarm(i); flyTo(i, () => openSlide(i));
         hideGrid(() => {});
-      }, SLASH_SWEEP + 100 + BLOOD_TO_DISSOLVE_MS);
+      }, SLASH_BLOOD + BLOOD_TO_DISSOLVE_MS);
     }
 
     // Bị chặn: hiện bảng chọn slide cầm kiếm
@@ -1986,7 +1961,7 @@
       impact(1);
       slashSparks(rows);
       flash(80, 'rgba(255,255,255,0.28)');
-      await wait(110);
+      await wait(SLASH_BLOOD - SLASH_SWEEP);
       startSplat(rows);
       popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       await wait(480);
