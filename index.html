@@ -352,7 +352,7 @@
       if (!AUD.on || AUD.vol === 0) return;
       try { const c = a.cloneNode(); c.volume = a.volume; c.play().catch(() => {}); } catch (e) {}
     }
-    const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1) };
+    const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1), blaster: mkAudio('assets/sfx-blaster.mp3', 1), hit: mkAudio('assets/sfx-hit.mp3', 1) };
     const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
     const BLOCK_CHANCE = 0.3;          // xác suất vệt chém bị xương của Sans chặn
 
@@ -2156,7 +2156,7 @@
       const W = innerWidth, H = innerHeight, S = c.sans;
       const bw = BONE_O.width * c.boneScale, bh = BONE_O.height * c.boneScale;
       if (!ev.block && t >= CT.bone) {                              // bone chặn nhát chém
-        ev.block = 1; flash(70, 'rgba(255,255,255,0.45)'); shake(0.7, 3);
+        ev.block = 1; flash(70, 'rgba(255,255,255,0.45)'); shake(0.7, 3); sfxPlay(SFX.hit);
         const cols = ['#ffffff', '#ffd0d8', '#ff3344'];
         for (let i = 0; i < 30; i++) particles.push({ x: c.x, y: c.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 26 + Math.random() * 26, age: 0, c: cols[(Math.random() * 3) | 0], s: PX * (0.5 + Math.random() * 0.8) });
       }
@@ -2172,6 +2172,7 @@
         shatterRect({ left: c.x - bw * 0.5, top: c.y - bh * 0.4, width: bw, height: bh * 0.8 }, ['#f2f2f2', '#0b0b0b']);
       }
       drawGB(c, t, W, H);
+      if (t >= CT.fire - 915 && !ev.bsnd) { ev.bsnd = 1; sfxPlay(SFX.blaster); }      // file âm thanh: nạp 0.18-0.9s, tiếng bắn đỉnh ở 0.915s -> khớp CT.fire
       if (t >= CT.fire && !ev.fire) { ev.fire = 1; flash(90, 'rgba(255,255,255,0.35)'); shake(1, 5); try { navigator.vibrate && navigator.vibrate([40, 20, 80]); } catch (e) { } }
       if (t >= CT.fire + 50) {                                      // trắng xoá khi năng lượng phủ kín màn hình (giữ trắng tới lúc tối)
         const a = ramp(t, CT.fire + 50, CT.hit);
@@ -2380,7 +2381,7 @@
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
       tasks.push(['Audio', get('assets/clock-reverse.mp3')]);
-      ['sfx-slash', 'sfx-knight', 'sfx-finish', 'sfx-start'].forEach((f) => tasks.push(['Audio', get('assets/' + f + '.mp3')]));
+      ['sfx-slash', 'sfx-knight', 'sfx-finish', 'sfx-start', 'sfx-blaster', 'sfx-hit'].forEach((f) => tasks.push(['Audio', get('assets/' + f + '.mp3')]));
       tasks.push(['Video 2', get('assets/knight-front.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       tasks.push(['Video', get('assets/knight-attack.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       Object.keys(ANIM_SRC).forEach((k) => tasks.push(['Animation ' + (+k + 1), get(ANIM_SRC[k].split('?')[0])]));
