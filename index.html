@@ -1220,13 +1220,13 @@
       const el = document.createElement('div');
       el.className = 'fly';
       el.style.backgroundImage = 'url("' + slideImages[i] + '")';
-      el.style.left = r.left + 'px';
-      el.style.top = r.top + 'px';
-      el.style.width = r.width + 'px';
-      el.style.height = r.height + 'px';
+      // chỉ dùng transform (GPU) thay vì đổi left/top/width/height mỗi khung -> không giật
+      el.style.left = '0px'; el.style.top = '0px'; el.style.width = innerWidth + 'px'; el.style.height = innerHeight + 'px';
+      el.style.transformOrigin = '0 0'; el.style.willChange = 'transform';
+      gsap.set(el, { x: r.left, y: r.top, scaleX: r.width / innerWidth, scaleY: r.height / innerHeight });
       document.body.appendChild(el);
       gsap.to(el, {
-        left: 0, top: 0, width: innerWidth, height: innerHeight, duration: 0.7, ease: 'power3.inOut',
+        x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.7, ease: 'power3.inOut', force3D: true,
         onComplete: () => { done(); el.remove(); }
       });
     }
@@ -1481,7 +1481,7 @@
       }, SLASH_BLOOD);
       setTimeout(() => {
         dustUntil = performance.now() + DISSOLVE_MS;
-        gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
+        gsap.to(bloodFade, { a: 0, duration: 0.55, ease: 'power1.in', onComplete: () => { splat = null; } });
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
         prewarm(i); flyTo(i, () => openSlide(i));
         hideGrid(() => {});
@@ -1965,7 +1965,7 @@
       startSplat(rows);
       popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       await wait(480);
-      gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
+      gsap.to(bloodFade, { a: 0, duration: 0.55, ease: 'power1.in', onComplete: () => { splat = null; } });
       await soulDissolve(cur);
     }
 
