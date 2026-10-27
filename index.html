@@ -152,7 +152,7 @@
     }
     #settings.show { opacity: 1; pointer-events: auto; }
     .settings-box {
-      position: relative; width: min(560px, 88vw); height: min(340px, 62vh);
+      position: relative; width: min(560px, 88vw); min-height: min(340px, 62vh); max-height: 94vh; overflow-y: auto; padding: 58px 22px 56px; box-sizing: border-box;
       background: #000; border: 4px solid #fff; box-shadow: 0 0 0 4px #000, 8px 8px 0 4px rgba(255, 51, 68, 0.5);
     }
     .settings-title { position: absolute; left: 20px; top: 18px; font-family: 'Press Start 2P', monospace; font-size: 14px; color: #fff; text-shadow: 3px 3px 0 #8a0016; }
@@ -160,9 +160,12 @@
     .settings-close:hover { color: #ff3344; }
     .settings-hint { position: absolute; left: 20px; bottom: 14px; font-family: 'Press Start 2P', monospace; font-size: 9px; letter-spacing: 1px; color: rgba(255, 255, 255, 0.4); }
 
-    .sans-row { position: absolute; left: 22px; right: 22px; top: 86px; font-family: 'Press Start 2P', monospace; color: #fff; }
+    .sans-row { position: static; margin-top: 18px; font-family: 'Press Start 2P', monospace; color: #fff; }
     .sans-row .sr-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
     .sans-row .sr-val { color: #ffe000; font-size: 14px; text-shadow: 2px 2px 0 #000; }
+    .snd-row { padding-top: 14px; border-top: 3px solid #333; }
+    .snd-toggle { font-family: 'Press Start 2P', monospace; font-size: 11px; color: #000; background: #ffe000; border: 3px solid #fff; padding: 6px 10px; cursor: pointer; margin-right: 10px; }
+    .snd-toggle.off { background: #444; color: #fff; }
     .sans-row .sr-note { margin-top: 12px; font-size: 8px; line-height: 1.8; color: rgba(255, 255, 255, 0.45); letter-spacing: 1px; }
     .sans-row input[type=range] { width: 100%; height: 26px; accent-color: #ff3344; cursor: pointer; background: transparent; }
     .settings-box.list .sans-row { position: static; margin-top: 18px; padding-top: 14px; border-top: 3px solid #333; }
@@ -339,6 +342,17 @@
     const SLIDE_W = 7.5, SLIDE_H = 4.2;
     const TILES = [80, 45];            // số ô vỡ của slide (ngang x dọc)
     const DISSOLVE_MS = 1500;          // thời gian slide tan xong
+    // ===== Âm thanh: âm lượng chung 0-100% + bật/tắt (lưu trong trình duyệt, mặc định BẬT 100%) =====
+    const AUD = { on: true, vol: 100, list: [] };
+    try { if (localStorage.getItem('sndOn') === '0') AUD.on = false; const v = parseInt(localStorage.getItem('sndVol'), 10); if (v >= 0 && v <= 100) AUD.vol = v; } catch (e) {}
+    function audApply(a) { a.volume = AUD.on ? Math.max(0, Math.min(1, a._b * AUD.vol / 100)) : 0; a.muted = !AUD.on || AUD.vol === 0; }
+    function mkAudio(src, base) { const a = new Audio(src); a.preload = 'auto'; a._b = base; AUD.list.push(a); audApply(a); return a; }
+    function audApplyAll() { AUD.list.forEach(audApply); }
+    function sfxPlay(a) {              // phát chồng được (nhân bản), tôn trọng âm lượng chung
+      if (!AUD.on || AUD.vol === 0) return;
+      try { const c = a.cloneNode(); c.volume = a.volume; c.play().catch(() => {}); } catch (e) {}
+    }
+    const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1) };
     const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
     const BLOCK_CHANCE = 0.3;          // xác suất vệt chém bị xương của Sans chặn
 
@@ -695,6 +709,7 @@
     let flashCol = FLASH_DEFAULT;
     function flash(ms, col) { flashCol = col || FLASH_DEFAULT; flashUntil = performance.now() + ms; }
     function startSlash(hitX, stopRow = ROWS) {
+      sfxPlay(SFX.slash);
       const rows = new Array(ROWS);
       let x = hitX, half = 2, left = 0;
       for (let y = 0; y < ROWS; y++) {
@@ -999,7 +1014,7 @@
     // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 hai Gaster Blaster (nhìn thẳng ra màn hình) hiện ra hai bên Sans;
     // 1800 nạp năng lượng (mắt + miệng sáng dần); 2600 bắn thẳng vào màn hình; 3150 trắng xoá, màn hình nứt; 4600 tối 0.5s rồi sang slide kế.
     const CT = { bone: 250, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
-    const BONES_SND = new Audio('assets/dry-bones-death.mp3'); BONES_SND.preload = 'auto'; BONES_SND.volume = 0.9;
+    const BONES_SND = mkAudio('assets/dry-bones-death.mp3', 0.9);
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
     SANS_HURT.onload = () => { SANS_HURT_O = outlineSprite(SANS_HURT, 5, '#0b0b0b'); };
@@ -1416,6 +1431,7 @@
     function enterGrid() {
       if (view !== 'start' || !READY) return;
       view = 'busy';
+      sfxPlay(SFX.start);
       gsap.timeline()
         .to(startEl, { opacity: 0.15, duration: 0.06, repeat: 7, yoyo: true, ease: 'steps(1)' })
         .to(startEl, { opacity: 0, duration: 0.3, ease: 'power1.in' })
@@ -1488,6 +1504,7 @@
         popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       }, SLASH_SWEEP + 100);
       setTimeout(() => {
+        sfxPlay(SFX.finish);
         dustUntil = performance.now() + DISSOLVE_MS;
         gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
@@ -1623,6 +1640,21 @@
       try { localStorage.setItem('sansBlockChance', String(sansChance)); } catch (e) {}
     });
     sansRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
+    // Âm lượng chung (mọi chế độ): thanh 0-100% + nút ON/OFF
+    const sndRow = document.createElement('div'); sndRow.className = 'sans-row snd-row';
+    sndRow.innerHTML = '<div class="sr-top"><span>SOUND</span><span><button id="sndToggle" class="snd-toggle" type="button"></button> <span class="sr-val" id="sndVal"></span></span></div><input id="sndRange" type="range" min="0" max="100" step="1" aria-label="Volume">';
+    settingsBox.appendChild(sndRow);
+    const sndRange = sndRow.querySelector('#sndRange'), sndVal = sndRow.querySelector('#sndVal'), sndToggle = sndRow.querySelector('#sndToggle');
+    function sndRefresh() {
+      sndRange.value = AUD.vol; sndVal.textContent = AUD.vol + '%';
+      sndToggle.textContent = AUD.on ? 'ON' : 'OFF'; sndToggle.classList.toggle('off', !AUD.on); sndRange.style.opacity = AUD.on ? '1' : '0.4';
+    }
+    function sndSave() { try { localStorage.setItem('sndOn', AUD.on ? '1' : '0'); localStorage.setItem('sndVol', String(AUD.vol)); } catch (e) {} }
+    sndRefresh();
+    sndRange.addEventListener('input', () => { AUD.vol = +sndRange.value; audApplyAll(); sndRefresh(); sndSave(); });
+    sndRange.addEventListener('change', () => sfxPlay(SFX.slash));      // nghe thử âm lượng khi thả thanh
+    sndToggle.addEventListener('click', (e) => { e.stopPropagation(); AUD.on = !AUD.on; audApplyAll(); sndRefresh(); sndSave(); if (AUD.on) sfxPlay(SFX.slash); });
+    sndRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     let settingsFrom = 'grid';
     function openSettings(from) {
       from = from || 'grid';
@@ -1630,6 +1662,7 @@
       settingsFrom = from;
       slideListEl.innerHTML = '';
       settingsBox.classList.toggle('list', from === 'soul');
+      sndRow.style.display = '';
       sansRow.style.display = from === 'soul' ? 'none' : '';      // thanh tỉ lệ Sans chỉ nằm ở bảng Settings của màn danh sách, không hiện trong chế độ tim xanh
       settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
       if (from === 'soul') {                      // chế độ tim xanh: danh sách 10 slide để nhảy nhanh
@@ -1756,7 +1789,7 @@
     // Nhạc assets/clock-reverse.mp3 (9s, cắt từ file người dùng, không tua nhanh): chuông lớn nhất ở giây 6.75 = lúc tới 1980,
     // sau đó nhỏ dần trong 2s, tới giây 8.75 thì glitch.
     const CLK_IMG = new Image(); CLK_IMG.src = 'assets/watch.png';                         // ảnh đồng hồ quả quýt do người dùng gửi (đã tách nền)
-    const CLK_SND = new Audio('assets/clock-reverse.mp3'); CLK_SND.preload = 'auto'; CLK_SND.volume = 0.9;
+    const CLK_SND = mkAudio('assets/clock-reverse.mp3', 0.9);
     const CLK = { T1980: 6.75, GLITCH: 8.75, FROM: 2026, TO: 1980 };
     const clkSeed = (n) => { const x = Math.sin(n * 91.7 + 13.3) * 43758.5453; return x - Math.floor(x); };
     const CLK_DUST = Array.from({ length: 70 }, (_, i) => ({ x: clkSeed(i), y: clkSeed(i + 100), v: 0.01 + clkSeed(i + 200) * 0.03, s: 2 + Math.floor(clkSeed(i + 300) * 3), ph: clkSeed(i + 400) * 6.28 }));
@@ -1931,6 +1964,7 @@
     }
 
     async function soulDissolve(cur) {
+      sfxPlay(SFX.finish);
       dustUntil = performance.now() + DISSOLVE_MS;
       await tw(cur.mesh.material.uniforms.uProgress, { value: 1, duration: DISSOLVE_MS / 1000, ease: 'none' });
       disposeSlide(cur);
@@ -2251,6 +2285,7 @@
       const vt0 = performance.now(); vid.play().catch(() => {});
       const vnow = () => (vid.readyState > 1 && !vid.paused ? vid.currentTime : (performance.now() - vt0) / 1000);
       while (vnow() < KV.dissolveAt) await wait(30);
+      sfxPlay(SFX.finish);
       tweenProgress(cur, 1, 0.8, 'none');                                    // slide bay màu khi đường trắng cắt ngang
       for (let i = 0; i < 110 && particles.length < 500; i++) {
         const an = Math.random() * 6.283, v = 1 + Math.random() * 5, rr = Math.random();
@@ -2271,7 +2306,7 @@
       const f0 = performance.now(); fv.play().catch(() => {});
       const fnow = () => (fv.readyState > 1 && !fv.paused ? fv.currentTime : (performance.now() - f0) / 1000);
       while (fnow() < 0.55 && performance.now() - f0 < 1500) await wait(20);       // tới khoảnh khắc vung kiếm
-      kn.sl0 = performance.now(); kn.kx = W / 2; kn.ky = H * 0.5;
+      kn.sl0 = performance.now(); kn.kx = W / 2; kn.ky = H * 0.5; sfxPlay(SFX.knight);
       await wait(260);
       impact(1); shake(1.4, 8);
       makeCracks(W * 0.5, H * 0.5, 1, 0.12); const l1 = crack.lines;
@@ -2345,6 +2380,7 @@
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
       tasks.push(['Audio', get('assets/clock-reverse.mp3')]);
+      ['sfx-slash', 'sfx-knight', 'sfx-finish', 'sfx-start'].forEach((f) => tasks.push(['Audio', get('assets/' + f + '.mp3')]));
       tasks.push(['Video 2', get('assets/knight-front.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       tasks.push(['Video', get('assets/knight-attack.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       Object.keys(ANIM_SRC).forEach((k) => tasks.push(['Animation ' + (+k + 1), get(ANIM_SRC[k].split('?')[0])]));
