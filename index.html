@@ -737,7 +737,7 @@
     // Khung 1-6: lưỡi liềm mọc dần từ trên xuống; 7-9: đuôi tan từ trên xuống, vỡ thành vài điểm ở đáy.
     const SL_FRAMES = [[0,32768,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,32768,49152,49152,49152,49152,16384,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,32768,49152,49152,49152,49152,16384,24576,24576,24576,24576,24576,16384,16384,16384,16384,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,32768,32768,0,16384,16384,16384,16384,16384,24576,24576,24576,24576,24576,24576,24576,24576,24576,57344,49152,49152,49152,49152,49152,49152,32768,32768,65536,0,0,0,0],[0,32768,32768,0,16384,16384,16384,16384,16384,24576,24576,24576,24576,24576,24576,24576,24576,24576,57344,49152,49152,49152,49152,49152,49152,32768,32768,65536,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,16384,0,0,8192,8192,24576,24576,24576,24576,24576,49152,49152,49152,49152,622592,491520,131072,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1048576,16384,589824,491520,196608,0,0,0]];
     const SL_SPINE = [16.0,15.0,14.5,14.5,14.5,14.5,14.5,14.5,14.0,13.5,13.5,13.5,13.5,13.5,13.5,13.5,13.5,13.5,14.0,14.5,14.5,14.5,14.5,14.5,14.5,15.0,15.0,16.0,16.0,16.0,16.0,16.0];
-    const SL_FD = 85, SLASH_LIFE = 9 * SL_FD, SLASH_SWEEP = 400, SLASH_BLOOD = SLASH_LIFE + 30;   // 400ms: lưỡi gần chạm đáy -> rung/loé; máu chỉ hiện SAU khi chém xong
+    const SL_FD = 60, SLASH_LIFE = 9 * SL_FD, SLASH_SWEEP = 300, SLASH_BLOOD = SLASH_LIFE + 300;   // 400ms: lưỡi gần chạm đáy -> rung/loé; máu chỉ hiện SAU khi chém xong
     function slashPath(sl, yMax) {                                   // tâm vệt chém tại từng độ cao, đi theo đường gấp khúc của rows
       const pts = [];
       for (let y = 0; y <= yMax; y += 6) {
@@ -781,7 +781,7 @@
       let w = 2;
       for (let r = 0; r < 32; r++) {
         const ri = Math.min(ROWS - 1, Math.floor((r + 0.5) * cs / PX)), cx = ((rows[ri][0] + rows[ri][1]) / 2 + 0.5) * PX;
-        if (Math.random() < 0.35) w = Math.max(2, Math.min(4, w + (Math.random() < 0.5 ? -1 : 1)));
+        if (Math.random() < 0.35) w = Math.max(2, Math.min(3, w + (Math.random() < 0.5 ? -1 : 1)));
         strip.push({ x: Math.round(cx / cs - w / 2) * cs, w, y: r * cs });
       }
       for (let i = 0; i < 16; i++) {
@@ -979,7 +979,7 @@
     let cine = null;
     // Trình tự (ms): 0 Sans hiện (đứng yên); 250 bone chặn; 1300 hai Gaster Blaster (nhìn thẳng ra màn hình) hiện ra hai bên Sans;
     // 1800 nạp năng lượng (mắt + miệng sáng dần); 2600 bắn thẳng vào màn hình; 3150 trắng xoá, màn hình nứt; 4600 tối 0.5s rồi sang slide kế.
-    const CT = { bone: 340, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
+    const CT = { bone: 280, boneGone: 1250, gb: 1400, charge: 1850, fire: 2350, hit: 2520, black: 3770 };
     const BONES_SND = mkAudio('assets/dry-bones-death.mp3', 0.9);
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
@@ -1469,11 +1469,11 @@
       // Không bị chặn: máu + 1 số damage ngẫu nhiên ở giữa, các thẻ khác tan, thẻ này phóng to
       setTimeout(() => { shake(); flash(80, 'rgba(255,255,255,0.28)'); slashSparks(rows); }, SLASH_SWEEP);
       setTimeout(() => {
+        sfxPlay(SFX.finish);
         startSplat(rows);
         popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       }, SLASH_BLOOD);
       setTimeout(() => {
-        sfxPlay(SFX.finish);
         dustUntil = performance.now() + DISSOLVE_MS;
         gsap.to(bloodFade, { a: 0, duration: DISSOLVE_MS / 1000, ease: 'none', onComplete: () => { splat = null; } });
         cards.forEach((_, k) => { if (k !== i) killCard(k, false); });
@@ -1933,7 +1933,6 @@
     }
 
     async function soulDissolve(cur) {
-      sfxPlay(SFX.finish);
       dustUntil = performance.now() + DISSOLVE_MS;
       await tw(cur.mesh.material.uniforms.uProgress, { value: 1, duration: DISSOLVE_MS / 1000, ease: 'none' });
       disposeSlide(cur);
@@ -1956,6 +1955,7 @@
       slashSparks(rows);
       flash(80, 'rgba(255,255,255,0.28)');
       await wait(SLASH_BLOOD - SLASH_SWEEP);
+      sfxPlay(SFX.finish);
       startSplat(rows);
       popDamage(cx, cy, 1 + Math.floor(Math.random() * 100));
       await wait(480);
