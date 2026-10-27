@@ -25,6 +25,7 @@
   const Q = location.search, EMBED = Q.includes('embed'), BARE = Q.includes('bare');
   const stillM = Q.match(/still=([\d.]+)/), STILL = stillM ? parseFloat(stillM[1]) : null;
   const W = 1536, H = 864;
+  const INTRO = false;                         // true = bật lại hiệu ứng mở đầu (xô sơn + cọ + doodle + bút chì)
   if (EMBED) document.documentElement.style.background = document.body.style.background = 'transparent';
   const cv = document.getElementById('c'), g = cv.getContext('2d');
   const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -138,9 +139,9 @@
   const FIG = [
     { name: 'Huỳnh Nghĩa', f: 0, col: '#ff5a4f', items: ['mic'], v: 95, path: [[800, 430], [1300, 390], [1430, 610], [1000, 570]] },
     { name: 'Đăng Khoa', f: 0, col: '#5fe06a', items: ['camera'], v: 100, path: [[1450, 810], [1000, 770], [770, 700], [1100, 530], [1450, 520]] },
-    { name: 'Chi Hiếu', f: 0, col: '#4fb0ff', items: ['lens'], v: 90, path: [[200, 790], [600, 830], [900, 710], [1100, 830], [500, 730]] },
+    { name: 'Chi Hiếu', f: 0, col: '#4fb0ff', items: ['lens'], v: 90, path: [[200, 790], [600, 830], [900, 710], [1100, 830], [520, 800]] },
     { name: 'Hoàng My', f: 0, col: '#ff7be5', items: ['palette'], v: 85, path: [[900, 340], [1200, 340], [1450, 430], [1250, 660], [850, 510]] },
-    { name: 'Ngọc Hân', f: 0, col: '#ffd23f', items: ['frame'], v: 80, path: [[1300, 790], [1450, 660], [1150, 650], [800, 830], [400, 810], [300, 750], [1000, 770]] },
+    { name: 'Ngọc Hân', f: 0, col: '#ffd23f', items: ['frame'], v: 80, path: [[1300, 790], [1450, 660], [1150, 650], [800, 830], [400, 810], [300, 815], [1000, 770]] },
   ];
   FIG.forEach((F) => {
     F.seg = []; let tot = 0;
@@ -276,7 +277,7 @@
   function draw() {
     g.setTransform(1, 0, 0, 1, 0, 0);
     // Giai đoạn xong: nền trong suốt để thấy slide WebGL (ảnh slide2.png) bên dưới, chỉ vẽ người que
-    if (phase === 'done' && !BARE && STILL === null) {
+    if (phase === 'done' && !BARE && STILL === null && EMBED) {
       const a = clamp((T - (T_DONE + 0.6)) / 0.3);
       g.clearRect(0, 0, W, H);
       if (a < 1) { g.globalAlpha = 1 - a; drawScene(g, false, 0); g.globalAlpha = 1; }
@@ -400,6 +401,7 @@
       if (!BARE) raf = requestAnimationFrame(loop);
       return;
     }
+    if (!INTRO) { phase = 'done'; T = T_DONE + 2; WT = 0; post('done'); raf = requestAnimationFrame(loop); return; }   // tạm tắt hiệu ứng vẽ mở đầu
     phase = 'wait'; post('wait'); raf = requestAnimationFrame(loop);
   });
 })();

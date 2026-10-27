@@ -10,7 +10,7 @@
     #canvas-container { width: 100vw; height: 100vh; position: relative; }
     #fx {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      pointer-events: none; z-index: 10; image-rendering: pixelated;
+      pointer-events: none; z-index: 21; image-rendering: pixelated;
     }
     /* Lớp đồ họa phủ: vignette tối 4 góc + scanline mờ kiểu màn hình retro */
     #overlay {
@@ -774,49 +774,40 @@
     // Vết máu mới: dải máu mượt chạy dọc vệt chém (bắn ra rồi đọng), giọt máu văng hai bên, vệt máu chảy xuống, ánh ướt
     let splat = null;
     const bloodFade = { a: 1 };
+    // Vết máu đơn giản kiểu pixel phẳng (cùng "ô" 1/32 chiều cao với vết chém): dải máu theo sống vết chém + vài giọt + vài vệt chảy xuống
+    const BLOOD_COL = '#b3131f', BLOOD_DARK = '#7d0d16';
     function startSplat(rows) {
-      const H = innerHeight, pts = slashPath({ rows }, H), n = pts.length, w = [], sp = [], dr = [];
-      let ph = Math.random() * 6;
-      for (let i = 0; i < n; i++) { ph += 0.35 + Math.random() * 0.25; w.push(4 + 5 * (0.5 + 0.5 * Math.sin(ph)) + (Math.random() < 0.08 ? 6 : 0)); }
-      for (let i = 0; i < 90; i++) {
-        const k = Math.floor(Math.random() * n), d = Math.random() < 0.5 ? -1 : 1, far = Math.pow(Math.random(), 1.8);
-        const r = 1.2 + Math.random() * 3.2 * (1 - far * 0.5);
-        sp.push({ x0: pts[k][0], y0: pts[k][1], x1: pts[k][0] + d * (10 + far * 150), y1: pts[k][1] + (Math.random() - 0.4) * 40 + far * 20, r, dl: Math.random() * 90, fl: 130 + far * 260, tilt: (Math.random() - 0.5) * 0.6, c: Math.random() < 0.35 ? '#c2112a' : '#8a0016' });
+      const H = innerHeight, cs = H / 32, strip = [], drops = [], drips = [];
+      let w = 2;
+      for (let r = 0; r < 32; r++) {
+        const ri = Math.min(ROWS - 1, Math.floor((r + 0.5) * cs / PX)), cx = ((rows[ri][0] + rows[ri][1]) / 2 + 0.5) * PX;
+        if (Math.random() < 0.35) w = Math.max(2, Math.min(4, w + (Math.random() < 0.5 ? -1 : 1)));
+        strip.push({ x: Math.round(cx / cs - w / 2) * cs, w, y: r * cs });
       }
       for (let i = 0; i < 16; i++) {
-        const k = 4 + Math.floor(Math.random() * (n - 8));
-        dr.push({ x: pts[k][0] + (Math.random() - 0.5) * 6, y: pts[k][1], dl: 250 + Math.random() * 500, v: 0.05 + Math.random() * 0.1, max: 40 + Math.random() * 170, r: 1.6 + Math.random() * 2 });
+        const r = Math.floor(Math.random() * 32), s = strip[r], d = Math.random() < 0.5 ? -1 : 1, off = 1 + Math.floor(Math.random() * 6);
+        drops.push({ x: d < 0 ? s.x - off * cs : s.x + s.w * cs + (off - 1) * cs, y: r * cs + Math.floor((Math.random() - 0.5) * 3) * cs, dl: 120 + Math.random() * 260 });
       }
-      splat = { pts, w, sp, dr, t0: performance.now() };
+      for (let i = 0; i < 5; i++) {
+        const r = 2 + Math.floor(Math.random() * 26), s = strip[r], c = Math.floor(Math.random() * s.w);
+        drips.push({ x: s.x + c * cs, y: (r + 1) * cs, dl: 250 + Math.random() * 450, max: Math.floor(2 + Math.random() * 6) * cs });
+      }
+      splat = { strip, drops, drips, cs, t0: performance.now() };
       bloodFade.a = 1;
     }
 
     function drawBlood(s) {
-      const e = performance.now() - s.t0, ease = (u) => 1 - Math.pow(1 - u, 3), grow = ease(Math.min(1, e / 200));
+      const e = performance.now() - s.t0, cs = s.cs, shown = Math.min(32, Math.ceil(e / 150 * 32));
       fx.save(); fx.globalAlpha = bloodFade.a;
-      // dải máu chính
-      slashBand(s.pts, (u, y) => s.w[Math.min(s.w.length - 1, Math.round(u * (s.w.length - 1)))] * grow * (0.35 + 0.65 * Math.min(1, Math.min(y, innerHeight - y) / 70)));
-      fx.shadowColor = 'rgba(120,0,16,.7)'; fx.shadowBlur = 14; fx.fillStyle = '#7a0012'; fx.fill(); fx.shadowBlur = 0;
-      slashBand(s.pts, (u, y) => s.w[Math.min(s.w.length - 1, Math.round(u * (s.w.length - 1)))] * 0.55 * grow);
-      fx.fillStyle = '#b00d24'; fx.fill();
-      fx.strokeStyle = 'rgba(255,92,108,' + (0.75 * grow) + ')'; fx.lineWidth = 1.6; fx.beginPath();
-      s.pts.forEach(([x, y], i) => { if (i) fx.lineTo(x, y); else fx.moveTo(x, y); }); fx.stroke();
-      // giọt văng: bay ra theo đường cong rồi đọng lại, có điểm sáng ướt
-      for (const p of s.sp) {
-        const u = Math.max(0, Math.min(1, (e - p.dl) / p.fl)); if (u <= 0) continue;
-        const k = ease(u), x = p.x0 + (p.x1 - p.x0) * k, y = p.y0 + (p.y1 - p.y0) * k - Math.sin(u * Math.PI) * 22 * (1 - u * 0.3);
-        const rr = p.r * (u < 1 ? 0.7 : 1), sx = u < 1 ? 1.8 : 1;
-        fx.fillStyle = p.c; fx.beginPath(); fx.ellipse(x, y, rr * sx, rr, p.tilt, 0, 6.283); fx.fill();
-        if (rr > 2.2) { fx.fillStyle = 'rgba(255,170,180,.55)'; fx.fillRect(x - rr * 0.35, y - rr * 0.5, Math.max(1, rr * 0.4), Math.max(1, rr * 0.3)); }
-      }
-      // vệt máu chảy xuống
-      for (const d of s.dr) {
-        const t = e - d.dl; if (t <= 0) continue;
-        const len = Math.min(d.max, d.v * t * (1 + t / 900)), w = d.r * (1 - 0.35 * len / d.max);
-        const g = fx.createLinearGradient(0, d.y, 0, d.y + len); g.addColorStop(0, '#7a0012'); g.addColorStop(1, '#b00d24');
-        fx.fillStyle = g; fx.fillRect(d.x - w / 2, d.y, w, len);
-        fx.fillStyle = '#b00d24'; fx.beginPath(); fx.arc(d.x, d.y + len, w * 0.85, 0, 6.283); fx.fill();
-        fx.fillStyle = 'rgba(255,170,180,.5)'; fx.fillRect(d.x - w * 0.35, d.y + len - w * 0.6, Math.max(1, w * 0.3), Math.max(1, w * 0.4));
+      fx.fillStyle = BLOOD_COL;
+      for (let r = 0; r < shown; r++) { const q = s.strip[r]; fx.fillRect(Math.round(q.x), Math.round(q.y), Math.ceil(q.w * cs), Math.ceil(cs)); }
+      fx.fillStyle = BLOOD_DARK;                                                       // viền tối bên phải cho có khối
+      for (let r = 0; r < shown; r++) { const q = s.strip[r]; fx.fillRect(Math.round(q.x + (q.w - 1) * cs), Math.round(q.y), Math.ceil(cs), Math.ceil(cs)); }
+      fx.fillStyle = BLOOD_COL;
+      for (const d of s.drops) if (e > d.dl) fx.fillRect(Math.round(d.x), Math.round(d.y), Math.ceil(cs), Math.ceil(cs));
+      for (const d of s.drips) {
+        const len = Math.min(d.max, Math.floor(Math.max(0, e - d.dl) / 110) * cs); if (len <= 0) continue;
+        fx.fillRect(Math.round(d.x), Math.round(d.y), Math.ceil(cs), Math.ceil(len));
       }
       fx.restore();
     }
@@ -1271,8 +1262,8 @@
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
     const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
-    const slidePath = (i) => (i === 1 || i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
-    const GATED = new Set([1, 2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
+    const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
+    const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
     // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
     function animGate() {
