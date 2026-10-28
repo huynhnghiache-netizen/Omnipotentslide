@@ -184,6 +184,10 @@
       display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
       gap: 18px;
     }
+    #grid.float .cards { display: block; position: relative; }
+    #grid.float .card { position: absolute; will-change: translate, rotate; }
+    .tool.layout-float { border-color: #4fd8ff; box-shadow: 0 5px 0 #000, 0 0 12px rgba(79, 216, 255, 0.5); }
+    .tool.layout-aligned { border-color: #ff3344; box-shadow: 0 5px 0 #000, 0 0 12px rgba(255, 51, 68, 0.5); }
     .card {
       position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden;
       padding: 0; text-align: left; cursor: pointer; font: inherit; color: #fff; background: #111;
@@ -1499,6 +1503,7 @@
       dead.clear();
       cards.forEach(c => { c.style.visibility = ''; });
       gridEl.style.display = 'flex';
+      applyLayout(false);
       decoCanvas.width = innerWidth;
       decoCanvas.height = innerHeight;
       gsap.fromTo(gridEl, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out', onComplete: () => { view = 'grid'; } });
@@ -1570,10 +1575,11 @@
     // Chém từ thẻ được click: vệt chém dọc giữa màn hình
     function chemFromCard(i) {
       if (view !== 'grid') return;
+      if (gridFloat) { flyDirect(i); return; }                  // bay lơ lửng: không chém, không Sans chặn
       view = 'busy';
       const hitX = Math.round((innerWidth * 0.5 + (Math.random() - 0.5) * innerWidth * 0.1) / PX);
       const cx = hitX * PX, cy = innerHeight * 0.5;
-      const blocked = Math.random() < BLOCK_CHANCE;
+      const blocked = Math.random() * 100 < redChance;          // tỉ lệ chặn ở tim đỏ: chỉnh trong Settings
       const rows = startSlash(hitX, blocked ? Math.floor(cy / PX) : ROWS);
 
       if (blocked) {
@@ -1716,7 +1722,7 @@
     let sansChance = 100;
     try { const v = parseInt(localStorage.getItem('sansBlockChance'), 10); if (v >= 1 && v <= 100) sansChance = v; } catch (e) {}
     const sansRow = document.createElement('div'); sansRow.className = 'sans-row';
-    sansRow.innerHTML = '<div class="sr-top"><span>SANS BLOCK CHANCE</span><span class="sr-val" id="sansVal"></span></div><input id="sansRange" type="range" min="1" max="100" step="1" aria-label="Sans block chance"><div class="sr-note">1-100%. AT SLIDE 4 > 5 IN SOUL MODE.</div>';
+    sansRow.innerHTML = '<div class="sr-top"><span>SANS BLOCK · BLUE HEART</span><span class="sr-val" id="sansVal"></span></div><input id="sansRange" type="range" min="1" max="100" step="1" aria-label="Sans block chance"><div class="sr-note">1-100%. AT SLIDE 4 > 5 IN SOUL MODE.</div>';
     settingsBox.appendChild(sansRow);
     const sansRange = sansRow.querySelector('#sansRange'), sansVal = sansRow.querySelector('#sansVal');
     sansRange.value = sansChance; sansVal.textContent = sansChance + '%';
@@ -1725,6 +1731,16 @@
       try { localStorage.setItem('sansBlockChance', String(sansChance)); } catch (e) {}
     });
     sansRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
+    // Tỉ lệ bị chặn ở tim đỏ (chỉ khi bố cục THẲNG HÀNG): 0-100%, mặc định 30%
+    let redChance = 30;
+    try { const v = parseInt(localStorage.getItem('redBlockChance'), 10); if (v >= 0 && v <= 100) redChance = v; } catch (e) {}
+    const redRow = document.createElement('div'); redRow.className = 'sans-row';
+    redRow.innerHTML = '<div class="sr-top"><span>BLOCK CHANCE · RED HEART</span><span class="sr-val" id="redVal"></span></div><input id="redRange" type="range" min="0" max="100" step="1" aria-label="Block chance in red heart mode"><div class="sr-note">0-100%. ONLY IN ALIGNED LAYOUT. FLOATING = ALWAYS 0%.</div>';
+    settingsBox.appendChild(redRow);
+    const redRange = redRow.querySelector('#redRange'), redVal = redRow.querySelector('#redVal');
+    redRange.value = redChance; redVal.textContent = redChance + '%';
+    redRange.addEventListener('input', () => { redChance = +redRange.value; redVal.textContent = redChance + '%'; try { localStorage.setItem('redBlockChance', String(redChance)); } catch (e) {} });
+    redRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     // Âm lượng chung (mọi chế độ): thanh 0-100% + nút ON/OFF
     const sndRow = document.createElement('div'); sndRow.className = 'sans-row snd-row';
     sndRow.innerHTML = '<div class="sr-top"><span>SOUND</span><span><button id="sndToggle" class="snd-toggle" type="button"></button> <span class="sr-val" id="sndVal"></span></span></div><input id="sndRange" type="range" min="0" max="100" step="1" aria-label="Volume">';
@@ -1759,6 +1775,7 @@
       slideListEl.innerHTML = '';
       settingsBox.classList.toggle('list', from === 'soul');
       sndRow.style.display = '';
+      redRow.style.display = from === 'soul' ? 'none' : '';
       musRow.style.display = from === 'soul' ? 'none' : '';
       sansRow.style.display = from === 'soul' ? 'none' : '';      // thanh tỉ lệ Sans chỉ nằm ở bảng Settings của màn danh sách, không hiện trong chế độ tim xanh
       settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
@@ -1792,6 +1809,91 @@
       gsap.fromTo(heartCv, { scale: 1 }, { scale: 1.35, duration: 0.09, yoyo: true, repeat: 1, ease: 'steps(2)' });
       enterSoul();
     });
+
+    // ================= BỐ CỤC DANH SÁCH (tim đỏ): BAY LƠ LỬNG (mặc định) / THẲNG HÀNG =================
+    // Bay lơ lửng: 10 slide trôi nhẹ nhàng, cứ 7 giây một slide cầm kiếm chém một slide khác (999 dmg, bay màu rồi hồi sinh ngay).
+    // Click một slide: phóng thẳng vào slide, không chém, không bị Sans chặn (0%). Thẳng hàng: như cũ (chém, có thể bị chặn theo tỉ lệ trong Settings).
+    let gridFloat = true;
+    try { if (localStorage.getItem('gridLayout') === 'aligned') gridFloat = false; } catch (e) {}
+    const FLOAT_EVERY = 7000;
+    let nextStrikeAt = 0;
+    const flR = (() => { let s = 77123; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();
+    const floatSt = cards.map(() => ({ ph: [flR() * 6.28, flR() * 6.28, flR() * 6.28], w: [0.32 + flR() * 0.3, 0.27 + flR() * 0.28, 0.22 + flR() * 0.22], A: [14 + flR() * 16, 12 + flR() * 14], R: 1.2 + flR() * 1.8, jx: flR() * 2 - 1, jy: flR() * 2 - 1 }));
+    const layoutBtn = document.createElement('button');
+    layoutBtn.id = 'layoutBtn'; layoutBtn.type = 'button'; layoutBtn.className = 'tool'; layoutBtn.setAttribute('aria-label', 'Layout');
+    const layoutCv = document.createElement('canvas'); layoutCv.width = 16; layoutCv.height = 16; layoutBtn.appendChild(layoutCv);
+    document.querySelector('.tools').appendChild(layoutBtn);
+    function drawLayoutIcon() {                                      // màu + hình theo trạng thái hiện tại: xanh lơ = bay lơ lửng, đỏ = thẳng hàng
+      const c = layoutCv.getContext('2d'); c.clearRect(0, 0, 16, 16);
+      const sq = (x, y, col) => { c.fillStyle = '#000'; c.fillRect(x - 1, y - 1, 6, 6); c.fillStyle = col; c.fillRect(x, y, 4, 4); };
+      if (gridFloat) { const col = '#4fd8ff'; sq(1, 2, col); sq(10, 1, col); sq(5, 7, col); sq(11, 9, col); sq(1, 11, col); }
+      else { const col = '#ff3344'; [1, 6, 11].forEach((x) => [3, 9].forEach((y) => sq(x, y, col))); }
+      layoutBtn.classList.toggle('layout-float', gridFloat); layoutBtn.classList.toggle('layout-aligned', !gridFloat);
+      layoutBtn.title = gridFloat ? 'FLOATING (click: align)' : 'ALIGNED (click: float)';
+    }
+    function layoutFloat() {
+      const W = cardsEl.clientWidth, H = cardsEl.clientHeight; if (!W || !H) return;
+      const cols = 5, rows = 2, cellW = W / cols, cellH = H / rows;
+      let cw = Math.min(300, cellW - 26), ch = cw * 0.5625 + 52;
+      if (ch > cellH - 22) { ch = cellH - 22; cw = (ch - 52) / 0.5625; }
+      cards.forEach((c, i) => {
+        const col = i % cols, row = Math.floor(i / cols), s = floatSt[i];
+        const px = (cellW - cw) / 2 + s.jx * Math.max(0, (cellW - cw) / 2 - 4) * 0.7 + (row ? cellW * 0.12 : -cellW * 0.04);
+        const py = (cellH - ch) / 2 + s.jy * Math.max(0, (cellH - ch) / 2 - 4) * 0.6;
+        Object.assign(c.style, { width: cw + 'px', height: ch + 'px', left: Math.max(0, Math.min(W - cw, col * cellW + px)) + 'px', top: (row * cellH + py) + 'px' });
+      });
+    }
+    function applyLayout(fade) {
+      gridEl.classList.toggle('float', gridFloat);
+      const hint = gridEl.querySelector('.grid-head span:last-child'); if (hint) hint.textContent = gridFloat ? 'CLICK TO ENTER · BACKSPACE TO EXIT' : 'CLICK TO SLASH · BACKSPACE TO EXIT';
+      cards.forEach((c) => { if (!gridFloat) Object.assign(c.style, { width: '', height: '', left: '', top: '', translate: '', rotate: '' }); });
+      if (gridFloat) layoutFloat();
+      drawLayoutIcon();
+      if (fade) gsap.fromTo(cards, { opacity: 0 }, { opacity: 1, duration: 0.45, stagger: 0.03, ease: 'power2.out', clearProps: 'opacity' });
+      nextStrikeAt = performance.now() + 3500;
+    }
+    layoutBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); if (view !== 'grid') return;
+      gridFloat = !gridFloat; try { localStorage.setItem('gridLayout', gridFloat ? 'float' : 'aligned'); } catch (err) {}
+      sword = null; applyLayout(true);
+    });
+    addEventListener('resize', () => { if (gridEl.style.display !== 'none' && gridFloat) layoutFloat(); });
+
+    function reviveCard(j) {                                         // hồi sinh ngay: hiện lại với hiệu ứng nảy
+      dead.delete(j); const c = cards[j];
+      gsap.killTweensOf(c); c.style.visibility = '';
+      gsap.fromTo(c, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(2.2)', clearProps: 'transform,opacity' });
+    }
+    function floatStrike() {
+      const n = cards.length, h = Math.floor(Math.random() * n); let tg; do { tg = Math.floor(Math.random() * n); } while (tg === h);
+      sword = { holder: h, start: performance.now(), endAt: null, float: true };
+      setTimeout(() => {
+        if (!sword || !sword.float || !gridFloat || view !== 'grid') { if (sword && sword.float) sword.endAt = performance.now(); return; }
+        const r = cards[tg].getBoundingClientRect(), ang = Math.random() * Math.PI;
+        cuts.push({ cx: r.left + r.width / 2, cy: r.top + r.height / 2, dx: Math.cos(ang), dy: Math.sin(ang), L: Math.hypot(innerWidth, innerHeight) * 0.55,
+          bend: (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 120), width: 46 + Math.random() * 26, color: '#ff1f3d', start: performance.now(), dur: 200 });
+        sfxPlay(SFX.slash);
+        setTimeout(() => { killCard(tg, true); sfxPlay(SFX.finish); setTimeout(() => reviveCard(tg), 900); }, 200);
+      }, 900);
+      setTimeout(() => { if (sword && sword.float) sword.endAt = performance.now(); }, 1900);
+    }
+    function floatTick(now) {
+      requestAnimationFrame(floatTick);
+      if (!gridFloat || gridEl.style.display === 'none') return;
+      const t = now / 1000;
+      for (let i = 0; i < cards.length; i++) {
+        const s = floatSt[i], c = cards[i];
+        c.style.translate = (s.A[0] * Math.sin(t * s.w[0] + s.ph[0])).toFixed(1) + 'px ' + (s.A[1] * Math.sin(t * s.w[1] + s.ph[1])).toFixed(1) + 'px';
+        c.style.rotate = (s.R * Math.sin(t * s.w[2] + s.ph[2])).toFixed(2) + 'deg';
+      }
+      if (view === 'grid' && !sword && now >= nextStrikeAt) { nextStrikeAt = now + FLOAT_EVERY; floatStrike(); }
+    }
+    requestAnimationFrame(floatTick);
+    function flyDirect(i) {                                          // chế độ bay lơ lửng: phóng thẳng vào slide
+      if (view !== 'grid') return;
+      view = 'busy'; sword = null;
+      prewarm(i); flyTo(i, () => openSlide(i)); hideGrid(() => {});
+    }
 
     // ================= CHẾ ĐỘ TIM XANH (soul mode) =================
     // Bấm tim xanh: màn tối mờ ảo -> đồng hồ quay ngược 2026 -> 1980 -> sáng nhẹ -> glitch -> slide 1.
