@@ -2260,7 +2260,14 @@
       wrap.style.transition = 'opacity .25s linear'; wrap.style.opacity = '1';
       const vt0 = performance.now(); vid.play().catch(() => {});
       const vnow = () => (vid.readyState > 1 && !vid.paused ? vid.currentTime : (performance.now() - vt0) / 1000);
-      while (vnow() < KV.dissolveAt) await wait(30);
+      // mỗi nhát chém của Hiệp sĩ trong video đều phát tiếng chém (mốc đo từ độ sáng từng khung; chuỗi chém nhanh ở cuối thì cách ~0.16s, âm sau ghi đè âm trước)
+      const KN_HITS = [1.16, 1.88, 2.48, 3.04, 3.52, 3.88, 4.20, 4.44, 4.60, 4.76, 4.92, 5.08, 5.24, 5.40, 6.0];
+      let hi = 0;
+      const knHit = () => { if (!AUD.on || AUD.vol === 0) return; const a = SFX.knight; try { a.currentTime = 0; a.play().catch(() => {}); } catch (e) {} };
+      while (vnow() < KV.dissolveAt) {
+        while (hi < KN_HITS.length && vnow() >= KN_HITS[hi] - 0.04) { knHit(); hi++; }
+        await wait(15);
+      }
       sfxPlay(SFX.finish);
       tweenProgress(cur, 1, 0.8, 'none');                                    // slide bay màu khi đường trắng cắt ngang
       for (let i = 0; i < 110 && particles.length < 500; i++) {
@@ -2282,7 +2289,7 @@
       const f0 = performance.now(); fv.play().catch(() => {});
       const fnow = () => (fv.readyState > 1 && !fv.paused ? fv.currentTime : (performance.now() - f0) / 1000);
       while (fnow() < 0.55 && performance.now() - f0 < 1500) await wait(20);       // tới khoảnh khắc vung kiếm
-      kn.sl0 = performance.now(); kn.kx = W / 2; kn.ky = H * 0.5; sfxPlay(SFX.knight);
+      kn.sl0 = performance.now(); kn.kx = W / 2; kn.ky = H * 0.5;
       await wait(260);
       impact(1); shake(1.4, 8);
       makeCracks(W * 0.5, H * 0.5, 1, 0.12); const l1 = crack.lines;
