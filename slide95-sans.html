@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Slide 9.5 - Sans Quiz</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root { --bg1: #1a1a2b; --bg2: #05050a; --line: #fff; --acc: #ffe000; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; user-select: none; -webkit-user-select: none; }
+  body { font-family: 'Courier New', Courier, monospace; color: #fff; }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: 50% 50%; overflow: hidden;
+    background: radial-gradient(ellipse at 50% 40%, var(--bg1) 0%, var(--bg2) 85%); transition: background 1s; }
+  #stage.dark { --bg1: #1c0508; --bg2: #000; --line: #ff5566; --acc: #ff3344; }
+  #stage.dark::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 160px 40px rgba(120, 0, 10, .55); animation: flick 3s steps(1) infinite; }
+  @keyframes flick { 0%, 100% { opacity: 1 } 47% { opacity: .75 } 50% { opacity: 1 } 83% { opacity: .85 } }
+  .px { font-family: 'Press Start 2P', 'Courier New', monospace; }
+  img, canvas { image-rendering: pixelated; }
+
+  /* nút góc trên */
+  .ib { position: absolute; top: 18px; width: 48px; height: 48px; background: #000; border: 4px solid #fff; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 0 #000; z-index: 20; }
+  .ib svg { width: 26px; height: 26px; shape-rendering: crispEdges; }
+  .ib:hover { border-color: var(--acc); transform: translateY(-2px); }
+  .ib:active { transform: translateY(2px); }
+  #bPrev { left: 18px; } #bNext { left: 78px; } #bReset { left: 154px; }
+  #bX { right: 18px; top: 84px; border-color: #ff3344; display: none; }
+  #bX svg path { stroke: #ff3344; }
+  .tip { position: absolute; top: 72px; font: 8px 'Press Start 2P', monospace; color: rgba(255,255,255,.45); letter-spacing: 1px; pointer-events: none; }
+
+  /* Sans */
+  #sans { position: absolute; image-rendering: pixelated; transition: left .4s, top .4s, height .4s; filter: drop-shadow(0 0 10px rgba(255,255,255,.12)); }
+  #sans.bob { animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(6px) } }
+  #yawn { position: absolute; font: 12px 'Press Start 2P', monospace; color: rgba(255,255,255,.7); display: none; animation: zz 2.4s steps(4) infinite; }
+  @keyframes zz { 0% { opacity: 0; transform: translateY(8px) } 40% { opacity: 1 } 100% { opacity: 0; transform: translateY(-14px) } }
+
+  /* khung thoại */
+  #dlg { position: absolute; left: 70px; right: 70px; bottom: 26px; height: 132px; background: #000; border: 6px solid var(--line); padding: 20px 26px;
+    font: 17px/1.9 'Press Start 2P', 'Courier New', monospace; letter-spacing: 1px; display: none; z-index: 10; cursor: pointer; }
+  #dlg .who { position: absolute; top: -17px; left: 22px; background: #000; padding: 0 10px; font-size: 12px; color: var(--acc); }
+  #dlg .nxt { position: absolute; right: 14px; bottom: 8px; font-size: 12px; animation: blink 1s steps(1) infinite; color: var(--acc); }
+  @keyframes blink { 50% { opacity: 0 } }
+
+  /* màn chọn nhân vật */
+  #sel { position: absolute; inset: 0; display: none; }
+  #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: 22px 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
+  #selCard { position: absolute; left: 50%; top: 118px; width: 330px; height: 440px; margin-left: -165px; border: 6px solid var(--line); background: rgba(0,0,0,.55); cursor: pointer; box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); }
+  #selCard:hover { border-color: var(--acc); }
+  #selName { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font: 16px 'Press Start 2P', monospace; }
+  #status { position: absolute; left: 50%; top: 576px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
+  #status.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
+  #status.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
+  #hint { position: absolute; left: 0; right: 0; top: 640px; text-align: center; font: 10px 'Press Start 2P', monospace; color: rgba(255,255,255,.55); }
+
+  /* câu hỏi */
+  #qa { position: absolute; left: 420px; right: 40px; top: 96px; bottom: 176px; display: none; }
+  #qa .tag { font: 11px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 12px; letter-spacing: 1px; }
+  #qa .q { font: 15px/1.7 'Press Start 2P', 'Courier New', monospace; margin-bottom: 16px; min-height: 52px; }
+  #opts { display: grid; gap: 10px; }
+  #opts.c1 { grid-template-columns: 1fr; }
+  #opts.c2 { grid-template-columns: 1fr 1fr; }
+  .opt { text-align: left; background: #000; color: #fff; border: 4px solid var(--line); padding: 10px 12px 10px 46px; font: bold 15px/1.35 'Courier New', Courier, monospace; cursor: pointer; position: relative; min-height: 58px; display: flex; align-items: center; }
+  #opts.c1 .opt { font-size: 18px; min-height: 56px; }
+  .opt b { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font: 13px 'Press Start 2P', monospace; color: var(--acc); }
+  .opt:hover:not(.lock) { border-color: var(--acc); background: #15150a; }
+  .opt.good { border-color: #5dff7a; background: #07260d; }
+  .opt.bad { border-color: #ff4455; background: #2a060b; }
+  .opt.lock { cursor: default; }
+  #why { margin-top: 12px; border: 4px dashed #ff4455; background: rgba(40,0,6,.85); padding: 10px 14px; font: 14px/1.5 'Courier New', monospace; font-weight: bold; display: none; }
+  #why .h { font: 10px 'Press Start 2P', monospace; color: #ff4455; display: block; margin-bottom: 6px; }
+  #why .g { color: #5dff7a; display: block; margin-top: 6px; }
+
+  /* vòng quay */
+  #wheelBox { position: absolute; left: 420px; right: 40px; top: 70px; bottom: 170px; display: none; text-align: center; }
+  #wheelBox canvas { cursor: pointer; }
+  #wheelBox .cap { font: 12px 'Press Start 2P', monospace; color: var(--acc); margin-top: 4px; animation: blink 1s steps(1) infinite; }
+
+  /* kèo cược + kết quả */
+  #gamble { position: absolute; left: 420px; right: 40px; top: 190px; display: none; text-align: center; }
+  #gamble .row { display: flex; gap: 30px; justify-content: center; margin-top: 28px; }
+  .big { font: 22px 'Press Start 2P', monospace; background: #000; color: #fff; border: 6px solid var(--line); padding: 20px 38px; cursor: pointer; box-shadow: 0 7px 0 #000; }
+  .big:hover { border-color: var(--acc); color: var(--acc); transform: translateY(-3px); }
+  #gamble .info { font: 14px/2 'Press Start 2P', monospace; }
+  #result { position: absolute; left: 420px; right: 40px; top: 150px; display: none; text-align: center; font: 16px/2.1 'Press Start 2P', monospace; }
+  #result .num { font-size: 44px; color: var(--acc); text-shadow: 4px 4px 0 #000; }
+
+  #hud { position: absolute; top: 24px; left: 0; right: 0; text-align: center; font: 14px 'Press Start 2P', monospace; display: none; pointer-events: none; }
+  #hud canvas { vertical-align: middle; margin-right: 8px; }
+  #hud b { color: var(--acc); }
+  #blk { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 40; transition: opacity .45s; }
+  #gust { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 5; transition: opacity .15s; }
+  #gust i { position: absolute; height: 3px; background: rgba(255,255,255,.6); border-radius: 2px; animation: gw .5s linear infinite; }
+  @keyframes gw { from { transform: translateX(-260px) } to { transform: translateX(1500px) } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <button class="ib" id="bPrev" title="Back to slide 9" aria-label="Back to slide 9"><svg viewBox="0 0 8 8"><path d="M1 1h2v6H1zM7 1v6L3 4z" fill="#fff"/></svg></button>
+  <button class="ib" id="bNext" title="Skip to the last slide" aria-label="Skip to the last slide"><svg viewBox="0 0 8 8"><path d="M5 1h2v6H5zM1 1v6l4-3z" fill="#fff"/></svg></button>
+  <button class="ib" id="bReset" title="Reset questions" aria-label="Reset questions"><svg viewBox="0 0 8 8"><path d="M2 2h3V1h1v1h1v3H6v1H5v1H3V6H2V5H1V3h1zM3 3v2h2V3z" fill="#fff"/></svg></button>
+  <div class="tip" style="left:10px">BACK</div><div class="tip" style="left:72px">LAST</div><div class="tip" style="left:150px">RESET</div>
+  <button class="ib" id="bX" title="Exit" aria-label="Exit"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button>
+
+  <div id="hud"></div>
+
+  <div id="sel">
+    <div class="ttl">CHOOSE YOUR OPPONENT</div>
+    <div id="selCard"><div id="selName">SANS</div></div>
+    <div id="status"></div>
+    <div id="hint">CLICK SANS</div>
+  </div>
+
+  <img id="sans" src="assets/sans-normal.png" alt="Sans" draggable="false">
+  <div id="yawn">z z z</div>
+
+  <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
+  <div id="wheelBox"><canvas id="wheel" width="440" height="440"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div></div>
+  <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
+  <div id="result"></div>
+
+  <div id="dlg"><span class="who">SANS</span><span id="dtxt"></span><span class="nxt">▼</span></div>
+  <div id="gust"></div>
+  <div id="blk"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage'), sans = $('sans');
+  const embed = /[?&]embed/.test(location.search);
+  function fit() { const k = Math.min(innerWidth / 1280, innerHeight / 720); stage.style.transform = 'translate(-50%,-50%) scale(' + k + ')'; }
+  addEventListener('resize', fit); fit();
+  const post = (t) => { try { parent.postMessage({ type: t }, '*'); } catch (e) {} };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const rnd = (n) => Math.floor(Math.random() * n);
+  const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // ===== trạng thái: lưu theo phiên =====
+  let status = null;            // 'ok' | 'lost' | null
+  let candies = 0;
+  try { status = sessionStorage.getItem('sans95.status') || null; candies = parseInt(sessionStorage.getItem('sans95.candy'), 10) || 0; } catch (e) {}
+  const save = () => { try { sessionStorage.setItem('sans95.status', status || ''); sessionStorage.setItem('sans95.candy', String(candies)); } catch (e) {} };
+  let token = 0;                // mỗi lần thoát / reset tăng lên để huỷ các chuỗi async đang chạy
+  const alive = (t) => t === token;
+  class Cancel extends Error {}
+  const chk = (t) => { if (!alive(t)) throw new Cancel(); };
+
+  // ===== hiển thị Sans =====
+  const SANS_POS = {
+    sel: { left: 505, top: 150, h: 360 },
+    q: { left: 60, top: 150, h: 300 },
+    small: { left: 60, top: 170, h: 280 }
+  };
+  const MODEL = { normal: 'assets/sans-normal.png', shrug: 'assets/sans-shrug.png' };
+  function placeSans(pos, model) {
+    const p = SANS_POS[pos]; sans.style.height = p.h + 'px'; sans.style.top = p.top + 'px';
+    sans.src = MODEL[model || 'normal'];
+    // sans-normal rộng 55/72, shrug 474/488
+    const ratio = (model === 'shrug') ? 474 / 488 : 55 / 72;
+    sans.style.left = (pos === 'sel' ? 640 - p.h * ratio / 2 : p.left + (300 - p.h * ratio) / 2 + 10) + 'px';
+    sans.style.display = 'block';
+  }
+  function setModel(model, pos) { placeSans(pos || curPos, model); }
+  let curPos = 'sel';
+  function show(pos, model) { curPos = pos; placeSans(pos, model || 'normal'); sans.classList.toggle('bob', pos === 'sel'); $('yawn').style.display = pos === 'sel' ? 'block' : 'none'; if (pos === 'sel') { $('yawn').style.left = '760px'; $('yawn').style.top = '170px'; } }
+
+  // ===== khung thoại (gõ chữ, bấm để tiếp) =====
+  const dlg = $('dlg'), dtxt = $('dtxt');
+  let typing = null;
+  function say(text, t) {
+    return new Promise((res, rej) => {
+      dlg.style.display = 'block'; dtxt.textContent = ''; dlg.querySelector('.nxt').style.visibility = 'hidden';
+      let i = 0, done = false;
+      const fin = () => { done = true; clearInterval(iv); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; };
+      const iv = setInterval(() => { if (!alive(t)) { clearInterval(iv); rej(new Cancel()); return; } dtxt.textContent = text.slice(0, ++i); if (i >= text.length) fin(); }, 32);
+      typing = () => {
+        if (!alive(t)) { clearInterval(iv); rej(new Cancel()); return; }
+        if (!done) { fin(); return; }
+        typing = null; res();
+      };
+    });
+  }
+  // nói xong thì tự đóng sau một nhịp (không cần bấm): dùng cho câu ngắn giữa chừng
+  async function sayAuto(text, t, wait) { chk(t); say(text, t).catch(() => {}); const tk = typing; await sleep(text.length * 32 + (wait || 900)); chk(t); typing = null; }
+  dlg.addEventListener('click', () => { if (typing) typing(); });
+  function hideDlg() { dlg.style.display = 'none'; typing = null; }
+
+  // ===== màn đen chuyển cảnh =====
+  const blk = $('blk');
+  async function fadeOut(ms) { blk.style.transition = 'opacity ' + (ms || 450) + 'ms'; blk.style.opacity = '1'; await sleep(ms || 450); }
+  async function fadeIn(ms) { blk.style.transition = 'opacity ' + (ms || 450) + 'ms'; blk.style.opacity = '0'; await sleep(ms || 450); }
+
+  // ===== dữ liệu câu hỏi (lấy từ nội dung 10 slide) =====
+  // opts[0] luôn là đáp án đúng; why = lý do tại sao SAI
+  const EASY = [
+    { q: 'How did people often move around 40 years ago?', o: [
+      ['They often walked or rode bicycles.'],
+      ['They often drove cars to work.', 'Slide 4: there were FEWER cars and motorbikes. People mostly walked or cycled.'],
+      ['They often flew in small planes.', 'Nothing in the slides says that. Slide 4: people walked or rode bicycles.'],
+      ['They often took the underground train.', 'Slide 4 mentions walking and cycling on quiet streets, not underground trains.'] ] },
+    { q: 'How did people cook at home in the past?', o: [
+      ['On wood, straw or charcoal stoves.'],
+      ['On modern electric cookers.', 'Slide 5: there were NO modern machines at home.'],
+      ['In microwave ovens.', 'Slide 5: there were no modern machines. People used simple tools.'],
+      ['On gas stoves only.', 'Slide 5 says wood, straw or charcoal stoves.'] ] },
+    { q: 'Where did families get water in the past?', o: [
+      ['From village wells or public taps.'],
+      ['From water bottles at the shop.', 'Slide 6: families got water from village wells or public taps.'],
+      ['From pipes in every bathroom.', 'Slide 6 says wells or PUBLIC taps, not private pipes.'],
+      ['From a river by boat.', 'Slide 6 does not mention rivers. It says village wells or public taps.'] ] },
+    { q: 'Why did people often use oil lamps?', o: [
+      ['Because of power cuts.'],
+      ['Because lamps were cheaper than TV.', 'Slide 6: the reason was limited electricity and power cuts.'],
+      ['Because they loved the smell of oil.', 'Slide 6: the reason was power cuts, not a love of the smell.'],
+      ['Because the sun never rose.', 'Not in the slides. Slide 6: power cuts.'] ] },
+    { q: 'What did children play in their free time?', o: [
+      ['Hide-and-seek and tug-of-war.'],
+      ['Video games and online games.', 'Slide 7: games were outdoor games like hide-and-seek and tug-of-war.'],
+      ['Chess and card games indoors.', 'Slide 7 says OUTDOOR games: hide-and-seek and tug-of-war.'],
+      ['Football with a smartphone.', 'Slide 7: hide-and-seek and tug-of-war, with no smartphones.'] ] },
+    { q: 'What did people do together in the evening?', o: [
+      ['They listened to the radio and watched TV.'],
+      ['They surfed the internet.', 'Slide 8: fast internet belongs to the PRESENT (2020s).'],
+      ['They went to the cinema every night.', 'Slide 7: in the evening they listened to the radio and watched TV together.'],
+      ['They played games on tablets.', 'Slide 8: tablets and fast internet belong to the present, not the 1980s.'] ] }
+  ];
+  const HARD = [
+    { q: 'Which sentence matches Slide 5 (Daily Life at Home) most exactly?', o: [
+      ['There were no modern machines, so people used simple tools at home.'],
+      ['There were few modern machines, so people used simple tools at home.', '"few" is not "no". The slide says there were NO modern machines.'],
+      ['There were no modern machines, so people used complex tools at home.', 'The slide says SIMPLE tools, not complex ones.'],
+      ['There are no modern machines, so people use simple tools at home.', 'Present tense. The slide talks about the PAST, so it must be "were" and "used".'],
+      ['There were no modern machines, but people used simple tools at home.', '"but" shows contrast. The slide shows a result, so it needs "so".'],
+      ['There were no modern machines, so people used simple tools in the village.', 'The slide says at HOME, not in the village.'],
+      ['There were no modern machines, so people had used simple tools at home.', 'Past perfect ("had used") is a different tense. The slide uses simple past: "used".'],
+      ['There were no modern machines, because people used simple tools at home.', '"because" reverses the cause and the result. The lack of machines is the reason.'] ] },
+    { q: 'Which sentence matches Slide 6 (Limited Electricity) most exactly?', o: [
+      ['People often used oil lamps because of power cuts.'],
+      ['People sometimes used oil lamps because of power cuts.', '"sometimes" is not "often". The slide says OFTEN.'],
+      ['People often used oil lamps despite power cuts.', '"despite" means the opposite. Power cuts were the REASON.'],
+      ['People often use oil lamps because of power cuts.', 'Present tense. The slide is about the past: "used".'],
+      ['People often used electric lamps because of power cuts.', 'Oil lamps, not electric lamps. Electric lamps need electricity!'],
+      ['People often used oil lamps because of water cuts.', 'The slide says POWER cuts, not water cuts.'],
+      ['People always used oil lamps because of power cuts.', '"always" is too strong. The slide says OFTEN.'],
+      ['People never used oil lamps because of power cuts.', '"never" is the opposite of the slide.'] ] },
+    { q: 'Which sentence matches Slide 7 (Evenings Together) most exactly?', o: [
+      ['In the evening, people listened to the radio and watched TV together.'],
+      ['In the morning, people listened to the radio and watched TV together.', 'The slide says in the EVENING, not the morning.'],
+      ['In the evening, people listened to the radio and watched films together.', 'They watched TV, not films.'],
+      ['In the evening, people listened to music and watched TV together.', 'They listened to the RADIO, not just music.'],
+      ['In the evening, people listened to the radio and watched TV alone.', 'The slide says TOGETHER, not alone.'],
+      ['In the evening, people listen to the radio and watch TV together.', 'Present tense. The slide is about the past.'],
+      ['In the evening, people listened to the radio or watched TV together.', '"or" is not "and". They did both.'],
+      ['In the evening, children listened to the radio and watched TV together.', 'The slide says PEOPLE, not only children.'] ] }
+  ];
+  const pick = (arr) => arr[rnd(arr.length)];
+  const LET = 'ABCDEFGH';
+
+  // ===== kẹo (sprite nhỏ) =====
+  const CANDY = ['..RRR..', '.RWRWR.', 'RRWRWRR', '.RRRRR.', '..RRR..'];
+  function candyCv(px) { const c = document.createElement('canvas'); c.width = 7 * px; c.height = 5 * px; const g = c.getContext('2d'); CANDY.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== '.') { g.fillStyle = ch === 'R' ? '#ff3b6b' : '#fff'; g.fillRect(x * px, y * px, px, px); } })); g.fillStyle = '#ff3b6b'; g.fillRect(0, 1 * px, px, px); g.fillRect(6 * px, 1 * px, px, px); g.fillRect(0, 3 * px, px, px); g.fillRect(6 * px, 3 * px, px, px); return c; }
+  function hud(on) { const h = $('hud'); h.style.display = on ? 'block' : 'none'; if (!on) return; h.innerHTML = ''; h.appendChild(candyCv(4)); const s = document.createElement('span'); s.innerHTML = 'CANDY <b>' + candies + '</b>'; h.appendChild(s); }
+
+  // ===== điều khiển màn =====
+  const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result'];
+  function showPanel(id) { panels.forEach((p) => { $(p).style.display = (p === id) ? 'block' : 'none'; }); }
+  function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
+
+  async function gotoSelect(opts) {
+    token++; typing = null; hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf);
+    stage.classList.remove('dark');
+    showPanel('sel'); show('sel', 'normal');
+    const st = $('status');
+    if (status === 'ok') { st.className = 'ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; }
+    else if (status === 'lost') { st.className = 'lost'; st.textContent = 'LOST'; st.style.display = 'block'; }
+    else st.style.display = 'none';
+    $('hint').textContent = 'CLICK SANS'; $('hint').style.display = 'block';
+    selStage = 0;
+    if (!(opts && opts.instant)) await fadeIn(500);
+  }
+  let selStage = 0;
+  async function onSansClick() {
+    if (selStage >= 2) return;
+    const t = token;
+    try {
+      if (selStage === 0) {
+        selStage = 1; $('hint').style.display = 'none'; $('status').style.display = 'none';
+        await say('huh? do you want to challenge me?', t);
+        $('hint').textContent = 'CLICK SANS AGAIN'; $('hint').style.display = 'block'; hideDlg();
+        selStage = 1.5;
+      } else if (selStage === 1.5) {
+        selStage = 2; $('hint').style.display = 'none';
+        await say('alr, let\'s get into the question.', t);
+        hideDlg(); await runGame(t);
+      }
+    } catch (e) { if (!(e instanceof Cancel)) throw e; }
+  }
+  $('selCard').addEventListener('click', onSansClick);
+  sans.addEventListener('click', () => { if ($('sel').style.display === 'block') onSansClick(); });
+  $('sel').addEventListener('click', (e) => { if (e.target === $('sel')) onSansClick(); });
+
+  // ===== một câu hỏi =====
+  function ask(data, hard, t) {
+    return new Promise((resolve) => {
+      $('qTag').textContent = hard ? 'EXTREME HARD  ·  QUESTION 2' : 'EASY  ·  QUESTION 1';
+      $('qText').textContent = data.q;
+      const box = $('opts'); box.innerHTML = ''; box.className = hard ? 'c2' : 'c1';
+      $('why').style.display = 'none';
+      const list = shuffle(data.o.map((o, i) => ({ t: o[0], why: o[1] || '', ok: i === 0 })));
+      window.__lastRight = list.findIndex((x) => x.ok);
+      list.forEach((o, i) => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'opt';
+        b.innerHTML = '<b>' + LET[i] + '</b>'; b.appendChild(document.createTextNode(o.t));
+        b.addEventListener('click', () => {
+          if (!alive(t) || box.classList.contains('locked')) return;
+          box.classList.add('locked'); [...box.children].forEach((x) => x.classList.add('lock'));
+          b.classList.add(o.ok ? 'good' : 'bad');
+          const good = list.findIndex((x) => x.ok); box.children[good].classList.add('good');
+          resolve({ ok: o.ok, why: o.why, picked: o.t, right: list[good].t });
+        });
+        box.appendChild(b);
+      });
+    });
+  }
+  function showWhy(r) {
+    [...$('opts').children].forEach((x) => { if (!x.classList.contains('good') && !x.classList.contains('bad')) x.style.display = 'none'; });
+    const w = $('why'); w.innerHTML = '<span class="h">WHY IT\'S WRONG</span>';
+    const p = document.createElement('div'); p.textContent = r.why; w.appendChild(p);
+    const g = document.createElement('span'); g.className = 'g'; g.textContent = 'Correct: ' + r.right; w.appendChild(g);
+    w.style.display = 'block';
+  }
+
+  // ===== vòng quay "gian lận" =====
+  const wc = $('wheel'), wx = wc.getContext('2d');
+  const COLS = ['#f7a93e', '#f7e83a', '#8de32c', '#2ff0cf', '#27b0ff', '#8a4bff', '#d84dff', '#ff6c8e'];
+  let layout = [], wAng = 0;
+  function makeLayout() {
+    const p = rnd(8); layout = []; for (let i = 0; i < 8; i++) layout.push(1 + rnd(3)); layout[p] = 10; return p;
+  }
+  function drawWheel() {
+    const W = 440, cx = 220, cy = 214, R = 190;
+    wx.clearRect(0, 0, W, W);
+    // chân đế
+    wx.fillStyle = '#e0356f'; wx.fillRect(150, 392, 140, 36); wx.fillStyle = '#ff5c93'; wx.fillRect(150, 392, 140, 8);
+    wx.fillStyle = '#e0356f'; wx.fillRect(190, 360, 60, 36);
+    // vành vàng
+    wx.fillStyle = '#f0b93a'; wx.beginPath(); wx.arc(cx, cy, R + 16, 0, 7); wx.fill();
+    wx.fillStyle = '#ffdf74'; wx.beginPath(); wx.arc(cx, cy, R + 8, 0, 7); wx.fill();
+    wx.fillStyle = '#a8183c'; wx.beginPath(); wx.arc(cx, cy, R + 2, 0, 7); wx.fill();
+    // các ô
+    for (let k = 0; k < 8; k++) {
+      const a0 = (wAng + k * 45 - 90 - 22.5 + 22.5) * Math.PI / 180, a1 = a0 + Math.PI / 4;
+      wx.fillStyle = COLS[k]; wx.beginPath(); wx.moveTo(cx, cy); wx.arc(cx, cy, R - 2, a0, a1); wx.closePath(); wx.fill();
+      wx.save(); wx.translate(cx, cy); wx.rotate((a0 + a1) / 2); wx.textAlign = 'center'; wx.textBaseline = 'middle';
+      const big = layout[k] === 10;
+      wx.font = (big ? '26px' : '22px') + " 'Press Start 2P', monospace"; wx.fillStyle = '#fff'; wx.strokeStyle = '#3a1050'; wx.lineWidth = 5;
+      wx.strokeText(String(layout[k]), R * 0.66, 0); wx.fillText(String(layout[k]), R * 0.66, 0); wx.restore();
+    }
+    // đèn quanh vành
+    for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8 + (wAng * Math.PI / 180) * 0; wx.fillStyle = (Math.floor(performance.now() / 300) + i) % 2 ? '#fff6b0' : '#ffd24a'; wx.beginPath(); wx.arc(cx + Math.cos(a) * (R + 9), cy + Math.sin(a) * (R + 9), 5, 0, 7); wx.fill(); }
+    // tâm sao
+    wx.fillStyle = '#f0b93a'; wx.beginPath(); wx.arc(cx, cy, 38, 0, 7); wx.fill(); wx.fillStyle = '#e0356f'; wx.beginPath(); wx.arc(cx, cy, 28, 0, 7); wx.fill();
+    wx.fillStyle = '#ffd24a'; wx.font = "28px 'Press Start 2P', monospace"; wx.textAlign = 'center'; wx.textBaseline = 'middle'; wx.fillText('★', cx, cy + 2);
+    // kim chỉ
+    wx.fillStyle = '#e0356f'; wx.fillRect(cx - 26, 4, 52, 26);
+    wx.fillStyle = '#1fa2ff'; wx.beginPath(); wx.moveTo(cx - 16, 12); wx.lineTo(cx + 16, 12); wx.lineTo(cx, 58); wx.closePath(); wx.fill();
+    wx.fillStyle = '#d6f0ff'; wx.beginPath(); wx.arc(cx, 20, 6, 0, 7); wx.fill();
+  }
+  let wheelRaf = 0;
+  function wheelLoop() { drawWheel(); wheelRaf = requestAnimationFrame(wheelLoop); }
+  const ease = (x) => 1 - Math.pow(1 - x, 3);
+  function animAng(from, to, ms, easing, t) {
+    return new Promise((res, rej) => { const s = performance.now(); (function f() { if (!alive(t)) { rej(new Cancel()); return; } const k = Math.min(1, (performance.now() - s) / ms); wAng = from + (to - from) * easing(k); if (k < 1) requestAnimationFrame(f); else res(); })(); });
+  }
+  async function wheelGame(t) {
+    const p = makeLayout();                                    // vị trí ô 10
+    showPanel('wheelBox'); $('wCap').textContent = 'CLICK TO SPIN'; $('wCap').style.visibility = 'visible';
+    wAng = 0; cancelAnimationFrame(wheelRaf); wheelLoop();
+    await new Promise((res) => { const h = () => { wc.removeEventListener('click', h); $('wheelBox').removeEventListener('click', h); res(); }; $('wheelBox').addEventListener('click', h); });
+    chk(t); $('wCap').style.visibility = 'hidden';
+    // quay: kim dừng giữa ô "10". Ô k nằm ở góc (k*45) so với đỉnh khi wAng = 0 (tâm ô = k*45+22.5 - 22.5 ... xem drawWheel)
+    // tâm ô k (tính từ đỉnh theo chiều kim đồng hồ) = wAng + k*45 + 22.5 - 22.5 + 22.5 => kim ở đỉnh chỉ ô có tâm = 0 (mod 360)
+    // tìm wAng sao cho tâm ô p = 0 (mod 360)
+    let target = -(p * 45 + 22.5); while (target < wAng + 360 * 5) target += 360;     // >= 5 vòng
+    await animAng(0, target - 1, 4600, ease, t);              // gần tới ô 10 ... rồi chậm dần
+    chk(t);
+    // giây cuối: gió thổi + âm thanh vang lên, kim giật sang ô kế
+    $('gust').innerHTML = ''; for (let i = 0; i < 16; i++) { const l = document.createElement('i'); l.style.top = (60 + rnd(600)) + 'px'; l.style.width = (90 + rnd(160)) + 'px'; l.style.animationDelay = (-Math.random() * .5) + 's'; $('gust').appendChild(l); }
+    $('gust').style.opacity = 1;
+    await sleep(700); chk(t);
+    const to = target - 1 + 45 + 1;                           // nhích đúng 1 ô: sang ô liền trước ô 10
+    await animAng(target - 1, to, 260, (x) => 1 - Math.pow(1 - x, 2), t);
+    $('gust').style.opacity = 0;
+    const kLand = (p - 1 + 8) % 8, got = layout[kLand];
+    await sleep(500); chk(t);
+    return got;
+  }
+
+  // ===== luồng chính =====
+  async function runGame(t) {
+    show('q', 'normal');
+    // ---- Câu 1 (dễ) ----
+    showPanel('qa'); setX(true); hud(true);
+    const r1 = await ask(pick(EASY), false, t); chk(t);
+    await sleep(700); chk(t);
+    if (!r1.ok) {
+      showWhy(r1);
+      await say('heh. nope. better luck next time, kid.', t); hideDlg();
+      await finish('lost', t); return;
+    }
+    await say('hehh, not bad. time to spin the wheel!', t); hideDlg();
+    // ---- Vòng quay ----
+    setX(true);
+    const got = await wheelGame(t); chk(t);
+    cancelAnimationFrame(wheelRaf);
+    show('small', 'shrug');                                    // Sans đổi dáng "whoops"
+    await say('whoops... my bad. mechanical issues, ya know?', t); hideDlg();
+    show('q', 'normal');                                       // quay lại model ban đầu
+    candies = got; save(); hud(true);
+    showPanel('result');
+    $('result').innerHTML = 'YOU GOT<br><span class="num">' + got + '</span><br>CANDY' + (got > 1 ? 'S' : '') + '!';
+    await sleep(1500); chk(t);
+    // ---- Kèo cược ----
+    showPanel('gamble');
+    $('gInfo').innerHTML = 'DOUBLE YOUR CANDIES<br>IF YOU BEAT QUESTION 2?<br><span style="color:#ff4455">LOSE 1 IF YOU FAIL.</span>';
+    $('gamble').style.display = 'none';
+    await say('hey, wanna double your candies if you beat question 2? ...but lose 1 if you fail.', t); chk(t);
+    $('gamble').style.display = 'block'; dlg.style.display = 'block';
+    const yes = await new Promise((res) => { $('gYes').onclick = () => res(true); $('gNo').onclick = () => res(false); });
+    chk(t); hideDlg();
+    if (!yes) {
+      showPanel('result'); $('result').innerHTML = 'SAFE!<br><span class="num">' + candies + '</span><br>CANDIES KEPT';
+      await say('smart choice. see ya, kid.', t); hideDlg();
+      await finish('ok', t); return;
+    }
+    // ---- Câu 2 (cực khó) ----
+    await fadeOut(500); chk(t);
+    stage.classList.add('dark'); show('q', 'normal');
+    showPanel('qa'); hud(true); setX(true);
+    await fadeIn(700); chk(t);
+    const r2 = await ask(pick(HARD), true, t); chk(t);
+    await sleep(700); chk(t);
+    if (r2.ok) {
+      candies *= 2; save(); hud(true);
+      await say('...huh. you actually got it. fine, ' + candies + ' candies.', t); hideDlg();
+      await finish('ok', t); return;
+    }
+    candies = Math.max(0, candies - 1); save(); hud(true);
+    showWhy(r2);
+    await say('geez, almost got it. better luck next time, kid.', t); hideDlg();
+    await finish('lost', t);
+  }
+  async function finish(st, t) {
+    status = st; save(); chk(t);
+    await sleep(300); chk(t);
+    await fadeOut(600); chk(t);
+    await gotoSelect({ instant: true });
+    await sleep(80); await fadeIn(600);
+  }
+
+  // ===== nút =====
+  $('bPrev').addEventListener('click', () => post('quiz-prev'));
+  $('bNext').addEventListener('click', () => post('quiz-next'));
+  $('bReset').addEventListener('click', async () => { status = null; candies = 0; save(); await fadeOut(300); await gotoSelect({ instant: true }); await fadeIn(400); });
+  $('bX').addEventListener('click', async () => { token++; cancelAnimationFrame(wheelRaf); await fadeOut(300); await gotoSelect({ instant: true }); await fadeIn(400); });
+
+  // Phím Backspace / Enter không có tác dụng ở slide này (tránh xung đột khi bấm nhầm)
+  addEventListener('keydown', (e) => { if (e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') e.preventDefault(); });
+
+  // khởi động
+  blk.style.opacity = '0';
+  gotoSelect({ instant: true });
+  post('quiz-ready');
+  window.__sans95 = { get status() { return status; }, get candies() { return candies; } };
+})();
+</script>
+</body>
+</html>

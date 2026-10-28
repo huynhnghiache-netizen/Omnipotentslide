@@ -122,6 +122,7 @@
     #knVid2 { position: absolute; left: 0; top: 0; width: 2px; height: 2px; opacity: 0.01; pointer-events: none; }
     #knVid { position: absolute; left: 0; top: 0; width: 2px; height: 2px; opacity: 0.01; pointer-events: none; }
     #knCv { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+    #quiz95 { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #000; z-index: 30; display: none; opacity: 0; }
     #cineBlack { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 60; }
     #glitch { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 52; pointer-events: none; display: none; }
     #soulBack {
@@ -267,6 +268,7 @@
   <div id="cineBlack"></div>
   <div id="overlay"></div>
   <iframe id="anim3" title="Slide 3" aria-hidden="true"></iframe>
+  <iframe id="quiz95" title="Slide 9.5 - Sans quiz"></iframe>
   <iframe id="anim3b" title="Slide (tải sẵn)" aria-hidden="true" style="position:fixed;inset:0;width:100%;height:100%;border:0;opacity:0;z-index:-1;pointer-events:none;display:none"></iframe>
   <iframe id="anim3c" title="Slide (tải sẵn)" aria-hidden="true" style="position:fixed;inset:0;width:100%;height:100%;border:0;opacity:0;z-index:-1;pointer-events:none;display:none"></iframe>
 
@@ -2139,8 +2141,43 @@
 
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
+    // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
+    const quiz = { on: false };
+    const quizEl = document.getElementById('quiz95');
+    function startQuiz() {
+      quiz.on = true;
+      if (ANIM_SRC[soul.i]) hideAnim3Now();
+      quizEl.src = 'slide95-sans.html?embed';
+      gsap.killTweensOf(quizEl);
+      quizEl.style.display = 'block'; quizEl.style.opacity = '0';
+      gsap.to(quizEl, { opacity: 1, duration: 1, ease: 'none' });        // màn hình tối đen 1s rồi hiện slide câu hỏi
+    }
+    function quizHide(sec) {
+      quiz.on = false;
+      gsap.killTweensOf(quizEl);
+      gsap.to(quizEl, { opacity: 0, duration: sec, ease: 'none', onComplete: () => { if (!quiz.on) { quizEl.style.display = 'none'; quizEl.src = 'about:blank'; } } });
+    }
+    function quizBack() {                                                   // icon lùi: về slide 9
+      if (!quiz.on || view !== 'soul') return;
+      quizHide(0.5);
+      if (ANIM_SRC[soul.i]) showAnim3(soul.i);
+    }
+    function quizNext() {                                                   // icon tiến: tới slide cuối (slide 10)
+      if (!quiz.on || view !== 'soul') return;
+      view = 'busy';
+      const cur = soul.cur, ni = slideImages.length - 1;
+      const next = createSlide(slidePath(ni), 0);
+      next.mesh.renderOrder = 1; scene.add(next.group);
+      soul.cur = next; soul.i = ni;
+      quizHide(0.6);
+      setTimeout(() => disposeSlide(cur), 700);
+      if (ANIM_SRC[ni]) showAnim3(ni);
+      view = 'soul';
+    }
     async function soulStep(dir, clickX) {
       if (!soul.on || view !== 'soul') return;
+      if (quiz.on) return;
+      if (dir > 0 && soul.i === 8) { startQuiz(); return; }
       const ni = soul.i + dir;
       if (ni < 0 || ni >= slideImages.length) return;       // slide đầu / cuối: không có tác dụng, chỉ tim đỏ ở góc mới thoát được
       view = 'busy';
@@ -2538,6 +2575,7 @@
     // Thoát chế độ tim xanh: slide hiện tại tan, quay về danh sách
     function soulExit() {
       if (view !== 'soul') return;
+      if (quiz.on) quizHide(0.2);
       view = 'busy';
       hideAnim3Now();
       soulBack.style.display = 'none'; soulGear.style.display = 'none';
@@ -2556,7 +2594,8 @@
     async function soulJump(n) {
       if (view !== 'settings' || settingsFrom !== 'soul') return;
       closeSettings();
-      if (n === soul.i) return;
+      const wasQuiz = quiz.on; if (wasQuiz) quizHide(0.3);
+      if (n === soul.i) { if (wasQuiz && ANIM_SRC[n]) showAnim3(n); return; }
       view = 'busy';
       if (ANIM_SRC[soul.i]) hideAnim3Now();
       const cur = soul.cur, next = createSlide(slidePath(n), 0);
@@ -2635,6 +2674,7 @@
       }
       if (e.key === 'Escape' && view === 'settings') { closeSettings(); return; }
       if (view === 'soul') {                  // chế độ tim xanh: click / phím phải = tiếp, Backspace / phím trái = lùi
+        if (quiz.on) return;                  // slide 9.5: Backspace / Enter không có tác dụng, chỉ dùng 2 icon
         if (e.key === 'Backspace' || e.key === 'ArrowLeft') { e.preventDefault(); soulStep(-1); }
         else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
           e.preventDefault();
@@ -2658,6 +2698,7 @@
     window.addEventListener('message', (ev) => {
       const d = ev.data;
       if (d && d.type === 'hold-ready') { const q = POOL.find((x) => x.el.contentWindow === ev.source); if (q) q.ready = true; return; }
+      if (d && ev.source === quizEl.contentWindow) { if (d.type === 'quiz-prev') quizBack(); else if (d.type === 'quiz-next') quizNext(); return; }
       if (ev.source !== anim3.contentWindow || !d) return;
       if (d.type === 'anim-state') {
         animState = d.state;
