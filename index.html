@@ -345,14 +345,122 @@
     // ===== Âm thanh: âm lượng chung 0-100% + bật/tắt (lưu trong trình duyệt, mặc định BẬT 100%) =====
     const AUD = { on: true, vol: 100, list: [] };
     try { if (localStorage.getItem('sndOn') === '0') AUD.on = false; const v = parseInt(localStorage.getItem('sndVol'), 10); if (v >= 0 && v <= 100) AUD.vol = v; } catch (e) {}
-    function audApply(a) { a.volume = AUD.on ? Math.max(0, Math.min(1, a._b * AUD.vol / 100)) : 0; a.muted = !AUD.on || AUD.vol === 0; }
+    function audApply(a) { a.volume = AUD.on ? Math.max(0, Math.min(1, a._b * AUD.vol / 100 * (a._m ? a._m() : 1))) : 0; a.muted = !AUD.on || AUD.vol === 0; }
     function mkAudio(src, base) { const a = new Audio(src); a.preload = 'auto'; a._b = base; AUD.list.push(a); audApply(a); return a; }
-    function audApplyAll() { AUD.list.forEach(audApply); }
+    function audApplyAll() { AUD.list.forEach(audApply); if (typeof ambVol === 'function') ambVol(); if (typeof musicRefresh === 'function') musicRefresh(); }
     function sfxPlay(a) {              // phát chồng được (nhân bản), tôn trọng âm lượng chung
       if (!AUD.on || AUD.vol === 0) return;
       try { const c = a.cloneNode(); c.volume = a.volume; c.play().catch(() => {}); } catch (e) {}
     }
     const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1), blaster: mkAudio('assets/sfx-blaster.mp3', 1), hit: mkAudio('assets/sfx-hit.mp3', 1) };
+    // ===== Nhạc nền (chế độ tim đỏ) + âm thanh môi trường nhẹ cho từng slide (tự tạo bằng WebAudio, không cần file) =====
+    const MUS = { on: true, vol: 100 };
+    try { if (localStorage.getItem('musOn') === '0') MUS.on = false; const v = parseInt(localStorage.getItem('musVol'), 10); if (v >= 0 && v <= 100) MUS.vol = v; } catch (e) {}
+    const MUSIC = mkAudio('assets/music-snowy.mp3', 0.4); MUSIC.loop = true; MUSIC.preload = 'none'; MUSIC._m = () => (MUS.on ? MUS.vol / 100 : 0); audApply(MUSIC);
+    let musicWant = false;
+    function musicPlay() { musicWant = true; if (!MUS.on || !AUD.on || AUD.vol === 0 || MUS.vol === 0) return; try { MUSIC.play().catch(() => {}); } catch (e) {} }
+    function musicPause() { musicWant = false; try { MUSIC.pause(); } catch (e) {} }
+    function musicRefresh() { audApply(MUSIC); if (musicWant) { if (MUS.on && AUD.on && AUD.vol > 0 && MUS.vol > 0) { try { MUSIC.play().catch(() => {}); } catch (e) {} } else { try { MUSIC.pause(); } catch (e) {} } } }
+
+    const AMB = { ctx: null, master: null, noise: null, scene: null, cur: -1, doneAt: 0 };
+    function ambVol() { if (AMB.master) AMB.master.gain.value = AUD.on ? AUD.vol / 100 * 0.6 : 0; }
+    function ambCtx() {
+      if (!AMB.ctx) {
+        try {
+          const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+          AMB.ctx = new C(); AMB.master = AMB.ctx.createGain(); AMB.master.connect(AMB.ctx.destination);
+          const n = AMB.ctx.sampleRate * 3, b = AMB.ctx.createBuffer(1, n, AMB.ctx.sampleRate), d = b.getChannelData(0);
+          for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+          AMB.noise = b;
+        } catch (e) { return null; }
+      }
+      if (AMB.ctx.state === 'suspended') AMB.ctx.resume().catch(() => {});
+      ambVol(); return AMB.ctx;
+    }
+    function ambStop() {
+      const s = AMB.scene; AMB.scene = null; AMB.cur = -1; if (!s) return;
+      s.timers.forEach(clearTimeout); s.dead = true;
+      try { s.out.gain.cancelScheduledValues(0); s.out.gain.setValueAtTime(s.out.gain.value, AMB.ctx.currentTime); s.out.gain.linearRampToValueAtTime(0, AMB.ctx.currentTime + 0.5); } catch (e) {}
+      setTimeout(() => { s.nodes.forEach((n) => { try { n.stop && n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} }); try { s.out.disconnect(); } catch (e) {} }, 700);
+    }
+    function ambBuild(i) {
+      const c = ambCtx(); if (!c) return null;
+      const out = c.createGain(); out.gain.value = 0; out.connect(AMB.master); out.gain.linearRampToValueAtTime(1, c.currentTime + 1.2);
+      const s = { out, nodes: [out], timers: [], dead: false };
+      const add = (n) => { s.nodes.push(n); return n; };
+      const gain = (v, to) => { const g = add(c.createGain()); g.gain.value = v; g.connect(to || out); return g; };
+      const noiseLoop = (type, f, q, v) => {                      // tiếng ồn lọc: gió, xì xèo, tiếng xe...
+        const src = add(c.createBufferSource()); src.buffer = AMB.noise; src.loop = true; src.loopStart = Math.random() * 2;
+        const fl = add(c.createBiquadFilter()); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+        const g = gain(v); src.connect(fl); fl.connect(g); src.start(); return { g, fl };
+      };
+      const lfo = (param, rate, depth, type) => { const o = add(c.createOscillator()); o.type = type || 'sine'; o.frequency.value = rate; const g = gain(depth, param.connect ? param : undefined); g.disconnect(); g.connect(param); o.connect(g); o.start(); return o; };
+      const every = (fn, a, b) => { const tick = () => { if (s.dead) return; fn(); s.timers.push(setTimeout(tick, a + Math.random() * (b - a))); }; s.timers.push(setTimeout(tick, a * 0.5 + Math.random() * a)); };
+      const tone = (f0, f1, dur, v, type) => {                    // 1 tiếng "ting/giọt/chim" ngắn có bao âm giảm dần
+        if (s.dead) return; const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+        o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.05);
+      };
+      const burst = (type, f, q, dur, v) => {                     // 1 tiếng nổ/lách tách từ tiếng ồn
+        if (s.dead) return; const t = c.currentTime, src = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+        src.buffer = AMB.noise; fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+        g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(fl); fl.connect(g); g.connect(out); src.start(t, Math.random() * 2, dur + 0.05);
+      };
+      const wind = (v) => { const w = noiseLoop('bandpass', 450, 0.7, v); lfo(w.g.gain, 0.13, v * 0.6); lfo(w.fl.frequency, 0.09, 160); return w; };
+      const PENTA = [523.25, 587.33, 659.25, 783.99, 880];
+      if (i === 0) { wind(0.05); every(() => tone(880, 870, 1.6, 0.012), 6000, 11000); }                                   // gió nhẹ + tiếng chuông xa
+      else if (i === 1) {                                                                                                   // bãi đất: gió + chim hót
+        wind(0.035);
+        every(() => { const n = 2 + ((Math.random() * 3) | 0), f = 2400 + Math.random() * 1600; for (let k = 0; k < n; k++) setTimeout(() => tone(f + k * 180, f * 1.35 + k * 120, 0.09, 0.022), k * 120); }, 1800, 4200);
+      } else if (i === 2) {                                                                                                 // gió thổi từng đợt, khớp lúc lá bay (xem gustLoop)
+        const w = noiseLoop('bandpass', 500, 0.6, 0.012), r = noiseLoop('highpass', 3200, 0.5, 0.0);
+        s.gust = (amt) => { const t = c.currentTime; [w.g.gain, r.g.gain].forEach((p, k) => { p.cancelScheduledValues(t); p.setValueAtTime(p.value, t); p.linearRampToValueAtTime((k ? 0.014 : 0.10) * amt, t + 1.5); p.linearRampToValueAtTime(k ? 0.0 : 0.012, t + 3.2); }); w.fl.frequency.linearRampToValueAtTime(900, t + 1.5); w.fl.frequency.linearRampToValueAtTime(450, t + 3.2); };
+      } else if (i === 3) {                                                                                                 // phố cũ: tiếng xe xa, chuông xe đạp, chuông tàu điện
+        noiseLoop('lowpass', 220, 0.5, 0.05);
+        every(() => { tone(2500, 2450, 0.55, 0.03); setTimeout(() => tone(2500, 2450, 0.55, 0.03), 160); }, 5000, 9000);
+        every(() => { tone(1250, 1230, 0.9, 0.025, 'triangle'); setTimeout(() => tone(1250, 1230, 0.9, 0.025, 'triangle'), 260); }, 9000, 16000);
+        every(() => { const n = noiseLoop('bandpass', 180, 1.2, 0.0), t = c.currentTime; n.g.gain.linearRampToValueAtTime(0.07, t + 1.4); n.g.gain.linearRampToValueAtTime(0, t + 3); n.fl.frequency.setValueAtTime(180, t); n.fl.frequency.linearRampToValueAtTime(420, t + 1.4); n.fl.frequency.linearRampToValueAtTime(170, t + 3); }, 7000, 13000);
+      } else if (i === 4) {                                                                                                 // bếp: xèo xèo, lạch cạch, thớt
+        const sz = noiseLoop('highpass', 5200, 0.4, 0.016); lfo(sz.g.gain, 6.5, 0.008); lfo(sz.g.gain, 2.3, 0.006);
+        every(() => { tone(3200, 3100, 0.12, 0.02); setTimeout(() => tone(4300, 4200, 0.1, 0.015), 70); }, 2500, 6000);
+        every(() => { for (let k = 0; k < 3; k++) setTimeout(() => tone(170, 90, 0.07, 0.05), k * 150); }, 5000, 9000);
+      } else if (i === 5) {                                                                                                 // giếng + điện: giọt nước, tiếng ù điện, lách tách
+        noiseLoop('lowpass', 300, 0.4, 0.012);
+        every(() => tone(1100 + Math.random() * 300, 450, 0.09, 0.04), 700, 2100);
+        const h = add(c.createOscillator()); h.type = 'sawtooth'; h.frequency.value = 100; const hf = add(c.createBiquadFilter()); hf.type = 'lowpass'; hf.frequency.value = 400; h.connect(hf); hf.connect(gain(0.01)); h.start();
+        every(() => { burst('highpass', 3000, 0.7, 0.05, 0.05); setTimeout(() => burst('highpass', 3500, 0.7, 0.03, 0.04), 90); }, 5000, 10000);
+      } else if (i === 6) {                                                                                                 // chiều tà: dế kêu + gió nhẹ
+        wind(0.02);
+        for (const f of [4300, 4700]) { const o = add(c.createOscillator()); o.type = 'sine'; o.frequency.value = f; const g = gain(0.0); o.connect(g); o.start(); lfo(g.gain, f === 4300 ? 17 : 21, 0.006); const gate = add(c.createOscillator()); gate.frequency.value = f === 4300 ? 0.45 : 0.31; const gg = gain(0.006); gg.disconnect(); gg.connect(g.gain); gate.connect(gg); gate.start(); }
+      } else if (i === 7) {                                                                                                 // 40 năm: tiếng tích tắc đồng hồ + chuông nhẹ
+        noiseLoop('lowpass', 150, 0.5, 0.02);
+        let tk = 0; every(() => { burst('bandpass', tk++ % 2 ? 1500 : 1900, 3, 0.03, 0.05); }, 950, 1000);
+        every(() => tone(660, 655, 1.8, 0.02), 9000, 14000);
+      } else if (i === 8) {                                                                                                 // kỷ niệm: nến cháy lách tách + hộp nhạc
+        noiseLoop('lowpass', 180, 0.5, 0.015);
+        every(() => burst('highpass', 2500 + Math.random() * 2500, 0.8, 0.02, 0.03), 120, 520);
+        every(() => { const n = PENTA[(Math.random() * PENTA.length) | 0]; tone(n, n * 0.998, 2.2, 0.03); }, 2600, 4800);
+      } else if (i === 9) {                                                                                                 // cảm ơn: pháo hoa + vỗ tay
+        every(() => { tone(110, 40, 0.35, 0.08); setTimeout(() => { for (let k = 0; k < 6; k++) setTimeout(() => burst('highpass', 4000, 0.5, 0.04, 0.03), k * 45); }, 260); }, 1800, 4200);
+        every(() => { const n = noiseLoop('bandpass', 2400, 0.8, 0.0), t = c.currentTime; n.g.gain.linearRampToValueAtTime(0.03, t + 0.4); n.g.gain.setValueAtTime(0.03, t + 2.2); n.g.gain.linearRampToValueAtTime(0, t + 3.2); lfo(n.g.gain, 9, 0.012); }, 9000, 15000);
+      }
+      return s;
+    }
+    function ambStart(i) {
+      if (AMB.cur === i && AMB.scene) return;
+      ambStop();
+      const s = ambBuild(i); if (!s) return;
+      AMB.scene = s; AMB.cur = i;
+      if (i === 2 && AMB.doneAt) gustLoop(s);
+    }
+    function gustLoop(s) {                                         // slide 3: cơn gió đầu sau 1.2s, rồi mỗi 6s (giống lịch gió của slide3-anim.html)
+      const base = AMB.doneAt; if (s.gustOn) return; s.gustOn = true;
+      const run = () => { if (s.dead) return; s.gust && s.gust(1); s.timers.push(setTimeout(run, 6000)); };
+      const d = Math.max(0, base + 1200 - performance.now()); s.timers.push(setTimeout(run, d));
+    }
+    function ambAnimDone(i) { AMB.doneAt = performance.now(); if (i === 2 && AMB.scene && AMB.cur === 2) gustLoop(AMB.scene); }
     const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
     const BLOCK_CHANCE = 0.3;          // xác suất vệt chém bị xương của Sans chặn
 
@@ -1385,6 +1493,7 @@
 
     // Hiện danh sách: thẻ bay lên lần lượt, mọi thẻ đều hiện lại
     function showGrid() {
+      ambStop(); musicPlay();                       // tim đỏ: nhạc nền Snowy lặp lại
       gsap.killTweensOf(gridEl);
       gsap.killTweensOf(cards);
       dead.clear();
@@ -1406,7 +1515,7 @@
     function enterGrid() {
       if (view !== 'start' || !READY) return;
       view = 'busy';
-      sfxPlay(SFX.start);
+      sfxPlay(SFX.start); ambCtx();                  // tạo AudioContext ngay trong cú click START
       gsap.timeline()
         .to(startEl, { opacity: 0.15, duration: 0.06, repeat: 7, yoyo: true, ease: 'steps(1)' })
         .to(startEl, { opacity: 0, duration: 0.3, ease: 'power1.in' })
@@ -1421,6 +1530,7 @@
     function backToStart() {
       if (view !== 'grid' && view !== 'choose') return;
       view = 'busy';
+      musicPause();
       chooseEl.classList.remove('show');
       hideGrid(() => {
         startEl.style.display = 'flex';
@@ -1432,7 +1542,7 @@
     function openSlide(i) {
       currentIndex = i;
       if (ANIM_SRC[i]) {                   // slide 2, 3: mở bản động
-        animState = GATED.has(i) ? 'loading' : null;
+        animState = GATED.has(i) ? 'loading' : null; ambStart(i);
         if (!takePre(i)) anim3.src = ANIM_SRC[i];
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
@@ -1556,7 +1666,7 @@
       view = 'busy';
       const cur = currentSlideObj;
       if (ANIM_SRC[currentIndex]) {        // slide 2, 3: ẩn bản động dần trong lúc slide tan
-        animState = null;
+        animState = null; ambStop();
         gsap.to(anim3, { opacity: 0, duration: DISSOLVE_MS / 1000, ease: 'none',
           onComplete: () => { anim3.style.display = 'none'; anim3.src = 'about:blank'; } });
       }
@@ -1630,6 +1740,17 @@
     sndRange.addEventListener('change', () => sfxPlay(SFX.slash));      // nghe thử âm lượng khi thả thanh
     sndToggle.addEventListener('click', (e) => { e.stopPropagation(); AUD.on = !AUD.on; audApplyAll(); sndRefresh(); sndSave(); if (AUD.on) sfxPlay(SFX.slash); });
     sndRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
+    // Nhạc nền (chỉ chế độ tim đỏ): ON/OFF + 0-100% (nhân với âm lượng chung ở trên)
+    const musRow = document.createElement('div'); musRow.className = 'sans-row snd-row';
+    musRow.innerHTML = '<div class="sr-top"><span>MUSIC</span><span><button id="musToggle" class="snd-toggle" type="button"></button> <span class="sr-val" id="musVal"></span></span></div><input id="musRange" type="range" min="0" max="100" step="1" aria-label="Music volume">';
+    settingsBox.appendChild(musRow);
+    const musRange = musRow.querySelector('#musRange'), musVal = musRow.querySelector('#musVal'), musToggle = musRow.querySelector('#musToggle');
+    function musRefreshUI() { musRange.value = MUS.vol; musVal.textContent = MUS.vol + '%'; musToggle.textContent = MUS.on ? 'ON' : 'OFF'; musToggle.classList.toggle('off', !MUS.on); musRange.style.opacity = MUS.on ? '1' : '0.4'; }
+    function musSave() { try { localStorage.setItem('musOn', MUS.on ? '1' : '0'); localStorage.setItem('musVol', String(MUS.vol)); } catch (e) {} }
+    musRefreshUI();
+    musRange.addEventListener('input', () => { MUS.vol = +musRange.value; musicRefresh(); musRefreshUI(); musSave(); });
+    musToggle.addEventListener('click', (e) => { e.stopPropagation(); MUS.on = !MUS.on; musicRefresh(); musRefreshUI(); musSave(); });
+    musRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     let settingsFrom = 'grid';
     function openSettings(from) {
       from = from || 'grid';
@@ -1638,6 +1759,7 @@
       slideListEl.innerHTML = '';
       settingsBox.classList.toggle('list', from === 'soul');
       sndRow.style.display = '';
+      musRow.style.display = from === 'soul' ? 'none' : '';
       sansRow.style.display = from === 'soul' ? 'none' : '';      // thanh tỉ lệ Sans chỉ nằm ở bảng Settings của màn danh sách, không hiện trong chế độ tim xanh
       settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
       if (from === 'soul') {                      // chế độ tim xanh: danh sách 10 slide để nhảy nhanh
@@ -1745,6 +1867,7 @@
 
     // ----- Slide 3 có bản động (iframe) -----
     function showAnim3(i = 2) {
+      ambStart(i);
       animState = GATED.has(i) ? 'loading' : null;
       if (!takePre(i)) anim3.src = ANIM_SRC[i];
       anim3.style.display = 'block';
@@ -1754,6 +1877,7 @@
       setTimeout(() => prewarm(i + 1, i - 1), 900);
     }
     function hideAnim3Now() {
+      ambStop();
       animState = null;
       gsap.killTweensOf(anim3);
       anim3.style.display = 'none';
@@ -1866,6 +1990,7 @@
     async function enterSoul() {
       if (view !== 'grid') return;
       view = 'busy';
+      musicPause();                                  // tim xanh: không có nhạc nền
       Object.assign(soul, { on: true, i: 0, cur: null, blockUsed: false, blockAt: SOUL_BLOCK_AT, knightUsed: false });
       gsap.killTweensOf(gridEl);
       const cv = document.createElement('canvas'); cv.width = innerWidth; cv.height = innerHeight; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
@@ -2436,7 +2561,7 @@
       if (d.type === 'anim-state') {
         animState = d.state;
         if (d.state === 'busy') animBusyAt = performance.now();
-        if (d.state === 'done') animFinished();
+        if (d.state === 'done') { ambAnimDone(view === 'soul' ? soul.i : currentIndex); animFinished(); }
         return;
       }
       if (d.type !== 'slide-key') return;
