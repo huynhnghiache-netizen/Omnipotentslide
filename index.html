@@ -1846,7 +1846,7 @@
     function applyLayout(fade) {
       gridEl.classList.toggle('float', gridFloat);
       const hint = gridEl.querySelector('.grid-head span:last-child'); if (hint) hint.textContent = gridFloat ? 'CLICK TO ENTER · BACKSPACE TO EXIT' : 'CLICK TO SLASH · BACKSPACE TO EXIT';
-      cards.forEach((c) => { if (!gridFloat) Object.assign(c.style, { width: '', height: '', left: '', top: '', translate: '', rotate: '' }); });
+      if (!gridFloat) { gsap.killTweensOf(cards); gsap.set(cards, { clearProps: 'transform,translate,rotate,scale,opacity,visibility' }); cards.forEach((c) => Object.assign(c.style, { width: '', height: '', left: '', top: '' })); dead.clear(); }
       if (gridFloat) layoutFloat();
       drawLayoutIcon();
       if (fade) gsap.fromTo(cards, { opacity: 0 }, { opacity: 1, duration: 0.45, stagger: 0.03, ease: 'power2.out', clearProps: 'opacity' });
@@ -1883,8 +1883,7 @@
       const t = now / 1000;
       for (let i = 0; i < cards.length; i++) {
         const s = floatSt[i], c = cards[i];
-        c.style.translate = (s.A[0] * Math.sin(t * s.w[0] + s.ph[0])).toFixed(1) + 'px ' + (s.A[1] * Math.sin(t * s.w[1] + s.ph[1])).toFixed(1) + 'px';
-        c.style.rotate = (s.R * Math.sin(t * s.w[2] + s.ph[2])).toFixed(2) + 'deg';
+        gsap.set(c, { x: s.A[0] * Math.sin(t * s.w[0] + s.ph[0]), y: s.A[1] * Math.sin(t * s.w[1] + s.ph[1]), rotation: s.R * Math.sin(t * s.w[2] + s.ph[2]) });
       }
       if (view === 'grid' && !sword && now >= nextStrikeAt) { nextStrikeAt = now + FLOAT_EVERY; floatStrike(); }
     }
