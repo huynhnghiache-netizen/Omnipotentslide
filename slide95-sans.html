@@ -47,7 +47,7 @@
   #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: 22px 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
   #selCard { position: absolute; left: 50%; top: 130px; width: 270px; height: 380px; margin-left: -135px; border: 6px solid var(--line); background: rgba(0,0,0,.55); cursor: pointer; box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); }
   #selCard:hover { border-color: var(--acc); }
-  #selName { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font: 16px 'Press Start 2P', monospace; }
+  #selName { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font: 22px 'Press Start 2P', monospace; }
   #status { position: absolute; left: 50%; top: 540px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
   #status.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
   #status.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
@@ -72,9 +72,12 @@
   #why .g { color: #5dff7a; display: block; margin-top: 6px; }
 
   /* vòng quay */
-  #wheelBox { position: absolute; left: 420px; right: 40px; top: 70px; bottom: 170px; display: none; text-align: center; }
-  #wheelBox canvas { cursor: pointer; }
-  #wheelBox .cap { font: 12px 'Press Start 2P', monospace; color: var(--acc); margin-top: 4px; animation: blink 1s steps(1) infinite; }
+  #wheelBox { position: absolute; inset: 0; display: none; background: rgba(0, 0, 0, .8); z-index: 15; cursor: pointer; }
+  #wheelBox canvas { position: absolute; left: 50%; top: 50%; width: 600px; height: 600px; margin: -306px 0 0 -300px; filter: drop-shadow(0 0 30px rgba(255, 220, 120, .25)); }
+  #wheelBox .cap { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font: 22px 'Press Start 2P', monospace; color: var(--acc); text-shadow: 3px 3px 0 #000; animation: blink 1s steps(1) infinite; }
+  #wX { position: absolute; right: 18px; top: 18px; width: 56px; height: 56px; background: #000; border: 5px solid #ff3344; display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 5px 0 #000; z-index: 25; }
+  #wX svg { width: 30px; height: 30px; }
+  #wX:hover { transform: translateY(-2px); background: #2a060b; }
 
   /* kèo cược + kết quả */
   #gamble { position: absolute; left: 420px; right: 40px; top: 190px; display: none; text-align: center; }
@@ -115,7 +118,7 @@
   <div id="yawn">z z z</div>
 
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
-  <div id="wheelBox"><canvas id="wheel" width="440" height="440"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div></div>
+  <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
   <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
   <div id="result"></div>
 
@@ -209,8 +212,8 @@
   // ===== hiển thị Sans =====
   const SANS_POS = {
     sel: { left: 505, top: 175, h: 280 },
-    q: { left: 60, top: 170, h: 225 },
-    small: { left: 60, top: 175, h: 215 }
+    q: { left: 60, top: 150, h: 300 },
+    small: { left: 60, top: 170, h: 280 }
   };
   const MODEL = { normal: 'assets/sans-normal.png', shrug: 'assets/sans-shrug.png' };
   function placeSans(pos, model) {
@@ -407,7 +410,7 @@
   }
   function drawWheel() {
     const W = 440, cx = 220, cy = 214, R = 190;
-    wx.clearRect(0, 0, W, W);
+    wx.setTransform(1, 0, 0, 1, 0, 0); wx.clearRect(0, 0, wc.width, wc.height); wx.setTransform(wc.width / 440, 0, 0, wc.width / 440, 0, 0);
     // chân đế
     wx.fillStyle = '#e0356f'; wx.fillRect(150, 392, 140, 36); wx.fillStyle = '#ff5c93'; wx.fillRect(150, 392, 140, 8);
     wx.fillStyle = '#e0356f'; wx.fillRect(190, 360, 60, 36);
@@ -442,7 +445,7 @@
   }
   async function wheelGame(t) {
     const p = makeLayout();                                    // vị trí ô 10
-    showPanel('wheelBox'); $('wCap').textContent = 'CLICK TO SPIN'; $('wCap').style.visibility = 'visible';
+    setX(false); showPanel('wheelBox'); $('wX').style.display = 'none'; $('wCap').textContent = 'CLICK TO SPIN'; $('wCap').style.animation = ''; $('wCap').style.visibility = 'visible';
     wAng = 0; cancelAnimationFrame(wheelRaf); wheelLoop();
     await new Promise((res) => { const h = () => { wc.removeEventListener('click', h); $('wheelBox').removeEventListener('click', h); res(); }; $('wheelBox').addEventListener('click', h); });
     chk(t); $('wCap').style.visibility = 'hidden';
@@ -461,6 +464,10 @@
     $('gust').style.opacity = 0;
     const kLand = (p - 1 + 8) % 8, got = layout[kLand];
     await sleep(500); chk(t);
+    $('wCap').textContent = 'YOU GOT ' + got + (got > 1 ? ' CANDIES' : ' CANDY') + '!'; $('wCap').style.animation = 'none'; $('wCap').style.visibility = 'visible';
+    $('wX').style.display = 'flex';
+    await new Promise((res) => { $('wX').onclick = (e) => { e.stopPropagation(); res(); }; });      // bấm X để đóng vòng quay
+    chk(t); $('wX').style.display = 'none';
     return got;
   }
 
@@ -482,18 +489,17 @@
     setX(true);
     const got = await wheelGame(t); chk(t);
     cancelAnimationFrame(wheelRaf);
+    showPanel('qa'); $('qa').style.display = 'none';          // đóng vòng quay, hiện lại Sans
     show('small', 'shrug');                                    // Sans đổi dáng "whoops"
     await say('whoops... my bad. mechanical issues, ya know?', t); hideDlg();
     show('q', 'normal');                                       // quay lại model ban đầu
     candies = got; save(); hud(true);
-    showPanel('result');
-    $('result').innerHTML = 'YOU GOT<br><span class="num">' + got + '</span><br>CANDY' + (got > 1 ? 'S' : '') + '!';
-    await sleep(1500); chk(t);
     // ---- Kèo cược ----
     showPanel('gamble');
     $('gInfo').innerHTML = 'DOUBLE YOUR CANDIES<br>IF YOU BEAT QUESTION 2?<br><span style="color:#ff4455">LOSE 1 IF YOU FAIL.</span>';
     $('gamble').style.display = 'none';
     await say('hey, wanna double your candies if you beat question 2? ...but lose 1 if you fail.', t); chk(t);
+    await say('oh, and there will be 8 choices instead of 4. you sure?', t); chk(t);
     $('gamble').style.display = 'block'; dlg.style.display = 'block';
     const yes = await new Promise((res) => { $('gYes').onclick = () => res(true); $('gNo').onclick = () => res(false); });
     chk(t); hideDlg();
