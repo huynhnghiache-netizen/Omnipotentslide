@@ -30,8 +30,8 @@
 
   /* Sans */
   #sans { position: absolute; image-rendering: pixelated; transition: left .4s, top .4s, height .4s; filter: drop-shadow(0 0 10px rgba(255,255,255,.12)); }
-  #sans.bob { animation: bob 2.4s ease-in-out infinite; }
-  @keyframes bob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(6px) } }
+  #sans.bob { animation: shake .5s steps(1) infinite; }
+  @keyframes shake { 0% { transform: translate(0, 0) rotate(0) } 20% { transform: translate(-2px, 1px) rotate(-.7deg) } 40% { transform: translate(2px, -1px) rotate(.7deg) } 60% { transform: translate(-1px, -1px) rotate(-.4deg) } 80% { transform: translate(1px, 1px) rotate(.4deg) } 100% { transform: translate(0, 0) rotate(0) } }
   #yawn { position: absolute; font: 12px 'Press Start 2P', monospace; color: rgba(255,255,255,.7); display: none; animation: zz 2.4s steps(4) infinite; }
   @keyframes zz { 0% { opacity: 0; transform: translateY(8px) } 40% { opacity: 1 } 100% { opacity: 0; transform: translateY(-14px) } }
 
@@ -45,9 +45,16 @@
   /* màn chọn nhân vật */
   #sel { position: absolute; inset: 0; display: none; }
   #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: 22px 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
-  #selCard { position: absolute; left: 50%; top: 130px; width: 270px; height: 380px; margin-left: -135px; border: 6px solid var(--line); background: rgba(0,0,0,.55); cursor: pointer; box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); }
+  #selRow { position: absolute; left: 0; right: 0; top: 130px; display: flex; justify-content: center; gap: 60px; pointer-events: none; }
+  .chc { position: relative; width: 270px; height: 380px; border: 6px solid var(--line); background: rgba(0,0,0,.55); box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); pointer-events: auto; }
+  #selCard { cursor: pointer; }
   #selCard:hover { border-color: var(--acc); }
-  #selName { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font: 22px 'Press Start 2P', monospace; }
+  .chc.dis { opacity: .9; cursor: default; }
+  .chc .nm { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font: 22px 'Press Start 2P', monospace; }
+  .chc .spr { position: absolute; left: 50%; image-rendering: pixelated; }
+  #papSpr { width: 185px; height: 275px; margin-left: -92px; top: 22px; background: url(assets/papyrus.png) 0 0 / 400% 100% no-repeat; animation: pap .667s steps(4) infinite; }
+  @keyframes pap { from { background-position: 0 0 } to { background-position: 133.3333% 0 } }
+  #gasSpr { height: 280px; margin-left: -57px; top: 26px; }
   #status { position: absolute; left: 50%; top: 540px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
   #status.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
   #status.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
@@ -109,7 +116,11 @@
 
   <div id="sel">
     <div class="ttl">CHOOSE YOUR OPPONENT</div>
-    <div id="selCard"><div id="selName">SANS</div></div>
+    <div id="selRow">
+      <div class="chc dis" id="cPap"><div class="spr" id="papSpr"></div><div class="nm">PAPYRUS</div></div>
+      <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div></div>
+      <div class="chc dis" id="cGas"><img class="spr" id="gasSpr" src="assets/gaster.png" alt="Gaster" draggable="false"><div class="nm">GASTER</div></div>
+    </div>
     <div id="status"></div>
     <div id="hint">CLICK SANS</div>
   </div>
@@ -160,11 +171,12 @@
   }
   readSnd();
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, voiceG = null, selG = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = 'select', megaEl = null;
+  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = 'select', megaEl = null;
   const gv = () => (SND.on ? SND.vol / 100 : 0);
   const gm = () => (SND.on && SND.mon ? SND.vol / 100 * SND.mvol / 100 : 0);
   function applyVol() {
     if (voiceG) voiceG.gain.value = gv() * 0.9;
+    if (sfxG) sfxG.gain.value = gv();
     if (selG) selG.gain.value = musicWant === 'select' ? gm() * 0.4 : 0;
     if (megaEl) megaEl.volume = Math.max(0, Math.min(1, gm() * 0.4));
   }
@@ -172,7 +184,10 @@
   function initAudio() {
     if (ctx || !AC) return;
     try {
-      ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); applyVol();
+      ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); sfxG = ctx.createGain(); sfxG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); applyVol();
+      loadBuf('assets/sfx-nuhuh.mp3').then((b) => { nuhBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-correct.mp3').then((b) => { okBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-prize.mp3').then((b) => { prizeBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
       loadBuf('assets/music-sans-select.mp3').then((b) => { selBuf = b; syncMusic(); }).catch(() => {});
     } catch (e) { ctx = null; }
@@ -196,6 +211,7 @@
   function setMusic(which) { musicWant = which; syncMusic(); }
   function prefetchHard() { if (!megaEl) { megaEl = new Audio('assets/music-megalovania.mp3'); megaEl.loop = true; megaEl.preload = 'auto'; applyVol(); try { megaEl.load(); } catch (e) {} } }
   addEventListener('storage', () => { readSnd(); applyVol(); });
+  function sfx(buf) { if (!ctx || !buf || gv() === 0) return; try { const s = ctx.createBufferSource(); s.buffer = buf; s.connect(sfxG); s.start(); } catch (e) {} }
   // giọng Sans: mỗi chữ cái / chữ số phát 1 tiếng "bla" ngắn (cùng chữ -> cùng âm), dấu cách và dấu câu thì im
   let vSrc = null;
   function voiceStop() { if (vSrc) { try { vSrc.stop(); } catch (e) {} vSrc = null; } }
@@ -385,7 +401,7 @@
         b.addEventListener('click', () => {
           if (!alive(t) || box.classList.contains('locked')) return;
           box.classList.add('locked'); [...box.children].forEach((x) => x.classList.add('lock'));
-          b.classList.add(o.ok ? 'good' : 'bad');
+          b.classList.add(o.ok ? 'good' : 'bad'); sfx(o.ok ? okBuf : nuhBuf);
           const good = list.findIndex((x) => x.ok); box.children[good].classList.add('good');
           resolve({ ok: o.ok, why: o.why, picked: o.t, right: list[good].t });
         });
@@ -459,6 +475,7 @@
     $('gust').innerHTML = ''; for (let i = 0; i < 16; i++) { const l = document.createElement('i'); l.style.top = (60 + rnd(600)) + 'px'; l.style.width = (90 + rnd(160)) + 'px'; l.style.animationDelay = (-Math.random() * .5) + 's'; $('gust').appendChild(l); }
     $('gust').style.opacity = 1;
     await sleep(700); chk(t);
+    sfx(prizeBuf);                                            // tiếng tưng tưng: đúng lúc gió thổi kim khỏi ô 10
     const to = target - 1 + 45 + 1;                           // nhích đúng 1 ô: sang ô liền trước ô 10
     await animAng(target - 1, to, 260, (x) => 1 - Math.pow(1 - x, 2), t);
     $('gust').style.opacity = 0;
