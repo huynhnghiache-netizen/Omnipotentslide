@@ -171,7 +171,7 @@
   }
   readSnd();
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = 'select', megaEl = null;
+  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = null, megaEl = null;
   const gv = () => (SND.on ? SND.vol / 100 : 0);
   const gm = () => (SND.on && SND.mon ? SND.vol / 100 * SND.mvol / 100 : 0);
   function applyVol() {
@@ -354,7 +354,7 @@
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
   async function gotoSelect(opts) {
-    token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); setMusic('select');
+    token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
     stage.classList.remove('dark');
     showPanel('sel'); show('sel', 'normal');
     const st = $('status');
@@ -372,6 +372,7 @@
     try {
       if (selStage === 0) {
         selStage = 1; $('hint').style.display = 'none'; $('status').style.display = 'none';
+        unlock(); setMusic('select');                         // bấm vào Sans lần đầu thì nhạc mới bắt đầu
         await say('huh? do you want to challenge me?', t);
         $('hint').textContent = 'CLICK SANS AGAIN'; $('hint').style.display = 'block'; hideDlg();
         selStage = 1.5;
