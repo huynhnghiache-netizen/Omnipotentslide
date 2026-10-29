@@ -45,13 +45,13 @@
   /* màn chọn nhân vật */
   #sel { position: absolute; inset: 0; display: none; }
   #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: 22px 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
-  #selCard { position: absolute; left: 50%; top: 118px; width: 330px; height: 440px; margin-left: -165px; border: 6px solid var(--line); background: rgba(0,0,0,.55); cursor: pointer; box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); }
+  #selCard { position: absolute; left: 50%; top: 130px; width: 270px; height: 380px; margin-left: -135px; border: 6px solid var(--line); background: rgba(0,0,0,.55); cursor: pointer; box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); }
   #selCard:hover { border-color: var(--acc); }
   #selName { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font: 16px 'Press Start 2P', monospace; }
-  #status { position: absolute; left: 50%; top: 576px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
+  #status { position: absolute; left: 50%; top: 540px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
   #status.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
   #status.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
-  #hint { position: absolute; left: 0; right: 0; top: 640px; text-align: center; font: 10px 'Press Start 2P', monospace; color: rgba(255,255,255,.55); }
+  #hint { position: absolute; left: 0; right: 0; top: 628px; text-align: center; font: 10px 'Press Start 2P', monospace; color: rgba(255,255,255,.55); }
 
   /* câu hỏi */
   #qa { position: absolute; left: 420px; right: 40px; top: 96px; bottom: 176px; display: none; }
@@ -147,11 +147,70 @@
   class Cancel extends Error {}
   const chk = (t) => { if (!alive(t)) throw new Cancel(); };
 
+  // ===== ÂM THANH: nhạc chọn nhân vật (lặp) -> nhạc hard (Megalovania) + giọng Sans theo từng chữ =====
+  const SND = { on: true, vol: 100, mon: true, mvol: 100 };
+  function readSnd() {
+    try {
+      SND.on = localStorage.getItem('sndOn') !== '0'; const v = parseInt(localStorage.getItem('sndVol'), 10); SND.vol = (v >= 0 && v <= 100) ? v : 100;
+      SND.mon = localStorage.getItem('musOn') !== '0'; const m = parseInt(localStorage.getItem('musVol'), 10); SND.mvol = (m >= 0 && m <= 100) ? m : 100;
+    } catch (e) {}
+  }
+  readSnd();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null, voiceG = null, selG = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = 'select', megaEl = null;
+  const gv = () => (SND.on ? SND.vol / 100 : 0);
+  const gm = () => (SND.on && SND.mon ? SND.vol / 100 * SND.mvol / 100 : 0);
+  function applyVol() {
+    if (voiceG) voiceG.gain.value = gv() * 0.9;
+    if (selG) selG.gain.value = musicWant === 'select' ? gm() * 0.4 : 0;
+    if (megaEl) megaEl.volume = Math.max(0, Math.min(1, gm() * 0.4));
+  }
+  function loadBuf(url) { return fetch(url).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej))); }
+  function initAudio() {
+    if (ctx || !AC) return;
+    try {
+      ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); applyVol();
+      loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
+      loadBuf('assets/music-sans-select.mp3').then((b) => { selBuf = b; syncMusic(); }).catch(() => {});
+    } catch (e) { ctx = null; }
+  }
+  function unlock() { initAudio(); try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} syncMusic(); }
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, unlock, true));
+  function syncMusic() {
+    if (!ctx) return;
+    if (musicWant === 'select') {
+      if (megaEl) { try { megaEl.pause(); megaEl.currentTime = 0; } catch (e) {} }
+      if (selBuf && !selSrc) { selSrc = ctx.createBufferSource(); selSrc.buffer = selBuf; selSrc.loop = true; selSrc.connect(selG); selSrc.start(0); }
+    } else if (musicWant === 'hard') {
+      if (selSrc) { try { selSrc.stop(); } catch (e) {} selSrc = null; }
+      if (megaEl) { megaEl.currentTime = 0; megaEl.play().catch(() => {}); }
+    } else {
+      if (selSrc) { try { selSrc.stop(); } catch (e) {} selSrc = null; }
+      if (megaEl) { try { megaEl.pause(); } catch (e) {} }
+    }
+    applyVol();
+  }
+  function setMusic(which) { musicWant = which; syncMusic(); }
+  function prefetchHard() { if (!megaEl) { megaEl = new Audio('assets/music-megalovania.mp3'); megaEl.loop = true; megaEl.preload = 'auto'; applyVol(); try { megaEl.load(); } catch (e) {} } }
+  addEventListener('storage', () => { readSnd(); applyVol(); });
+  // giọng Sans: mỗi chữ cái / chữ số phát 1 tiếng "bla" ngắn (cùng chữ -> cùng âm), dấu cách và dấu câu thì im
+  let vSrc = null;
+  function voiceStop() { if (vSrc) { try { vSrc.stop(); } catch (e) {} vSrc = null; } }
+  function voiceChar(ch) {
+    if (!ctx || !talkBuf || gv() === 0 || !/[a-z0-9]/i.test(ch)) return;
+    voiceStop(); window.__voices = (window.__voices || 0) + 1;
+    const c = ch.toLowerCase().charCodeAt(0), vowel = 'aeiou'.indexOf(ch.toLowerCase()) >= 0;
+    const off = 0.04 + ((c * 7) % 19) / 19 * 0.7, dur = vowel ? 0.085 : 0.055, rate = 0.94 + ((c * 5) % 11) / 11 * 0.14;
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = talkBuf; src.playbackRate.value = rate;
+    const t0 = ctx.currentTime; g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(1, t0 + 0.006); g.gain.setValueAtTime(1, t0 + dur - 0.012); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    src.connect(g); g.connect(voiceG); src.start(t0, off, dur + 0.02); vSrc = src;
+  }
+
   // ===== hiển thị Sans =====
   const SANS_POS = {
-    sel: { left: 505, top: 150, h: 360 },
-    q: { left: 60, top: 150, h: 300 },
-    small: { left: 60, top: 170, h: 280 }
+    sel: { left: 505, top: 175, h: 280 },
+    q: { left: 60, top: 170, h: 225 },
+    small: { left: 60, top: 175, h: 215 }
   };
   const MODEL = { normal: 'assets/sans-normal.png', shrug: 'assets/sans-shrug.png' };
   function placeSans(pos, model) {
@@ -164,7 +223,7 @@
   }
   function setModel(model, pos) { placeSans(pos || curPos, model); }
   let curPos = 'sel';
-  function show(pos, model) { curPos = pos; placeSans(pos, model || 'normal'); sans.classList.toggle('bob', pos === 'sel'); $('yawn').style.display = pos === 'sel' ? 'block' : 'none'; if (pos === 'sel') { $('yawn').style.left = '760px'; $('yawn').style.top = '170px'; } }
+  function show(pos, model) { curPos = pos; placeSans(pos, model || 'normal'); sans.classList.toggle('bob', pos === 'sel'); $('yawn').style.display = pos === 'sel' ? 'block' : 'none'; if (pos === 'sel') { $('yawn').style.left = '730px'; $('yawn').style.top = '185px'; } }
 
   // ===== khung thoại (gõ chữ, bấm để tiếp) =====
   const dlg = $('dlg'), dtxt = $('dtxt');
@@ -172,20 +231,27 @@
   function say(text, t) {
     return new Promise((res, rej) => {
       dlg.style.display = 'block'; dtxt.textContent = ''; dlg.querySelector('.nxt').style.visibility = 'hidden';
-      let i = 0, done = false;
-      const fin = () => { done = true; clearInterval(iv); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; };
-      const iv = setInterval(() => { if (!alive(t)) { clearInterval(iv); rej(new Cancel()); return; } dtxt.textContent = text.slice(0, ++i); if (i >= text.length) fin(); }, 32);
+      let i = 0, done = false, timer = 0;
+      const fin = () => { done = true; clearTimeout(timer); voiceStop(); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; };
+      const delayFor = (ch) => (ch === ',' ? 230 : /[.?!]/.test(ch) ? 330 : ch === ' ' ? 55 : 46);
+      const step = () => {
+        if (!alive(t)) { voiceStop(); rej(new Cancel()); return; }
+        const ch = text[i++]; dtxt.textContent = text.slice(0, i); voiceChar(ch);
+        if (i >= text.length) { done = true; dlg.querySelector('.nxt').style.visibility = 'visible'; return; }
+        timer = setTimeout(step, delayFor(ch));
+      };
       typing = () => {
-        if (!alive(t)) { clearInterval(iv); rej(new Cancel()); return; }
+        if (!alive(t)) { clearTimeout(timer); voiceStop(); rej(new Cancel()); return; }
         if (!done) { fin(); return; }
         typing = null; res();
       };
+      step();
     });
   }
   // nói xong thì tự đóng sau một nhịp (không cần bấm): dùng cho câu ngắn giữa chừng
-  async function sayAuto(text, t, wait) { chk(t); say(text, t).catch(() => {}); const tk = typing; await sleep(text.length * 32 + (wait || 900)); chk(t); typing = null; }
+  
   dlg.addEventListener('click', () => { if (typing) typing(); });
-  function hideDlg() { dlg.style.display = 'none'; typing = null; }
+  function hideDlg() { dlg.style.display = 'none'; typing = null; voiceStop(); }
 
   // ===== màn đen chuyển cảnh =====
   const blk = $('blk');
@@ -269,7 +335,7 @@
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
   async function gotoSelect(opts) {
-    token++; typing = null; hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf);
+    token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); setMusic('select');
     stage.classList.remove('dark');
     showPanel('sel'); show('sel', 'normal');
     const st = $('status');
@@ -410,6 +476,7 @@
       await say('heh. nope. better luck next time, kid.', t); hideDlg();
       await finish('lost', t); return;
     }
+    prefetchHard();
     await say('hehh, not bad. time to spin the wheel!', t); hideDlg();
     // ---- Vòng quay ----
     setX(true);
@@ -437,6 +504,7 @@
     }
     // ---- Câu 2 (cực khó) ----
     await fadeOut(500); chk(t);
+    setMusic('hard');
     stage.classList.add('dark'); show('q', 'normal');
     showPanel('qa'); hud(true); setX(true);
     await fadeIn(700); chk(t);
@@ -471,9 +539,10 @@
 
   // khởi động
   blk.style.opacity = '0';
+  initAudio(); try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {}
   gotoSelect({ instant: true });
   post('quiz-ready');
-  window.__sans95 = { get status() { return status; }, get candies() { return candies; } };
+  window.__sans95 = { dbg: () => ({ ctx: ctx && ctx.state, talk: !!talkBuf, sel: !!selBuf, src: !!selSrc, music: musicWant, mega: !!(megaEl && !megaEl.paused), voices: window.__voices || 0 }), get status() { return status; }, get candies() { return candies; } };
 })();
 </script>
 </body>
