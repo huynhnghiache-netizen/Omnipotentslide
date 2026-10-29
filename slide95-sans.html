@@ -171,7 +171,7 @@
   }
   readSnd();
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = null, megaEl = null;
+  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, wheelBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = null, megaEl = null;
   const gv = () => (SND.on ? SND.vol / 100 : 0);
   const gm = () => (SND.on && SND.mon ? SND.vol / 100 * SND.mvol / 100 : 0);
   function applyVol() {
@@ -187,7 +187,7 @@
       ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); sfxG = ctx.createGain(); sfxG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); applyVol();
       loadBuf('assets/sfx-nuhuh.mp3').then((b) => { nuhBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-correct.mp3').then((b) => { okBuf = b; }).catch(() => {});
-      loadBuf('assets/sfx-prize.mp3').then((b) => { prizeBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-wheel.mp3').then((b) => { wheelBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
       loadBuf('assets/music-sans-select.mp3').then((b) => { selBuf = b; syncMusic(); }).catch(() => {});
     } catch (e) { ctx = null; }
@@ -211,7 +211,9 @@
   function setMusic(which) { musicWant = which; syncMusic(); }
   function prefetchHard() { if (!megaEl) { megaEl = new Audio('assets/music-megalovania.mp3'); megaEl.loop = true; megaEl.preload = 'auto'; applyVol(); try { megaEl.load(); } catch (e) {} } }
   addEventListener('storage', () => { readSnd(); applyVol(); });
-  function sfx(buf) { if (!ctx || !buf || gv() === 0) return; try { const s = ctx.createBufferSource(); s.buffer = buf; s.connect(sfxG); s.start(); } catch (e) {} }
+  function sfx(buf) { if (!ctx || !buf || gv() === 0) return null; try { const s = ctx.createBufferSource(); s.buffer = buf; s.connect(sfxG); s.start(); return s; } catch (e) { return null; } }
+  let wheelSnd = null;
+  function wheelStop() { if (wheelSnd) { try { wheelSnd.stop(); } catch (e) {} wheelSnd = null; } }
   // giọng Sans: mỗi chữ cái / chữ số phát 1 tiếng "bla" ngắn (cùng chữ -> cùng âm), dấu cách và dấu câu thì im
   let vSrc = null;
   function voiceStop() { if (vSrc) { try { vSrc.stop(); } catch (e) {} vSrc = null; } }
@@ -354,7 +356,7 @@
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
   async function gotoSelect(opts) {
-    token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
+    token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
     stage.classList.remove('dark');
     showPanel('sel'); show('sel', 'normal');
     const st = $('status');
@@ -469,14 +471,15 @@
     // quay: kim dừng giữa ô "10". Ô k nằm ở góc (k*45) so với đỉnh khi wAng = 0 (tâm ô = k*45+22.5 - 22.5 ... xem drawWheel)
     // tâm ô k (tính từ đỉnh theo chiều kim đồng hồ) = wAng + k*45 + 22.5 - 22.5 + 22.5 => kim ở đỉnh chỉ ô có tâm = 0 (mod 360)
     // tìm wAng sao cho tâm ô p = 0 (mod 360)
-    let target = -(p * 45 + 22.5); while (target < wAng + 360 * 5) target += 360;     // >= 5 vòng
-    await animAng(0, target - 1, 4600, ease, t);              // gần tới ô 10 ... rồi chậm dần
+    let target = -(p * 45 + 22.5); while (target < wAng + 360 * 9) target += 360;     // >= 9 vòng
+    wheelSnd = sfx(wheelBuf);                                 // tiếng vòng quay: cả file 11.3s, bắt đầu cùng lúc với cú quay
+    await animAng(0, target - 1, 9400, ease, t);              // quay chậm dần theo tiếng tích tắc, tới giây ~9.4 thì kim nằm ở ô 10
     chk(t);
     // giây cuối: gió thổi + âm thanh vang lên, kim giật sang ô kế
     $('gust').innerHTML = ''; for (let i = 0; i < 16; i++) { const l = document.createElement('i'); l.style.top = (60 + rnd(600)) + 'px'; l.style.width = (90 + rnd(160)) + 'px'; l.style.animationDelay = (-Math.random() * .5) + 's'; $('gust').appendChild(l); }
     $('gust').style.opacity = 1;
-    await sleep(700); chk(t);
-    sfx(prizeBuf);                                            // tiếng tưng tưng: đúng lúc gió thổi kim khỏi ô 10
+    await sleep(800); chk(t);
+    // (giây ~10.2 của file âm thanh = tiếng tưng tưng, rơi đúng lúc gió thổi kim khỏi ô 10)
     const to = target - 1 + 45 + 1;                           // nhích đúng 1 ô: sang ô liền trước ô 10
     await animAng(target - 1, to, 260, (x) => 1 - Math.pow(1 - x, 2), t);
     $('gust').style.opacity = 0;
