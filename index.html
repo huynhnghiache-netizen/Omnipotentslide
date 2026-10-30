@@ -2069,22 +2069,50 @@
         const fr = (((clkSeed(i) + s * 0.01 * (i % 2 ? 1 : -1)) % 1) + 1) % 1, px = W * (0.1 + 0.8 * fr), py = H * (0.3 + 0.4 * clkSeed(i + 9)), r = Math.max(W, H) * 0.3;
         const fg = g.createRadialGradient(px, py, 0, px, py, r); fg.addColorStop(0, 'rgba(120,150,150,0.07)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(px - r, py - r, r * 2, r * 2);
       }
-      // đồng hồ quả quýt: vỏ tròn to gần bằng chiều cao màn hình, ở giữa (vòng treo phía trên bị cắt khỏi màn hình)
-      const kk = 0.49 * H / WR, cxm = W / 2, cym = H * 0.52, pulse = hit > 0 ? 1 + 0.02 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
-      const gl = g.createRadialGradient(cxm, cym, 0, cxm, cym, H * 0.7); gl.addColorStop(0, 'rgba(255,200,130,' + (0.05 + 0.25 * Math.min(1, hit * 2)) + ')'); gl.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = gl; g.fillRect(cxm - H, cym - H, H * 2, H * 2);
-      clkPaintWatch(s);
-      g.fillStyle = '#040606'; g.beginPath(); g.arc(cxm, cym, WR * kk * pulse, 0, 6.2832); g.fill();          // nền đặc sau đồng hồ để xe phía sau không lộ qua mặt
-      g.save(); g.translate(cxm, cym); g.scale(pulse, pulse); g.translate(-cxm, -cym); g.imageSmoothingEnabled = true; g.globalAlpha = 0.5 + 0.45 * Math.min(1, hit * 2.5);
-      g.drawImage(clkWatch, cxm - WCX * kk, cym - WCY * kk, 264 * kk, 351 * kk); g.restore(); g.globalAlpha = 1;
-      if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.6 * (1 - k)) + ')'; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(cxm, cym, H * 0.1 + H * 0.5 * k, 0, 6.2832); g.stroke(); }
-      // số năm: nằm giữa đồng hồ (trên mặt vàng), mờ ảo, tới 1980 mới sáng
-      const fs = Math.round(0.092 * H);
-      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fs + "px 'Press Start 2P', monospace";
-      const pw = fs * 4.5, ph = fs * 1.75;                                                   // bảng số tối trên mặt đồng hồ cho dễ đọc, hợp màu đồng cổ
-      g.globalAlpha = 0.92; g.fillStyle = '#120d07'; g.fillRect(cxm - pw / 2, cym - ph / 2, pw, ph); g.strokeStyle = 'rgba(214,176,98,0.8)'; g.lineWidth = Math.max(2, fs * 0.09); g.strokeRect(cxm - pw / 2, cym - ph / 2, pw, ph);
-      g.globalAlpha = 0.75 * (1 - lit); g.fillStyle = '#e0a550'; g.fillText(String(yShown), cxm + (Math.random() - 0.5) * 1.5, cym);
-      if (lit > 0) { g.shadowColor = 'rgba(255,214,140,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fff1cf'; g.fillText(String(yShown), cxm, cym); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, cym); }
-      g.restore();
+      // tháp Big Ben đứng trên mặt đất: kim quay ngược, số năm tụt dần trên bảng dưới mặt đồng hồ
+      const cxm = W / 2, yb = H * 0.84, pulse = hit > 0 ? 1 + 0.015 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
+      const tw = H * 0.26, fr = H * 0.105, fcy = H * 0.37;                                   // thân tháp, bán kính mặt đồng hồ, tâm mặt
+      const gl = g.createRadialGradient(cxm, fcy, 0, cxm, fcy, H * 0.6); gl.addColorStop(0, 'rgba(255,205,130,' + (0.08 + 0.22 * Math.min(1, hit * 2)) + ')'); gl.addColorStop(1, 'rgba(255,205,130,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+      g.save(); g.translate(cxm, yb); g.scale(pulse, pulse); g.translate(-cxm, -yb);
+      const stone = (x, y, w, h, c1, c2) => { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, c1); gr.addColorStop(0.5, c2); gr.addColorStop(1, c1); g.fillStyle = gr; g.fillRect(x, y, w, h); };
+      const trim = (x, y, w, h) => { g.fillStyle = '#8a6c34'; g.fillRect(x, y, w, h); g.fillStyle = 'rgba(255,225,160,0.25)'; g.fillRect(x, y, w, Math.max(1, h * 0.25)); };
+      // thân tháp (dưới) + gạch
+      stone(cxm - tw / 2, H * 0.52, tw, yb - H * 0.52, '#2b261b', '#4a4332');
+      g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1; for (let y = H * 0.52; y < yb; y += H * 0.028) { g.beginPath(); g.moveTo(cxm - tw / 2, y); g.lineTo(cxm + tw / 2, y); g.stroke(); }
+      trim(cxm - tw * 0.56, yb - H * 0.025, tw * 1.12, H * 0.025);                           // chân tháp
+      // cửa sổ gothic dọc thân (dưới bảng năm)
+      for (const dx of [-0.26, 0.26]) { const wx = cxm + dx * tw - tw * 0.07, wy = H * 0.7; g.fillStyle = '#0c0a07'; g.fillRect(wx, wy + tw * 0.07, tw * 0.14, H * 0.09); g.beginPath(); g.arc(wx + tw * 0.07, wy + tw * 0.07, tw * 0.07, Math.PI, 0); g.fill(); g.fillStyle = 'rgba(255,200,120,' + (0.18 + 0.4 * lit) + ')'; g.fillRect(wx + tw * 0.03, wy + tw * 0.08, tw * 0.08, H * 0.07); }
+      // khối đồng hồ (rộng hơn thân)
+      const cw = tw * 1.16; stone(cxm - cw / 2, H * 0.22, cw, H * 0.30, '#2f291d', '#51493a');
+      trim(cxm - cw * 0.53, H * 0.205, cw * 1.06, H * 0.02); trim(cxm - cw * 0.53, H * 0.515, cw * 1.06, H * 0.02);
+      // tầng chuông + vòm
+      const bw = tw * 0.98; stone(cxm - bw / 2, H * 0.115, bw, H * 0.095, '#2b261b', '#4a4332');
+      for (let i = 0; i < 3; i++) { const ax = cxm - bw / 2 + bw * (0.17 + i * 0.33), aw = bw * 0.16; g.fillStyle = '#0a0806'; g.fillRect(ax - aw / 2, H * 0.145, aw, H * 0.05); g.beginPath(); g.arc(ax, H * 0.145, aw / 2, Math.PI, 0); g.fill(); }
+      trim(cxm - bw * 0.56, H * 0.105, bw * 1.12, H * 0.014);
+      // mái nhọn + đỉnh
+      g.fillStyle = '#1d3b34'; g.beginPath(); g.moveTo(cxm - bw * 0.54, H * 0.108); g.lineTo(cxm, H * 0.012); g.lineTo(cxm + bw * 0.54, H * 0.108); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(cxm, H * 0.012); g.lineTo(cxm + bw * 0.54, H * 0.108); g.lineTo(cxm + bw * 0.1, H * 0.108); g.closePath(); g.fill();
+      g.fillStyle = '#b8924a'; g.fillRect(cxm - 1.5, H * 0.0, 3, H * 0.02);
+      // mặt đồng hồ: nền kem sáng nhẹ như đèn trong tháp, vòng vàng, số La Mã, 12 vạch
+      g.fillStyle = '#8a6c34'; g.beginPath(); g.arc(cxm, fcy, fr * 1.12, 0, 6.2832); g.fill();
+      const fg = g.createRadialGradient(cxm, fcy - fr * 0.2, fr * 0.1, cxm, fcy, fr); fg.addColorStop(0, 'rgb(' + Math.round(222 + 30 * lit) + ',' + Math.round(205 + 30 * lit) + ',' + Math.round(150 + 40 * lit) + ')'); fg.addColorStop(1, 'rgb(' + Math.round(170 + 60 * lit) + ',' + Math.round(150 + 60 * lit) + ',' + Math.round(100 + 70 * lit) + ')');
+      g.fillStyle = fg; g.beginPath(); g.arc(cxm, fcy, fr, 0, 6.2832); g.fill();
+      g.fillStyle = '#2a1e0c'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 ' + Math.round(fr * 0.26) + "px Tinos, 'Times New Roman', serif";
+      for (let i = 0; i < 12; i++) { const an = i * Math.PI / 6; g.fillText(ROMAN[i], cxm + Math.sin(an) * fr * 0.76, fcy - Math.cos(an) * fr * 0.76 + 1); }
+      for (let i = 0; i < 60; i++) { const an = i * Math.PI / 30, r0 = fr * (i % 5 ? 0.94 : 0.9); g.strokeStyle = '#2a1e0c'; g.lineWidth = i % 5 ? 1 : 2; g.beginPath(); g.moveTo(cxm + Math.sin(an) * r0, fcy - Math.cos(an) * r0); g.lineTo(cxm + Math.sin(an) * fr * 0.98, fcy - Math.cos(an) * fr * 0.98); g.stroke(); }
+      // kim quay ngược (nhanh dần rồi dừng ở 1980, rung nhẹ khi tới nơi)
+      const spin = -Math.min(s, CLK.T1980) * 2.4, wob = s > CLK.T1980 ? Math.sin((s - CLK.T1980) * 26) * 0.09 * Math.exp(-(s - CLK.T1980) * 4) : 0;
+      const hand = (ang, len, w, col, tail) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(cxm - Math.sin(ang) * tail, fcy + Math.cos(ang) * tail); g.lineTo(cxm + Math.sin(ang) * len, fcy - Math.cos(ang) * len); g.stroke(); };
+      hand(spin / 12 + wob * 0.3, fr * 0.5, Math.max(3, fr * 0.075), '#1c1307', fr * 0.08); hand(spin + wob, fr * 0.8, Math.max(2, fr * 0.05), '#1c1307', fr * 0.1);
+      g.fillStyle = '#1c1307'; g.beginPath(); g.arc(cxm, fcy, fr * 0.06, 0, 6.2832); g.fill();
+      // bảng số năm dưới mặt đồng hồ
+      const fs = Math.round(0.046 * H), pw = tw * 0.92, ph = fs * 1.9, py = H * 0.585;
+      g.fillStyle = '#120d07'; g.fillRect(cxm - pw / 2, py, pw, ph); g.strokeStyle = 'rgba(214,176,98,0.85)'; g.lineWidth = 2; g.strokeRect(cxm - pw / 2, py, pw, ph);
+      g.font = fs + "px 'Press Start 2P', monospace"; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.globalAlpha = 0.8 * (1 - lit); g.fillStyle = '#e0a550'; g.fillText(String(yShown), cxm + (Math.random() - 0.5) * 1.2, py + ph / 2 + 1);
+      if (lit > 0) { g.shadowColor = 'rgba(255,214,140,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fff1cf'; g.fillText(String(yShown), cxm, py + ph / 2 + 1); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, py + ph / 2 + 1); }
+      g.globalAlpha = 1; g.shadowBlur = 0; g.restore();
+      if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.6 * (1 - k)) + ')'; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(cxm, fcy, fr * 1.2 + H * 0.4 * k, 0, 6.2832); g.stroke(); }
       // bụi lơ lửng
       for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.15 + 0.2 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(200,225,220,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
       // viền tối mạnh + sáng nhẹ khi tới 1980
