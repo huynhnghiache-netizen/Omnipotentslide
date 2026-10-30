@@ -30,7 +30,8 @@
 
   /* Sans */
   #sans { position: absolute; image-rendering: pixelated; transition: left .4s, top .4s, height .4s; filter: drop-shadow(0 0 10px rgba(255,255,255,.12)); }
-  #sans.bob { animation: shake .5s steps(1) infinite; }
+  #sansSp { position: absolute; display: none; image-rendering: pixelated; background-repeat: no-repeat; cursor: pointer; filter: drop-shadow(0 0 10px rgba(255,255,255,.12)); }
+  #sans { display: none; }
   @keyframes shake { 0% { transform: translate(0, 0) rotate(0) } 20% { transform: translate(-2px, 1px) rotate(-.7deg) } 40% { transform: translate(2px, -1px) rotate(.7deg) } 60% { transform: translate(-1px, -1px) rotate(-.4deg) } 80% { transform: translate(1px, 1px) rotate(.4deg) } 100% { transform: translate(0, 0) rotate(0) } }
   #yawn { position: absolute; font: 12px 'Press Start 2P', monospace; color: rgba(255,255,255,.7); display: none; animation: zz 2.4s steps(4) infinite; }
   @keyframes zz { 0% { opacity: 0; transform: translateY(8px) } 40% { opacity: 1 } 100% { opacity: 0; transform: translateY(-14px) } }
@@ -38,6 +39,10 @@
   /* khung thoại */
   #dlg { position: absolute; left: 70px; right: 70px; bottom: 26px; height: 132px; background: #000; border: 6px solid var(--line); padding: 20px 26px;
     font: 17px/1.9 'Press Start 2P', 'Courier New', monospace; letter-spacing: 1px; display: none; z-index: 10; cursor: pointer; }
+  #dhead { position: absolute; left: 22px; top: 50%; width: 88px; margin-top: -42px; image-rendering: pixelated; animation: hd .5s steps(1) infinite; }
+  @keyframes hd { 0%,100% { transform: translate(0,0) } 33% { transform: translate(-1px,1px) } 66% { transform: translate(1px,0) } }
+  #dlg { padding-left: 132px !important; }
+  #dlg .who { left: 132px !important; }
   #dlg .who { position: absolute; top: -17px; left: 22px; background: #000; padding: 0 10px; font-size: 12px; color: var(--acc); }
   #dlg .nxt { position: absolute; right: 14px; bottom: 8px; font-size: 12px; animation: blink 1s steps(1) infinite; color: var(--acc); }
   @keyframes blink { 50% { opacity: 0 } }
@@ -61,7 +66,7 @@
   #hint { position: absolute; left: 0; right: 0; top: 628px; text-align: center; font: 10px 'Press Start 2P', monospace; color: rgba(255,255,255,.55); }
 
   /* câu hỏi */
-  #qa { position: absolute; left: 420px; right: 40px; top: 96px; bottom: 176px; display: none; }
+  #qa { position: absolute; left: 420px; right: 40px; top: 90px; bottom: 170px; display: none; flex-direction: column; justify-content: center; }
   #qa .tag { font: 11px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 12px; letter-spacing: 1px; }
   #qa .q { font: 15px/1.7 'Press Start 2P', 'Courier New', monospace; margin-bottom: 16px; min-height: 52px; }
   #opts { display: grid; gap: 10px; }
@@ -99,6 +104,11 @@
   #hud canvas { vertical-align: middle; margin-right: 8px; }
   #hud b { color: var(--acc); }
   #blk { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 40; transition: opacity .45s; }
+  #deco { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+  #deco i { position: absolute; bottom: -40px; width: 12px; height: 12px; background: var(--line); opacity: 0; animation: rise linear infinite; }
+  #deco i.h { background: #ff2a3c; width: 18px; height: 16px; clip-path: polygon(0 25%,25% 0,50% 25%,75% 0,100% 25%,100% 50%,50% 100%,0 50%); }
+  #deco i.b { width: 34px; height: 8px; background: #bdbdbd; }
+  @keyframes rise { 0% { transform: translateY(0) rotate(0); opacity: 0 } 10% { opacity: .3 } 90% { opacity: .3 } 100% { transform: translateY(-800px) rotate(200deg); opacity: 0 } }
   #gust { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 5; transition: opacity .15s; }
   #gust i { position: absolute; height: 3px; background: rgba(255,255,255,.6); border-radius: 2px; animation: gw .5s linear infinite; }
   @keyframes gw { from { transform: translateX(-260px) } to { transform: translateX(1500px) } }
@@ -112,6 +122,7 @@
   <div class="tip" style="left:10px">BACK</div><div class="tip" style="left:72px">LAST</div><div class="tip" style="left:150px">RESET</div>
   <button class="ib" id="bX" title="Exit" aria-label="Exit"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button>
 
+  <div id="deco"></div>
   <div id="hud"></div>
 
   <div id="sel">
@@ -125,15 +136,15 @@
     <div id="hint">CLICK SANS</div>
   </div>
 
-  <img id="sans" src="assets/sans-normal.png" alt="Sans" draggable="false">
-  <div id="yawn">z z z</div>
+  <img id="sans" src="assets/sans-shrug.png" alt="Sans" draggable="false">
+  <div id="sansSp"></div>
 
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
   <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
   <div id="result"></div>
 
-  <div id="dlg"><span class="who">SANS</span><span id="dtxt"></span><span class="nxt">▼</span></div>
+  <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><span class="who">SANS</span><span id="dtxt"></span><span class="nxt">▼</span></div>
   <div id="gust"></div>
   <div id="blk"></div>
 </div>
@@ -194,17 +205,19 @@
   }
   function unlock() { initAudio(); try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} syncMusic(); }
   ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, unlock, true));
+  let musicNow = null;              // chỉ đổi nhạc khi trạng thái thật sự đổi (trước đây mỗi lần click lại phát lại từ đầu)
   function syncMusic() {
     if (!ctx) return;
     if (musicWant === 'select') {
-      if (megaEl) { try { megaEl.pause(); megaEl.currentTime = 0; } catch (e) {} }
-      if (selBuf && !selSrc) { selSrc = ctx.createBufferSource(); selSrc.buffer = selBuf; selSrc.loop = true; selSrc.connect(selG); selSrc.start(0); }
+      if (musicNow !== 'select' && megaEl) { try { megaEl.pause(); megaEl.currentTime = 0; } catch (e) {} }
+      if (selBuf && !selSrc) { selSrc = ctx.createBufferSource(); selSrc.buffer = selBuf; selSrc.loop = true; selSrc.connect(selG); selSrc.start(0); musicNow = 'select'; }
     } else if (musicWant === 'hard') {
       if (selSrc) { try { selSrc.stop(); } catch (e) {} selSrc = null; }
-      if (megaEl) { megaEl.currentTime = 0; megaEl.play().catch(() => {}); }
-    } else {
+      if (megaEl && (musicNow !== 'hard' || megaEl.paused)) { if (musicNow !== 'hard') megaEl.currentTime = 0; megaEl.play().catch(() => {}); musicNow = 'hard'; }
+    } else if (musicNow !== null) {
       if (selSrc) { try { selSrc.stop(); } catch (e) {} selSrc = null; }
       if (megaEl) { try { megaEl.pause(); } catch (e) {} }
+      musicNow = null;
     }
     applyVol();
   }
@@ -229,22 +242,38 @@
 
   // ===== hiển thị Sans =====
   const SANS_POS = {
-    sel: { left: 505, top: 175, h: 280 },
-    q: { left: 60, top: 150, h: 300 },
-    small: { left: 60, top: 170, h: 280 }
+    sel: { left: 505, top: 170, h: 262 },
+    q: { left: 60, top: 120, h: 340 },
+    small: { left: 60, top: 150, h: 300 }
   };
-  const MODEL = { normal: 'assets/sans-normal.png', shrug: 'assets/sans-shrug.png' };
-  function placeSans(pos, model) {
-    const p = SANS_POS[pos]; sans.style.height = p.h + 'px'; sans.style.top = p.top + 'px';
-    sans.src = MODEL[model || 'normal'];
-    // sans-normal rộng 55/72, shrug 474/488
-    const ratio = (model === 'shrug') ? 474 / 488 : 55 / 72;
-    sans.style.left = (pos === 'sel' ? 640 - p.h * ratio / 2 : p.left + (300 - p.h * ratio) / 2 + 10) + 'px';
-    sans.style.display = 'block';
+  // sheet: ảnh ghép khung hình (cột x hàng), n khung, fps
+  const SHEETS = {
+    shake: { src: 'assets/sans-shake.png', fw: 199, fh: 268, cols: 6, n: 12, fps: 10 },
+    sleep: { src: 'assets/sans-sleep.png', fw: 175, fh: 248, cols: 9, n: 71, fps: 10 }
+  };
+  const sp = $('sansSp'); let spTimer = 0;
+  function playSheet(name, h, left, top) {
+    const d = SHEETS[name], k = h / d.fh, w = d.fw * k, rows = Math.ceil(d.n / d.cols);
+    sp.style.cssText = 'display:block;width:' + w + 'px;height:' + h + 'px;left:' + left + 'px;top:' + top + 'px;background-image:url(' + d.src + ');background-size:' + (d.cols * w) + 'px ' + (rows * h) + 'px';
+    let f = 0; clearInterval(spTimer);
+    const draw = () => { sp.style.backgroundPosition = '-' + ((f % d.cols) * w) + 'px -' + (Math.floor(f / d.cols) * h) + 'px'; f = (f + 1) % d.n; };
+    draw(); spTimer = setInterval(draw, 1000 / d.fps);
+    return w;
   }
-  function setModel(model, pos) { placeSans(pos || curPos, model); }
+  function placeSans(pos, model) {
+    const p = SANS_POS[pos];
+    if (model === 'shrug') {
+      clearInterval(spTimer); sp.style.display = 'none';
+      const ratio = 474 / 488; sans.style.height = p.h + 'px'; sans.style.top = p.top + 'px';
+      sans.style.left = (pos === 'sel' ? 640 - p.h * ratio / 2 : p.left + (300 - p.h * ratio) / 2 + 10) + 'px'; sans.style.display = 'block';
+      return;
+    }
+    sans.style.display = 'none';
+    const name = model === 'sleep' ? 'sleep' : 'shake', d = SHEETS[name], w = d.fw * p.h / d.fh;
+    playSheet(name, p.h, pos === 'sel' ? 640 - w / 2 : p.left + (300 - w) / 2 + 10, p.top);
+  }
   let curPos = 'sel';
-  function show(pos, model) { curPos = pos; placeSans(pos, model || 'normal'); sans.classList.toggle('bob', pos === 'sel'); $('yawn').style.display = pos === 'sel' ? 'block' : 'none'; if (pos === 'sel') { $('yawn').style.left = '730px'; $('yawn').style.top = '185px'; } }
+  function show(pos, model) { curPos = pos; placeSans(pos, model || 'normal'); }
 
   // ===== khung thoại (gõ chữ, bấm để tiếp) =====
   const dlg = $('dlg'), dtxt = $('dtxt');
@@ -352,13 +381,13 @@
 
   // ===== điều khiển màn =====
   const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result'];
-  function showPanel(id) { panels.forEach((p) => { $(p).style.display = (p === id) ? 'block' : 'none'; }); }
+  function showPanel(id) { panels.forEach((p) => { $(p).style.display = (p === id) ? (p === 'qa' ? 'flex' : 'block') : 'none'; }); }
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
   async function gotoSelect(opts) {
     token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
     stage.classList.remove('dark');
-    showPanel('sel'); show('sel', 'normal');
+    showPanel('sel'); show('sel', 'sleep');
     const st = $('status');
     if (status === 'ok') { st.className = 'ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; }
     else if (status === 'lost') { st.className = 'lost'; st.textContent = 'LOST'; st.style.display = 'block'; }
@@ -375,6 +404,7 @@
       if (selStage === 0) {
         selStage = 1; $('hint').style.display = 'none'; $('status').style.display = 'none';
         unlock(); setMusic('select');                         // bấm vào Sans lần đầu thì nhạc mới bắt đầu
+        show('sel', 'normal');                                // Sans tỉnh giấc
         await say('huh? do you want to challenge me?', t);
         $('hint').textContent = 'CLICK SANS AGAIN'; $('hint').style.display = 'block'; hideDlg();
         selStage = 1.5;
@@ -386,7 +416,7 @@
     } catch (e) { if (!(e instanceof Cancel)) throw e; }
   }
   $('selCard').addEventListener('click', onSansClick);
-  sans.addEventListener('click', () => { if ($('sel').style.display === 'block') onSansClick(); });
+  [sans, sp].forEach((el) => el.addEventListener('click', () => { if ($('sel').style.display === 'block') onSansClick(); }));
   $('sel').addEventListener('click', (e) => { if (e.target === $('sel')) onSansClick(); });
 
   // ===== một câu hỏi =====
@@ -564,6 +594,8 @@
   // Phím Backspace / Enter không có tác dụng ở slide này (tránh xung đột khi bấm nhầm)
   addEventListener('keydown', (e) => { if (e.key === 'Backspace' || e.key === 'Enter' || e.key === ' ') e.preventDefault(); });
 
+  // trang trí nền: tim, xương, ô vuông trôi lên chậm
+  (function () { const d = $('deco'); for (let i = 0; i < 18; i++) { const e = document.createElement('i'); e.className = ['', 'h', 'b', ''][i % 4]; e.style.left = (Math.random() * 96) + '%'; e.style.animationDuration = (9 + Math.random() * 10) + 's'; e.style.animationDelay = (-Math.random() * 18) + 's'; d.appendChild(e); } })();
   // khởi động
   blk.style.opacity = '0';
   initAudio(); try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {}
