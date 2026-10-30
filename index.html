@@ -2069,6 +2069,32 @@
         const fr = (((clkSeed(i) + s * 0.01 * (i % 2 ? 1 : -1)) % 1) + 1) % 1, px = W * (0.1 + 0.8 * fr), py = H * (0.3 + 0.4 * clkSeed(i + 9)), r = Math.max(W, H) * 0.3;
         const fg = g.createRadialGradient(px, py, 0, px, py, r); fg.addColorStop(0, 'rgba(120,150,150,0.07)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(px - r, py - r, r * 2, r * 2);
       }
+      // trang trí bầu trời hai bên tháp: trăng, mây trôi, chim, máy bay (thời nay), diều (thời xưa)
+      { const old = Math.max(0, Math.min(1, (2005 - yr) / 25)), modern = 1 - old, gy0 = H * 0.8;
+        // trăng
+        const mx = W * 0.83, my = H * 0.17, mr = H * 0.055;
+        const mg = g.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4); mg.addColorStop(0, 'rgba(230,225,190,0.22)'); mg.addColorStop(1, 'rgba(230,225,190,0)'); g.fillStyle = mg; g.fillRect(mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
+        g.fillStyle = 'rgba(235,228,190,0.85)'; g.beginPath(); g.arc(mx, my, mr, 0, 6.2832); g.fill(); g.fillStyle = '#0e1212'; g.beginPath(); g.arc(mx + mr * 0.45, my - mr * 0.1, mr * 0.92, 0, 6.2832); g.fill();
+        // mây trôi
+        for (let i = 0; i < 4; i++) { const cw = H * (0.16 + 0.05 * (i % 2)), cx0 = ((((clkSeed(i + 30) * (W + cw * 2)) + s * (7 + i * 3)) % (W + cw * 2)) + (W + cw * 2)) % (W + cw * 2) - cw, cy0 = H * (0.1 + 0.2 * clkSeed(i + 40));
+          g.fillStyle = 'rgba(150,170,175,0.09)'; for (let k = 0; k < 4; k++) { g.beginPath(); g.ellipse(cx0 + cw * (0.2 + k * 0.2), cy0 + (k % 2) * H * 0.008, cw * 0.22, H * 0.024, 0, 0, 6.2832); g.fill(); } }
+        // đàn chim bay chậm bên trái
+        for (let i = 0; i < 5; i++) { const bx = ((s * 22 + i * 46 + 40) % (W * 0.5 + 120)) - 60, by = H * 0.22 + Math.sin(s * 0.8 + i) * 10 + i * 12 - Math.abs(i - 2) * 7, fl = Math.sin(s * 9 + i * 1.7) * 5;
+          g.strokeStyle = 'rgba(190,200,195,0.5)'; g.lineWidth = 2; g.beginPath(); g.moveTo(bx - 9, by - fl); g.lineTo(bx, by + 2); g.lineTo(bx + 9, by - fl); g.stroke(); }
+        // máy bay (thời hiện đại): bay ngang, đèn nhấp nháy, vệt khói mờ
+        if (modern > 0.05) { const ph = (s % 10) / 10, px = -W * 0.1 + ph * W * 1.2, py = H * 0.12 + ph * H * 0.05;
+          g.globalAlpha = modern; const tg = g.createLinearGradient(px - W * 0.18, 0, px, 0); tg.addColorStop(0, 'rgba(200,210,215,0)'); tg.addColorStop(1, 'rgba(200,210,215,0.25)'); g.fillStyle = tg; g.fillRect(px - W * 0.18, py - 1, W * 0.18, 3);
+          g.fillStyle = '#b9c2c4'; g.fillRect(px - 20, py - 3, 40, 6); g.fillRect(px + 20, py - 2, 5, 4); g.fillStyle = '#9aa5a8'; g.beginPath(); g.moveTo(px - 4, py); g.lineTo(px - 16, py + 14); g.lineTo(px - 8, py + 14); g.lineTo(px + 6, py); g.fill(); g.beginPath(); g.moveTo(px - 17, py - 2); g.lineTo(px - 24, py - 12); g.lineTo(px - 19, py - 12); g.lineTo(px - 11, py - 2); g.fill();
+          if (Math.sin(s * 8) > 0) { g.fillStyle = '#ff3b3b'; g.fillRect(px - 2, py + 12, 3, 3); } g.fillStyle = '#fff'; g.fillRect(px + 24, py - 1, 2, 2); g.globalAlpha = 1; }
+        // diều (thời xưa): bay lắc lư, đuôi uốn, dây kéo xuống đất
+        if (old > 0.05) for (const [kx, ky, col, ph0] of [[W * 0.2, H * 0.3, '#c2453a', 0], [W * 0.78, H * 0.4, '#3aa59a', 2.1], [W * 0.1, H * 0.5, '#d9b43a', 4.2]]) {
+          const sw = Math.sin(s * 1.3 + ph0), x = kx + sw * 18, y = ky + Math.sin(s * 0.9 + ph0) * 10, ang = sw * 0.22, sz = H * 0.05;
+          g.globalAlpha = old; g.strokeStyle = 'rgba(220,220,200,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y + sz); g.quadraticCurveTo(x + sw * 40, (y + gy0) / 2, kx - 10 + sw * 8, gy0); g.stroke();
+          g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = col; g.beginPath(); g.moveTo(0, -sz); g.lineTo(sz * 0.65, 0); g.lineTo(0, sz * 1.1); g.lineTo(-sz * 0.65, 0); g.closePath(); g.fill();
+          g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, -sz); g.lineTo(0, sz * 1.1); g.moveTo(-sz * 0.65, 0); g.lineTo(sz * 0.65, 0); g.stroke();
+          g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(0, sz * 1.1); for (let k = 1; k <= 6; k++) g.lineTo(Math.sin(s * 3 + k + ph0) * 6, sz * 1.1 + k * sz * 0.35); g.stroke();
+          for (let k = 1; k <= 6; k += 2) { g.fillStyle = k % 4 === 1 ? '#fff' : col; g.fillRect(Math.sin(s * 3 + k + ph0) * 6 - 3, sz * 1.1 + k * sz * 0.35 - 2, 6, 4); }
+          g.restore(); g.globalAlpha = 1; } }
       // tháp Big Ben đứng trên mặt đất: kim quay ngược, số năm tụt dần trên bảng dưới mặt đồng hồ
       const cxm = W / 2, yb = H * 0.81, pulse = hit > 0 ? 1 + 0.015 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
       const tw = H * 0.26, fr = H * 0.105, fcy = H * 0.37;                                   // thân tháp, bán kính mặt đồng hồ, tâm mặt
