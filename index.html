@@ -2033,7 +2033,7 @@
       const r = clkSeed(i + 500), type = r < 0.3 ? 'car' : r < 0.55 ? 'moto' : r < 0.9 ? 'bike' : 'cart';
       return { type, k: clkSeed(i + 600), x: clkSeed(i + 700), lane: clkSeed(i + 800), sp: 0.015 + clkSeed(i + 900) * 0.03, dir: clkSeed(i + 950) < 0.5 ? -1 : 1 };
     });
-    const clkBg = document.createElement('canvas');
+    const clkBg = document.createElement('canvas'), clkTw = document.createElement('canvas');
     function clkEraVis(type, yr, k) {
       const sm = (v) => Math.max(0, Math.min(1, v));
       const a = type === 'car' ? sm((yr - 1994) / 10) : type === 'moto' ? sm((yr - 1985) / 12) : type === 'cart' ? sm((1993 - yr) / 10) : 0.7 + 0.3 * sm((2010 - yr) / 25);
@@ -2074,7 +2074,7 @@
         // trăng
         const mx = W * 0.83, my = H * 0.17, mr = H * 0.055;
         const mg = g.createRadialGradient(mx, my, mr * 0.5, mx, my, mr * 4); mg.addColorStop(0, 'rgba(230,225,190,0.22)'); mg.addColorStop(1, 'rgba(230,225,190,0)'); g.fillStyle = mg; g.fillRect(mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
-        g.fillStyle = 'rgba(235,228,190,0.85)'; g.beginPath(); g.arc(mx, my, mr, 0, 6.2832); g.fill(); g.fillStyle = '#0e1212'; g.beginPath(); g.arc(mx + mr * 0.45, my - mr * 0.1, mr * 0.92, 0, 6.2832); g.fill();
+        g.save(); g.beginPath(); g.arc(mx, my, mr, 0, 6.2832); g.clip(); g.beginPath(); g.rect(mx - mr * 2, my - mr * 2, mr * 4, mr * 4); g.arc(mx + mr * 0.45, my - mr * 0.1, mr * 0.92, 0, 6.2832, true); g.clip('evenodd'); g.fillStyle = 'rgba(235,228,190,0.85)'; g.fillRect(mx - mr * 2, my - mr * 2, mr * 4, mr * 4); g.restore();
         // mây trôi
         for (let i = 0; i < 4; i++) { const cw = H * (0.16 + 0.05 * (i % 2)), cx0 = ((((clkSeed(i + 30) * (W + cw * 2)) + s * (7 + i * 3)) % (W + cw * 2)) + (W + cw * 2)) % (W + cw * 2) - cw, cy0 = H * (0.1 + 0.2 * clkSeed(i + 40));
           g.fillStyle = 'rgba(150,170,175,0.09)'; for (let k = 0; k < 4; k++) { g.beginPath(); g.ellipse(cx0 + cw * (0.2 + k * 0.2), cy0 + (k % 2) * H * 0.008, cw * 0.22, H * 0.024, 0, 0, 6.2832); g.fill(); } }
@@ -2095,6 +2095,11 @@
           g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(0, sz * 1.1); for (let k = 1; k <= 6; k++) g.lineTo(Math.sin(s * 3 + k + ph0) * 6, sz * 1.1 + k * sz * 0.35); g.stroke();
           for (let k = 1; k <= 6; k += 2) { g.fillStyle = k % 4 === 1 ? '#fff' : col; g.fillRect(Math.sin(s * 3 + k + ph0) * 6 - 3, sz * 1.1 + k * sz * 0.35 - 2, 6, 4); }
           g.restore(); g.globalAlpha = 1; } }
+      // tháp vẽ ra khung nhỏ hơn (1/2 độ phân giải) rồi phóng lên mờ nhẹ như nền, sau đó phủ tối + sương để hòa vào cảnh
+      const mainG = g;
+      if (clkTw.width !== Math.ceil(W / 2) || clkTw.height !== Math.ceil(H / 2)) { clkTw.width = Math.ceil(W / 2); clkTw.height = Math.ceil(H / 2); }
+      const twG = clkTw.getContext('2d'); twG.setTransform(1, 0, 0, 1, 0, 0); twG.clearRect(0, 0, clkTw.width, clkTw.height); twG.setTransform(0.5, 0, 0, 0.5, 0, 0); twG.imageSmoothingEnabled = true;
+      g = twG;
       // tháp Big Ben đứng trên mặt đất: kim quay ngược, số năm tụt dần trên bảng dưới mặt đồng hồ
       const cxm = W / 2, yb = H * 0.81, pulse = hit > 0 ? 1 + 0.015 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
       const tw = H * 0.26, fr = H * 0.105, fcy = H * 0.37;                                   // thân tháp, bán kính mặt đồng hồ, tâm mặt
@@ -2141,6 +2146,17 @@
       if (lit > 0) { g.shadowColor = 'rgba(255,214,140,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fff1cf'; g.fillText(String(yShown), cxm, py + ph / 2 + 1); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, py + ph / 2 + 1); }
       g.globalAlpha = 1; g.shadowBlur = 0; g.restore();
       if (hit > 0 && hit < 1.1) { const k = hit / 1.1; g.strokeStyle = 'rgba(255,233,176,' + (0.6 * (1 - k)) + ')'; g.lineWidth = 5 * (1 - k) + 1; g.beginPath(); g.arc(cxm, fcy, fr * 1.2 + H * 0.4 * k, 0, 6.2832); g.stroke(); }
+      g = mainG;
+      { // phủ màu đêm lên riêng phần tháp: tối dần lên đỉnh và xuống chân, sáng quanh mặt đồng hồ
+        const tc = clkTw.getContext('2d'); tc.save(); tc.setTransform(1, 0, 0, 1, 0, 0); tc.globalCompositeOperation = 'source-atop';
+        const dim = 1 - 0.55 * lit;
+        const vgr = tc.createLinearGradient(0, 0, 0, clkTw.height); vgr.addColorStop(0, 'rgba(6,12,16,' + (0.5 * dim) + ')'); vgr.addColorStop(0.3, 'rgba(6,12,16,' + (0.18 * dim) + ')'); vgr.addColorStop(0.7, 'rgba(6,12,16,' + (0.3 * dim) + ')'); vgr.addColorStop(1, 'rgba(6,12,16,' + (0.6 * dim) + ')'); tc.fillStyle = vgr; tc.fillRect(0, 0, clkTw.width, clkTw.height);
+        const fcx = clkTw.width / 2, fcy2 = fcy / 2, bl = tc.createRadialGradient(fcx, fcy2, 0, fcx, fcy2, H * 0.3 / 2); bl.addColorStop(0, 'rgba(255,200,130,' + (0.28 + 0.2 * lit) + ')'); bl.addColorStop(1, 'rgba(255,200,130,0)'); tc.fillStyle = bl; tc.fillRect(0, 0, clkTw.width, clkTw.height);
+        tc.fillStyle = 'rgba(30,50,60,0.16)'; tc.fillRect(0, 0, clkTw.width, clkTw.height);      // ngả xanh lạnh của đêm
+        tc.restore();
+      }
+      g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(clkTw, 0, 0, W, H); g.restore();
+      { const fg2 = g.createLinearGradient(0, yb - H * 0.2, 0, yb + H * 0.14); fg2.addColorStop(0, 'rgba(90,108,110,0)'); fg2.addColorStop(0.55, 'rgba(90,108,110,0.22)'); fg2.addColorStop(0.7, 'rgba(90,108,110,0.2)'); fg2.addColorStop(1, 'rgba(90,108,110,0)'); g.fillStyle = fg2; g.fillRect(0, yb - H * 0.2, W, H * 0.34); }      // sương mù dưới chân tháp
       // bụi lơ lửng
       for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.15 + 0.2 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(200,225,220,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
       // viền tối mạnh + sáng nhẹ khi tới 1980
