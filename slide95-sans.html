@@ -507,13 +507,12 @@
     // tìm wAng sao cho tâm ô p = 0 (mod 360)
     let target = -(p * 45 + 22.5); while (target < wAng + 360 * 9) target += 360;     // >= 9 vòng
     wheelSnd = sfx(wheelBuf);                                 // tiếng vòng quay: cả file 11.3s, bắt đầu cùng lúc với cú quay
-    const SPIN_MS = 9620;
-    const rockTimer = setTimeout(() => { if (alive(t)) sfx(rockBuf); }, SPIN_MS - 500);      // "the rock" vang lên 0.5s trước khi kim dừng hẳn ở ô 10
-    try { await animAng(0, target - 1, SPIN_MS, ease, t); } catch (e) { clearTimeout(rockTimer); throw e; }
+    const SPIN_MS = 9620, CUT = SPIN_MS - 500;                // 0.5s trước khi dừng hẳn: rock vang lên và kim đổi chiều NGAY (không đứng yên ở ô 10)
+    await new Promise((res, rej) => { const s0 = performance.now(); (function f() { if (!alive(t)) { rej(new Cancel()); return; } const el = performance.now() - s0, k = Math.min(1, el / SPIN_MS); wAng = (target - 1) * ease(k); if (el < CUT) requestAnimationFrame(f); else res(); })(); });
     chk(t);
-    await sleep(800); chk(t);                                  // kim nằm ở ô 10 trong lúc tiếng rock đọng nốt (rock dài ~1.3s)
+    sfx(rockBuf);
     const d = 1 + rnd(2);                                      // kim đổi chiều: quay ngược 1-2 ô sang ô kẹo thường
-    await animAng(target - 1, target - 1 - 45 * d, 650 + 250 * (d - 1), (x) => 1 - Math.pow(1 - x, 2), t);
+    await animAng(wAng, target - 1 - 45 * d, 700 + 250 * (d - 1), (x) => 1 - Math.pow(1 - x, 2), t);
     const kLand = (p + d) % 8, got = layout[kLand];
     sfx(prizeBuf);                                             // quay trúng đáp án thật: phát tiếng level-up
     await sleep(500); chk(t);
