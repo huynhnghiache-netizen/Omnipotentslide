@@ -394,15 +394,15 @@
     if (status === 'ok') { st.className = 'ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; }
     else if (status === 'lost') { st.className = 'lost'; st.textContent = 'LOST'; st.style.display = 'block'; }
     else st.style.display = 'none';
-    $('hint').textContent = status === 'ok' ? 'COMPLETED  -  PRESS RESET TO PLAY AGAIN' : 'CLICK SANS'; $('hint').style.display = 'block';
-    $('selCard').style.cursor = sp.style.cursor = (status === 'ok') ? 'default' : 'pointer';
+    $('hint').textContent = status === 'ok' ? 'COMPLETED  -  PRESS RESET TO PLAY AGAIN' : status === 'lost' ? 'LOST  -  PRESS RESET TO TRY AGAIN' : 'CLICK SANS'; $('hint').style.display = 'block';
+    $('selCard').style.cursor = sp.style.cursor = status ? 'default' : 'pointer';
     selStage = 0;
     if (!(opts && opts.instant)) await fadeIn(500);
   }
   let selStage = 0;
   async function onSansClick() {
     if (selStage >= 2) return;
-    if (status === 'ok') return;                                // đã COMPLETED: không chơi lại được, chỉ nút reset mới mở lại
+    if (status === 'ok' || status === 'lost') return;           // đã COMPLETED hoặc LOST: không chơi lại được, chỉ nút reset mới mở lại
     const t = token;
     try {
       if (selStage === 0) {
