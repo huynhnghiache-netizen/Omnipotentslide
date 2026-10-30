@@ -1874,8 +1874,8 @@
         const r = cards[tg].getBoundingClientRect(), ang = Math.random() * Math.PI;
         cuts.push({ cx: r.left + r.width / 2, cy: r.top + r.height / 2, dx: Math.cos(ang), dy: Math.sin(ang), L: Math.hypot(innerWidth, innerHeight) * 0.55,
           bend: (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 120), width: 46 + Math.random() * 26, color: '#ff1f3d', start: performance.now(), dur: 200 });
-        sfxPlay(SFX.slash);
-        setTimeout(() => { killCard(tg, true); sfxPlay(SFX.finish); setTimeout(() => reviveCard(tg), 900); }, 200);
+        
+        setTimeout(() => { killCard(tg, true); setTimeout(() => reviveCard(tg), 900); }, 200);
       }, 900);
       setTimeout(() => { if (sword && sword.float) sword.endAt = performance.now(); }, 1900);
     }
@@ -2009,7 +2009,7 @@
       if (CLK_IMG.complete && CLK_IMG.naturalWidth) g.drawImage(CLK_IMG, 0, 0, 264, 351);
       const cx = WCX, cy = WCY - 1;
       g.fillStyle = '#fbf6ee'; g.beginPath(); g.arc(cx, cy, 97, 0, 6.2832); g.fill();
-      const yg = g.createRadialGradient(cx - 14, cy - 10, 4, cx, cy, 62); yg.addColorStop(0, '#ffcf6a'); yg.addColorStop(1, '#f7a936');
+      const yg = g.createRadialGradient(cx - 14, cy - 10, 4, cx, cy, 62); yg.addColorStop(0, '#b8924a'); yg.addColorStop(1, '#6f5224');
       g.fillStyle = yg; g.beginPath(); g.arc(cx, cy, 62, 0, 6.2832); g.fill();
       g.fillStyle = '#3a2a10'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = "700 22px Tinos, 'Times New Roman', serif";
       for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; g.fillText(ROMAN[i], cx + Math.sin(a) * 79, cy - Math.cos(a) * 79 + 1); }
@@ -2080,8 +2080,10 @@
       // số năm: nằm giữa đồng hồ (trên mặt vàng), mờ ảo, tới 1980 mới sáng
       const fs = Math.round(0.092 * H);
       g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fs + "px 'Press Start 2P', monospace";
-      g.globalAlpha = 0.6 * (1 - lit); g.fillStyle = '#4a2c0a'; g.fillText(String(yShown), cxm + (Math.random() - 0.5) * 1.5, cym);
-      if (lit > 0) { g.shadowColor = 'rgba(255,240,200,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fffaf0'; g.fillText(String(yShown), cxm, cym); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, cym); }
+      const pw = fs * 4.5, ph = fs * 1.75;                                                   // bảng số tối trên mặt đồng hồ cho dễ đọc, hợp màu đồng cổ
+      g.globalAlpha = 0.92; g.fillStyle = '#120d07'; g.fillRect(cxm - pw / 2, cym - ph / 2, pw, ph); g.strokeStyle = 'rgba(214,176,98,0.8)'; g.lineWidth = Math.max(2, fs * 0.09); g.strokeRect(cxm - pw / 2, cym - ph / 2, pw, ph);
+      g.globalAlpha = 0.75 * (1 - lit); g.fillStyle = '#e0a550'; g.fillText(String(yShown), cxm + (Math.random() - 0.5) * 1.5, cym);
+      if (lit > 0) { g.shadowColor = 'rgba(255,214,140,0.95)'; g.shadowBlur = fs * 0.9; g.globalAlpha = lit; g.fillStyle = '#fff1cf'; g.fillText(String(yShown), cxm, cym); g.shadowBlur = fs * 1.8; g.globalAlpha = 0.35 * lit; g.fillText(String(yShown), cxm, cym); }
       g.restore();
       // bụi lơ lửng
       for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.15 + 0.2 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(200,225,220,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
