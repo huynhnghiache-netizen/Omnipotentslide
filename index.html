@@ -2070,7 +2070,7 @@
         const fg = g.createRadialGradient(px, py, 0, px, py, r); fg.addColorStop(0, 'rgba(120,150,150,0.07)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(px - r, py - r, r * 2, r * 2);
       }
       // tháp Big Ben đứng trên mặt đất: kim quay ngược, số năm tụt dần trên bảng dưới mặt đồng hồ
-      const cxm = W / 2, yb = H * 0.915, pulse = hit > 0 ? 1 + 0.015 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
+      const cxm = W / 2, yb = H * 0.81, pulse = hit > 0 ? 1 + 0.015 * Math.exp(-hit * 5) * Math.cos(hit * 22) : 1, lit = Math.min(1, hit * 3);
       const tw = H * 0.26, fr = H * 0.105, fcy = H * 0.37;                                   // thân tháp, bán kính mặt đồng hồ, tâm mặt
       const gl = g.createRadialGradient(cxm, fcy, 0, cxm, fcy, H * 0.6); gl.addColorStop(0, 'rgba(255,205,130,' + (0.08 + 0.22 * Math.min(1, hit * 2)) + ')'); gl.addColorStop(1, 'rgba(255,205,130,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
       { const sg = g.createRadialGradient(cxm, yb, 0, cxm, yb, H * 0.32); sg.addColorStop(0, 'rgba(0,0,0,0.75)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); g.save(); g.translate(cxm, yb); g.scale(1, 0.16); g.translate(-cxm, -yb); g.fillStyle = sg; g.fillRect(cxm - H * 0.34, yb - H * 0.34, H * 0.68, H * 0.68); g.restore(); }   // bóng đổ dưới chân tháp: tháp chạm đất
@@ -2083,7 +2083,7 @@
       stone(cxm - tw * 0.66, yb - H * 0.012, tw * 1.32, H * 0.012, '#1c1810', '#3a3426');         // bậc nền
       trim(cxm - tw * 0.56, yb - H * 0.037, tw * 1.12, H * 0.025);                           // chân tháp
       // cửa sổ gothic dọc thân (dưới bảng năm)
-      for (const dx of [-0.26, 0.26]) { const wx = cxm + dx * tw - tw * 0.07, wy = H * 0.7; g.fillStyle = '#0c0a07'; g.fillRect(wx, wy + tw * 0.07, tw * 0.14, H * 0.09); g.beginPath(); g.arc(wx + tw * 0.07, wy + tw * 0.07, tw * 0.07, Math.PI, 0); g.fill(); g.fillStyle = 'rgba(255,200,120,' + (0.18 + 0.4 * lit) + ')'; g.fillRect(wx + tw * 0.03, wy + tw * 0.08, tw * 0.08, H * 0.07); }
+      for (const dx of [-0.26, 0.26]) { const wx = cxm + dx * tw - tw * 0.07, wy = H * 0.69; g.fillStyle = '#0c0a07'; g.fillRect(wx, wy + tw * 0.07, tw * 0.14, H * 0.07); g.beginPath(); g.arc(wx + tw * 0.07, wy + tw * 0.07, tw * 0.07, Math.PI, 0); g.fill(); g.fillStyle = 'rgba(255,200,120,' + (0.18 + 0.4 * lit) + ')'; g.fillRect(wx + tw * 0.03, wy + tw * 0.08, tw * 0.08, H * 0.05); }
       // khối đồng hồ (rộng hơn thân)
       const cw = tw * 1.16; stone(cxm - cw / 2, H * 0.22, cw, H * 0.30, '#2f291d', '#51493a');
       trim(cxm - cw * 0.53, H * 0.205, cw * 1.06, H * 0.02); trim(cxm - cw * 0.53, H * 0.515, cw * 1.06, H * 0.02);
