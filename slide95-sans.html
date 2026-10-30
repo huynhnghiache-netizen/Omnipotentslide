@@ -507,16 +507,15 @@
     // tìm wAng sao cho tâm ô p = 0 (mod 360)
     let target = -(p * 45 + 22.5); while (target < wAng + 360 * 9) target += 360;     // >= 9 vòng
     wheelSnd = sfx(wheelBuf);                                 // tiếng vòng quay: cả file 11.3s, bắt đầu cùng lúc với cú quay
-    await animAng(0, target - 1, 9620, ease, t);              // quay chậm dần theo tiếng tích tắc, tới giây ~9.4 thì kim nằm ở ô 10
+    const SPIN_MS = 9620;
+    const rockTimer = setTimeout(() => { if (alive(t)) sfx(rockBuf); }, SPIN_MS - 500);      // "the rock" vang lên 0.5s trước khi kim dừng hẳn ở ô 10
+    try { await animAng(0, target - 1, SPIN_MS, ease, t); } catch (e) { clearTimeout(rockTimer); throw e; }
     chk(t);
-    // kim đang nằm đúng ô 10: vang tiếng "the rock", rồi kim giật lùi hoặc tiến 1-2 ô sang ô kẹo thường
-    await sleep(1000); chk(t);                                 // kim đứng yên ở ô 10 thêm 1 giây
-    sfx(rockBuf);
-    await sleep(1450); chk(t);                                 // đợi tiếng "the rock" (1.3s) xong hẳn rồi kim mới sang ô khác
-    const d = [-2, -1, 1, 2][rnd(4)];                          // d>0: kim lùi về ô liền trước, d<0: kim tiến lên ô liền sau
-    await animAng(target - 1, target - 1 + 45 * d + (d > 0 ? 1 : -1), 260 + 120 * (Math.abs(d) - 1), (x) => 1 - Math.pow(1 - x, 2), t);
-    const kLand = (p - d + 8) % 8, got = layout[kLand];
-    sfx(prizeBuf);                                             // kim sang ô khác xong rồi mới có tiếng "ting ting"
+    await sleep(800); chk(t);                                  // kim nằm ở ô 10 trong lúc tiếng rock đọng nốt (rock dài ~1.3s)
+    const d = 1 + rnd(2);                                      // kim đổi chiều: quay ngược 1-2 ô sang ô kẹo thường
+    await animAng(target - 1, target - 1 - 45 * d, 650 + 250 * (d - 1), (x) => 1 - Math.pow(1 - x, 2), t);
+    const kLand = (p + d) % 8, got = layout[kLand];
+    sfx(prizeBuf);                                             // quay trúng đáp án thật: phát tiếng level-up
     await sleep(500); chk(t);
     $('wCap').textContent = 'YOU GOT ' + got + (got > 1 ? ' CANDIES' : ' CANDY') + '!'; $('wCap').style.animation = 'none'; $('wCap').style.visibility = 'visible';
     $('wX').style.display = 'flex';
