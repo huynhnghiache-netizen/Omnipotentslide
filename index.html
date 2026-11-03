@@ -2063,6 +2063,7 @@
       const yr = CLK.FROM - (CLK.FROM - CLK.TO) * yp, yShown = Math.round(yr), hit = Math.max(0, s - CLK.T1980);
       g.fillStyle = '#030505'; g.fillRect(0, 0, W, H);
       clkBgDraw(g, W, H, s, yr, hit);
+      { const eraOld = Math.max(0, Math.min(1, (2010 - yr) / 30)); g.fillStyle = 'rgba(120,80,40,' + (0.16 * eraOld) + ')'; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(30,60,90,' + (0.1 * (1 - eraOld)) + ')'; g.fillRect(0, 0, W, H); }      // đổi màu theo thời đại: xanh lạnh (nay) -> nâu sepia (xưa)
       g.fillStyle = 'rgba(2,4,5,' + (0.4 - 0.12 * Math.min(1, hit * 1.5)) + ')'; g.fillRect(0, 0, W, H);          // phủ tối: nền rất tối, mờ ảo
       // sương trôi
       for (let i = 0; i < 4; i++) {
@@ -2107,6 +2108,7 @@
       { const sg = g.createRadialGradient(cxm, yb, 0, cxm, yb, H * 0.32); sg.addColorStop(0, 'rgba(0,0,0,0.75)'); sg.addColorStop(1, 'rgba(0,0,0,0)'); g.save(); g.translate(cxm, yb); g.scale(1, 0.16); g.translate(-cxm, -yb); g.fillStyle = sg; g.fillRect(cxm - H * 0.34, yb - H * 0.34, H * 0.68, H * 0.68); g.restore(); }   // bóng đổ dưới chân tháp: tháp chạm đất
       g.save(); g.translate(cxm, yb); g.scale(pulse, pulse); g.translate(-cxm, -yb);
       const stone = (x, y, w, h, c1, c2) => { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, c1); gr.addColorStop(0.5, c2); gr.addColorStop(1, c1); g.fillStyle = gr; g.fillRect(x, y, w, h); };
+      const tex = (x, y, w, h, seed) => { for (let i = 0; i < 70; i++) { const rx = x + clkSeed(seed + i) * w, ry = y + clkSeed(seed + i + 200) * h, a = 0.05 + clkSeed(seed + i + 400) * 0.1; g.fillStyle = (i % 3 ? 'rgba(0,0,0,' : 'rgba(255,235,190,') + a + ')'; g.fillRect(rx, ry, 2 + clkSeed(seed + i + 600) * 5, 1.5); } };
       const trim = (x, y, w, h) => { g.fillStyle = '#8a6c34'; g.fillRect(x, y, w, h); g.fillStyle = 'rgba(255,225,160,0.25)'; g.fillRect(x, y, w, Math.max(1, h * 0.25)); };
       // thân tháp (dưới) + gạch
       stone(cxm - tw / 2, H * 0.52, tw, yb - H * 0.52, '#2b261b', '#4a4332');
@@ -2117,6 +2119,8 @@
       for (const dx of [-0.26, 0.26]) { const wx = cxm + dx * tw - tw * 0.07, wy = H * 0.69; g.fillStyle = '#0c0a07'; g.fillRect(wx, wy + tw * 0.07, tw * 0.14, H * 0.07); g.beginPath(); g.arc(wx + tw * 0.07, wy + tw * 0.07, tw * 0.07, Math.PI, 0); g.fill(); g.fillStyle = 'rgba(255,200,120,' + (0.18 + 0.4 * lit) + ')'; g.fillRect(wx + tw * 0.03, wy + tw * 0.08, tw * 0.08, H * 0.05); }
       // khối đồng hồ (rộng hơn thân)
       const cw = tw * 1.16; stone(cxm - cw / 2, H * 0.22, cw, H * 0.30, '#2f291d', '#51493a');
+      tex(cxm - tw / 2, H * 0.52, tw, yb - H * 0.52, 11); tex(cxm - cw / 2, H * 0.22, cw, H * 0.30, 51);
+      for (const sx of [-1, 1]) { const px0 = cxm + sx * cw * 0.5; g.fillStyle = '#3a3426'; g.fillRect(px0 - 5, H * 0.205 - H * 0.04, 10, H * 0.045); g.fillStyle = '#1d3b34'; g.beginPath(); g.moveTo(px0 - 7, H * 0.168); g.lineTo(px0, H * 0.135); g.lineTo(px0 + 7, H * 0.168); g.closePath(); g.fill(); g.fillStyle = '#b8924a'; g.fillRect(px0 - 1, H * 0.128, 2, 8); }   // tháp nhỏ ở hai góc khối đồng hồ
       trim(cxm - cw * 0.53, H * 0.205, cw * 1.06, H * 0.02); trim(cxm - cw * 0.53, H * 0.515, cw * 1.06, H * 0.02);
       // tầng chuông + vòm
       const bw = tw * 0.98; stone(cxm - bw / 2, H * 0.115, bw, H * 0.095, '#2b261b', '#4a4332');
@@ -2127,7 +2131,7 @@
       g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(cxm, H * 0.012); g.lineTo(cxm + bw * 0.54, H * 0.108); g.lineTo(cxm + bw * 0.1, H * 0.108); g.closePath(); g.fill();
       g.fillStyle = '#b8924a'; g.fillRect(cxm - 1.5, H * 0.0, 3, H * 0.02);
       // mặt đồng hồ: nền kem sáng nhẹ như đèn trong tháp, vòng vàng, số La Mã, 12 vạch
-      g.fillStyle = '#8a6c34'; g.beginPath(); g.arc(cxm, fcy, fr * 1.12, 0, 6.2832); g.fill();
+      { const rg = g.createLinearGradient(cxm - fr, fcy - fr, cxm + fr, fcy + fr); rg.addColorStop(0, '#e6c987'); rg.addColorStop(0.5, '#9a7a3a'); rg.addColorStop(1, '#4f3a15'); g.fillStyle = rg; g.beginPath(); g.arc(cxm, fcy, fr * 1.14, 0, 6.2832); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 2; g.beginPath(); g.arc(cxm, fcy, fr * 1.04, 0, 6.2832); g.stroke(); for (let i = 0; i < 12; i++) { const an = i * Math.PI / 6; g.fillStyle = '#f2dca0'; g.beginPath(); g.arc(cxm + Math.sin(an) * fr * 1.09, fcy - Math.cos(an) * fr * 1.09, fr * 0.025, 0, 6.2832); g.fill(); } }
       const fg = g.createRadialGradient(cxm, fcy - fr * 0.2, fr * 0.1, cxm, fcy, fr); fg.addColorStop(0, 'rgb(' + Math.round(222 + 30 * lit) + ',' + Math.round(205 + 30 * lit) + ',' + Math.round(150 + 40 * lit) + ')'); fg.addColorStop(1, 'rgb(' + Math.round(170 + 60 * lit) + ',' + Math.round(150 + 60 * lit) + ',' + Math.round(100 + 70 * lit) + ')');
       g.fillStyle = fg; g.beginPath(); g.arc(cxm, fcy, fr, 0, 6.2832); g.fill();
       g.fillStyle = '#2a1e0c'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 ' + Math.round(fr * 0.26) + "px Tinos, 'Times New Roman', serif";
@@ -2136,6 +2140,7 @@
       // kim quay ngược (nhanh dần rồi dừng ở 1980, rung nhẹ khi tới nơi)
       const spin = -Math.min(s, CLK.T1980) * 2.4, wob = s > CLK.T1980 ? Math.sin((s - CLK.T1980) * 26) * 0.09 * Math.exp(-(s - CLK.T1980) * 4) : 0;
       const hand = (ang, len, w, col, tail) => { g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(cxm - Math.sin(ang) * tail, fcy + Math.cos(ang) * tail); g.lineTo(cxm + Math.sin(ang) * len, fcy - Math.cos(ang) * len); g.stroke(); };
+      for (let tr = 4; tr >= 1; tr--) { const gA = 0.12 * (1 - tr / 5), off = tr * 0.09 * (s < CLK.T1980 ? 1 : 0); g.globalAlpha = gA; hand(spin + wob + off, fr * 0.8, Math.max(2, fr * 0.05), '#1c1307', fr * 0.1); g.globalAlpha = 1; }      // bóng mờ của kim phút
       hand(spin / 12 + wob * 0.3, fr * 0.5, Math.max(3, fr * 0.075), '#1c1307', fr * 0.08); hand(spin + wob, fr * 0.8, Math.max(2, fr * 0.05), '#1c1307', fr * 0.1);
       g.fillStyle = '#1c1307'; g.beginPath(); g.arc(cxm, fcy, fr * 0.06, 0, 6.2832); g.fill();
       // bảng số năm dưới mặt đồng hồ
@@ -2157,10 +2162,32 @@
       }
       g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(clkTw, 0, 0, W, H); g.restore();
       { const fg2 = g.createLinearGradient(0, yb - H * 0.2, 0, yb + H * 0.14); fg2.addColorStop(0, 'rgba(90,108,110,0)'); fg2.addColorStop(0.55, 'rgba(90,108,110,0.22)'); fg2.addColorStop(0.7, 'rgba(90,108,110,0.2)'); fg2.addColorStop(1, 'rgba(90,108,110,0)'); g.fillStyle = fg2; g.fillRect(0, yb - H * 0.2, W, H * 0.34); }      // sương mù dưới chân tháp
+      { // phản chiếu tháp xuống mặt đường ướt
+        g.save(); g.beginPath(); g.rect(0, yb, W, H - yb); g.clip(); g.globalAlpha = 0.16 * (1 - lit * 0.3); g.translate(0, 2 * yb); g.scale(1, -1); g.imageSmoothingEnabled = true; g.drawImage(clkTw, 0, 0, W, H); g.restore();
+        const rf = g.createLinearGradient(0, yb, 0, yb + H * 0.18); rf.addColorStop(0, 'rgba(10,14,16,0)'); rf.addColorStop(1, 'rgba(6,9,10,0.9)'); g.fillStyle = rf; g.fillRect(0, yb, W, H * 0.2);
+      }
+      { // tia sáng từ mặt đồng hồ, xoay ngược chiều kim đồng hồ
+        g.save(); g.globalCompositeOperation = 'lighter'; g.translate(cxm, fcy); g.rotate(-s * 0.25);
+        const rayA = (0.03 + 0.06 * lit) * Math.min(1, s / 1.5);
+        for (let i = 0; i < 14; i++) { const a0 = i * 6.2832 / 14, a1 = a0 + 0.1, R = H * 0.9; const rg2 = g.createRadialGradient(0, 0, fr * 0.8, 0, 0, R); rg2.addColorStop(0, 'rgba(255,214,150,' + rayA + ')'); rg2.addColorStop(1, 'rgba(255,214,150,0)'); g.fillStyle = rg2; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, R, a0, a1); g.closePath(); g.fill(); }
+        g.restore();
+      }
+      if (hit === 0) { // vòng sáng thu nhỏ về mặt đồng hồ = thời gian đang tua ngược
+        g.save(); g.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 4; i++) { const ph = (((s * 0.55 + i / 4) % 1) + 1) % 1, rr = fr * 1.2 + (1 - ph) * H * 0.5; g.strokeStyle = 'rgba(255,215,150,' + (0.22 * ph * Math.min(1, s)) + ')'; g.lineWidth = 2 + 3 * ph; g.beginPath(); g.arc(cxm, fcy, rr, 0, 6.2832); g.stroke(); }
+        g.restore();
+        // mưa rơi ngược lên trời (thời gian chạy lùi), nhạt dần khi gần 1980
+        const rainA = 0.3 * (1 - Math.min(1, s / CLK.T1980) * 0.7);
+        g.strokeStyle = 'rgba(170,200,215,' + rainA + ')'; g.lineWidth = 1.2; g.beginPath();
+        for (let i = 0; i < 90; i++) { const rx = clkSeed(i + 1000) * W, sp2 = 0.5 + clkSeed(i + 1100) * 0.9, ry = (((1 - ((s * sp2 * 0.9 + clkSeed(i + 1200)) % 1)) % 1) + 1) % 1 * H, ln = 10 + clkSeed(i + 1300) * 16; g.moveTo(rx, ry); g.lineTo(rx - 2, ry + ln); }
+        g.stroke();
+      }
       // bụi lơ lửng
       for (const d of CLK_DUST) { const x = ((d.x + Math.sin(s * 0.3 + d.ph) * 0.02) % 1) * W, y = (((d.y - d.v * s) % 1) + 1) % 1 * H, a = 0.15 + 0.2 * Math.sin(s * 1.7 + d.ph); g.fillStyle = 'rgba(200,225,220,' + Math.max(0, a) + ')'; g.fillRect(Math.round(x), Math.round(y), d.s, d.s); }
       // viền tối mạnh + sáng nhẹ khi tới 1980
       const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.88)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 150; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.03 + Math.random() * 0.07) + ')'; g.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5); }      // hạt phim
+      if (hit > 0 && hit < 1.2) { g.save(); g.globalCompositeOperation = 'lighter'; g.translate(cxm, fcy); const k2 = hit / 1.2; for (let i = 0; i < 24; i++) { const a = i * 6.2832 / 24 + 0.13, len = H * (0.25 + 0.7 * k2) * (0.6 + 0.4 * ((i * 7) % 5) / 4), r0 = fr * 1.1 + H * 0.12 * k2; g.strokeStyle = 'rgba(255,232,180,' + (0.4 * (1 - k2)) + ')'; g.lineWidth = 2.2 * (1 - k2) + 0.8; g.beginPath(); g.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); g.lineTo(Math.cos(a) * len, Math.sin(a) * len); g.stroke(); } g.restore(); }      // tia sáng bắn ra khi tới 1980
       if (hit === 0) { let fl = 0.82 + 0.18 * Math.sin(s * 9.1) * Math.sin(s * 3.7) + 0.08 * Math.sin(s * 31); if (Math.sin(s * 17.3) * Math.sin(s * 5.1) > 0.93) fl *= 0.35; g.fillStyle = 'rgba(0,0,0,' + Math.max(0, Math.min(0.5, 0.5 * (1 - fl))) + ')'; g.fillRect(0, 0, W, H); }          // đèn chập chờn như căn phòng cũ
       if (hit > 0) { g.fillStyle = 'rgba(255,238,205,' + (0.16 * Math.min(1, hit * 6) * (1 - 0.4 * Math.min(1, hit / 2))) + ')'; g.fillRect(0, 0, W, H); }
     }
