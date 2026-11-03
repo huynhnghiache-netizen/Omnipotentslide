@@ -2655,7 +2655,7 @@
       const bsOld = Math.min(0.5 * H, 0.8 * W), bs = bsOld / 1.5, bx = W / 2 - bs / 2, by = H / 2 - bs / 2, cx = W / 2, cy = H / 2;      // khung nhỏ hơn 1.5 lần
       let cv = document.getElementById('spearCv');
       if (!cv) { cv = document.createElement('canvas'); cv.id = 'spearCv'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:58;pointer-events:none;display:none'; document.body.appendChild(cv); }
-      cv.width = W; cv.height = H; cv.style.width = W + 'px'; cv.style.height = H + 'px';      // px chứ không dùng vw/vh: trên điện thoại 100vh lớn hơn innerHeight làm hình bị kéo giãn cv.style.display = 'block'; cv.style.opacity = '1';
+      cv.width = W; cv.height = H; cv.style.width = W + 'px'; cv.style.height = H + 'px'; cv.style.display = 'block'; cv.style.opacity = '1';      // px chứ không dùng vw/vh: trên điện thoại 100vh lớn hơn innerHeight làm hình bị kéo giãn;
       const g = cv.getContext('2d');
       const hW = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), k = hW / H;
       {                                                                    // ép slide vào ô vuông giữa màn hình
