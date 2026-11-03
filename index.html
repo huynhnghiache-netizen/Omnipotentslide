@@ -2646,16 +2646,16 @@
       await wait(450);
     }
 
-    // Cảnh Undyne ném giáo (thay cho cảnh Hiệp sĩ chém): slide bị ép vào khung -> 18 cây giáo lần lượt hiện ra (mỗi cây 1 tiếng, hướng lung tung)
+    // Cảnh Undyne ném giáo (thay cho cảnh Hiệp sĩ chém): slide bị ép vào khung -> 25 cây giáo lần lượt hiện ra (mỗi cây 1 tiếng, hướng lung tung)
     // -> cùng xoay mũi về phía slide (tiếng thứ 2) -> 1.5s sau đồng loạt phóng vào -> slide nứt rồi vỡ thành mảnh bay đi (tiếng thứ 3) -> đen 0.75s -> slide kế
     const SPSND = { appear: mkAudio('assets/sfx-trident.mp3', 0.9), aim: mkAudio('assets/sfx-spear-appear.mp3', 1), brk: mkAudio('assets/sfx-asgore-break.mp3', 1) };
     const SPEAR_IMG = new Image(); SPEAR_IMG.src = 'assets/spear.png';
     async function spearCut(ni) {
       const W = innerWidth, H = innerHeight, cur = soul.cur, blk = document.getElementById('cineBlack');
-      const bs = Math.min(0.5 * H, 0.8 * W), bx = W / 2 - bs / 2, by = H / 2 - bs / 2, cx = W / 2, cy = H / 2;
+      const bsOld = Math.min(0.5 * H, 0.8 * W), bs = bsOld / 1.5, bx = W / 2 - bs / 2, by = H / 2 - bs / 2, cx = W / 2, cy = H / 2;      // khung nhỏ hơn 1.5 lần
       let cv = document.getElementById('spearCv');
-      if (!cv) { cv = document.createElement('canvas'); cv.id = 'spearCv'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:58;pointer-events:none;display:none'; document.body.appendChild(cv); }
-      cv.width = W; cv.height = H; cv.style.display = 'block'; cv.style.opacity = '1';
+      if (!cv) { cv = document.createElement('canvas'); cv.id = 'spearCv'; cv.style.cssText = 'position:fixed;left:0;top:0;z-index:58;pointer-events:none;display:none'; document.body.appendChild(cv); }
+      cv.width = W; cv.height = H; cv.style.width = W + 'px'; cv.style.height = H + 'px';      // px chứ không dùng vw/vh: trên điện thoại 100vh lớn hơn innerHeight làm hình bị kéo giãn cv.style.display = 'block'; cv.style.opacity = '1';
       const g = cv.getContext('2d');
       const hW = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), k = hW / H;
       {                                                                    // ép slide vào ô vuông giữa màn hình
@@ -2667,7 +2667,7 @@
       // ảnh slide để vẽ lại thành mảnh vỡ
       const slImg = new Image(); slImg.src = slideImages[soul.i]; try { await slImg.decode(); } catch (e) {}
       // ----- 18 cây giáo: vị trí rải đều trên màn hình (ngoài khung), hướng ngẫu nhiên -----
-      const N = 18, Ls = Math.min(bs * 0.5, 190), Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2;
+      const N = 25, Ls = Math.min(bsOld * 0.5, 190) / 1.6, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2;
       const sp = [];
       for (let i = 0, guard = 0; i < N && guard < 4000; guard++) {
         const x = 60 + Math.random() * (W - 120), y = 50 + Math.random() * (H - 100);
