@@ -2648,7 +2648,7 @@
 
     // Cảnh Undyne ném giáo (thay cho cảnh Hiệp sĩ chém): slide bị ép vào khung -> 18 cây giáo lần lượt hiện ra (mỗi cây 1 tiếng, hướng lung tung)
     // -> cùng xoay mũi về phía slide (tiếng thứ 2) -> 1.5s sau đồng loạt phóng vào -> slide nứt rồi vỡ thành mảnh bay đi (tiếng thứ 3) -> đen 0.75s -> slide kế
-    const SPSND = { appear: mkAudio('assets/sfx-spear-appear.mp3', 0.9), aim: mkAudio('assets/sfx-trident.mp3', 1), brk: mkAudio('assets/sfx-asgore-break.mp3', 1) };
+    const SPSND = { appear: mkAudio('assets/sfx-trident.mp3', 0.9), aim: mkAudio('assets/sfx-spear-appear.mp3', 1), brk: mkAudio('assets/sfx-asgore-break.mp3', 1) };
     const SPEAR_IMG = new Image(); SPEAR_IMG.src = 'assets/spear.png';
     async function spearCut(ni) {
       const W = innerWidth, H = innerHeight, cur = soul.cur, blk = document.getElementById('cineBlack');
