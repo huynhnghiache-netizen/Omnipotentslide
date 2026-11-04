@@ -358,6 +358,24 @@
       if (!AUD.on || AUD.vol === 0) return;
       try { const c = a.cloneNode(); c.volume = a.volume; c.play().catch(() => {}); } catch (e) {}
     }
+    // phát tiếng to hơn mức tối đa của thẻ <audio> (khuếch đại bằng WebAudio, gain>1), vẫn theo âm lượng chung
+    const BOOST = { ctx: null, buf: {} };
+    function sfxBoostLoad(a) {
+      try {
+        const src = a.currentSrc || a.src; if (!src || BOOST.buf[src]) return;
+        BOOST.ctx = BOOST.ctx || new (window.AudioContext || window.webkitAudioContext)();
+        BOOST.buf[src] = fetch(src).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, no) => BOOST.ctx.decodeAudioData(ab, ok, no))).catch(() => null);
+      } catch (e) {}
+    }
+    function sfxBoost(a, gain) {
+      if (!AUD.on || AUD.vol === 0) return;
+      const src = a.currentSrc || a.src, pr = BOOST.buf[src];
+      if (!pr || !BOOST.ctx) { sfxPlay(a); return; }
+      pr.then((b) => {
+        if (!b) { sfxPlay(a); return; }
+        try { if (BOOST.ctx.state === 'suspended') BOOST.ctx.resume(); const n = BOOST.ctx.createBufferSource(), gn = BOOST.ctx.createGain(); n.buffer = b; gn.gain.value = gain * AUD.vol / 100; n.connect(gn); gn.connect(BOOST.ctx.destination); n.start(0); } catch (e) { sfxPlay(a); }
+      });
+    }
     const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1), blaster: mkAudio('assets/sfx-blaster.mp3', 1), hit: mkAudio('assets/sfx-hit.mp3', 1) };
     // ===== Nhạc nền (chế độ tim đỏ) + âm thanh môi trường nhẹ cho từng slide (tự tạo bằng WebAudio, không cần file) =====
     const MUS = { on: true, vol: 100 };
@@ -2693,18 +2711,19 @@
       }
       // ảnh slide để vẽ lại thành mảnh vỡ
       const slImg = new Image(); slImg.src = slideImages[soul.i]; try { await slImg.decode(); } catch (e) {}
-      // ----- 18 cây giáo: vị trí rải đều trên màn hình (ngoài khung), hướng ngẫu nhiên -----
-      const N = 25, Ls = Math.min(bsOld * 0.5, 190) / 1.6, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2;
-      const sp = [];
-      for (let i = 0, guard = 0; i < N && guard < 4000; guard++) {
-        const x = 60 + Math.random() * (W - 120), y = 50 + Math.random() * (H - 100);
-        if (Math.abs(x - cx) < half + 50 && Math.abs(y - cy) < half + 50) continue;
-        if (sp.some((q) => Math.hypot(q.x - x, q.y - y) < Ls * 0.55)) continue;
-        sp.push({ x, y, rot: Math.random() * 6.2832, spin: (Math.random() - 0.5) * 0.7, ph: Math.random() * 6.28, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 });
-        i++;
-      }
-      while (sp.length < N) sp.push({ x: 60 + Math.random() * 200, y: 60 + sp.length * 30, rot: Math.random() * 6.2832, spin: 0, ph: 0, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 });
-      const T_APPEAR = 0.95, GAP = 0.125, T_AIM = T_APPEAR + N * GAP + 0.45, AIM_DUR = 0.55, T_FLY = T_AIM + 1.5, FLY_DUR = 0.3, T_HIT = T_FLY + FLY_DUR;
+      // ----- 8 cây giáo: dài bằng 3/4 cạnh khung; 4 cây ở 4 phía khung (trên/dưới/trái/phải), 4 cây ở 4 góc màn hình -----
+      sfxBoostLoad(SPSND.aim);
+      const N = 8, Ls = 0.75 * bs, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2, gapS = 22;
+      const clampX = (x) => Math.max(Ls / 2 + 8, Math.min(W - Ls / 2 - 8, x)), clampY = (y) => Math.max(Ls / 2 + 8, Math.min(H - Ls / 2 - 8, y));
+      const spots = [
+        [cx, cy - half - gapS - Ls / 2], [cx, cy + half + gapS + Ls / 2], [cx - half - gapS - Ls / 2, cy], [cx + half + gapS + Ls / 2, cy],      // 4 phía
+        [0, 0], [1, 0], [1, 1], [0, 1]                                                                                                          // 4 góc (toạ độ chuẩn hoá)
+      ];
+      const sp = spots.map((pt, i) => {
+        const x = i < 4 ? clampX(pt[0]) : (pt[0] ? W - Ls * 0.62 : Ls * 0.62), y = i < 4 ? clampY(pt[1]) : (pt[1] ? H - Ls * 0.62 : Ls * 0.62);
+        return { x, y, rot: Math.random() * 6.2832, spin: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35), ph: Math.random() * 6.28, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 };
+      });
+      const T_APPEAR = 0.95, GAP = 0.3, T_AIM = T_APPEAR + N * GAP + 0.5, AIM_DUR = 0.55, T_FLY = T_AIM + 1.5, FLY_DUR = 0.3, T_HIT = T_FLY + FLY_DUR;
       const T_CRACK = 0.38, T_BURST = T_HIT + T_CRACK, BURST_DUR = 1.5, T_END = T_BURST + BURST_DUR + 0.2;
       sp.forEach((q, i) => { q.born = T_APPEAR + i * GAP; });
       // ----- mảnh vỡ: lưới tam giác lệch ngẫu nhiên (nứt như kính) -----
@@ -2742,7 +2761,7 @@
         if (frameA > 0) { g.save(); g.globalAlpha = frameA; g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeRect(bx - 4, by - 4, bs + 8, bs + 8); g.restore(); }
         // tiếng: mỗi cây giáo hiện ra 1 tiếng; cả đàn xoay mũi 1 tiếng; slide vỡ 1 tiếng
         for (let i = 0; i < N; i++) if (!played[i] && t >= sp[i].born) { played[i] = true; sfxPlay(SPSND.appear); }
-        if (!aimDone && t >= T_AIM) { aimDone = true; sp.forEach((q) => { q.aimFrom = q.rot; q.aimTo = q.rot + angDiff(q.rot, Math.atan2(cy - q.y, cx - q.x) + Math.PI / 2); }); sfxPlay(SPSND.aim); }
+        if (!aimDone && t >= T_AIM) { aimDone = true; sp.forEach((q) => { q.aimFrom = q.rot; q.aimTo = q.rot + angDiff(q.rot, Math.atan2(cy - q.y, cx - q.x) + Math.PI / 2); }); sfxBoost(SPSND.aim, 1.5); }
         if (!hitDone && t >= T_HIT) { hitDone = true; cur.group.visible = false; sfxPlay(SPSND.brk); impact(1); shake(1.2, 8); shk = 14; white = 0.8;
           for (let i = 0; i < 70 && particles.length < 500; i++) { const an = Math.random() * 6.283, v = 2 + Math.random() * 7; particles.push({ x: cx, y: cy, vx: Math.cos(an) * v, vy: Math.sin(an) * v, life: 22 + Math.random() * 30, age: 0, c: Math.random() < 0.5 ? '#7defff' : '#ffffff', s: PX * (0.25 + Math.random() * 0.4) }); } }
         // mảnh slide (từ lúc trúng): đứng yên + vết nứt sáng, rồi vỡ bay đi
@@ -2778,7 +2797,7 @@
               if (fu >= 1) al = Math.max(0, 1 - (t - T_HIT) / 0.5);
             }
           }
-          if (age < 0.25) { g.save(); g.globalAlpha = 0.5 * (1 - age / 0.25); g.strokeStyle = '#7defff'; g.lineWidth = 3; g.beginPath(); g.arc(q.x, q.y, 10 + age * 160, 0, 6.2832); g.stroke(); g.restore(); }   // vòng sáng lúc hiện
+          if (age < 0.25) { g.save(); g.globalAlpha = 0.5 * (1 - age / 0.25); g.strokeStyle = '#7defff'; g.lineWidth = 3; g.beginPath(); g.arc(q.x, q.y, 14 + age * 280, 0, 6.2832); g.stroke(); g.restore(); }   // vòng sáng lúc hiện
           drawSpear(q, x, y, rot, popS, al);
         }
         g.restore();
