@@ -2711,18 +2711,16 @@
       }
       // ảnh slide để vẽ lại thành mảnh vỡ
       const slImg = new Image(); slImg.src = slideImages[soul.i]; try { await slImg.decode(); } catch (e) {}
-      // ----- 8 cây giáo: dài bằng 3/4 cạnh khung; 4 cây ở 4 phía khung (trên/dưới/trái/phải), 4 cây ở 4 góc màn hình -----
+      // ----- 8 cây giáo (to gấp 1.5 so với trước: dài ~1.125 cạnh khung): 4 cây cột trái, 4 cây cột phải -----
       sfxBoostLoad(SPSND.aim);
-      const N = 8, Ls = 0.75 * bs, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2, gapS = 22;
-      const clampX = (x) => Math.max(Ls / 2 + 8, Math.min(W - Ls / 2 - 8, x)), clampY = (y) => Math.max(Ls / 2 + 8, Math.min(H - Ls / 2 - 8, y));
-      const spots = [
-        [cx, cy - half - gapS - Ls / 2], [cx, cy + half + gapS + Ls / 2], [cx - half - gapS - Ls / 2, cy], [cx + half + gapS + Ls / 2, cy],      // 4 phía
-        [0, 0], [1, 0], [1, 1], [0, 1]                                                                                                          // 4 góc (toạ độ chuẩn hoá)
-      ];
-      const sp = spots.map((pt, i) => {
-        const x = i < 4 ? clampX(pt[0]) : (pt[0] ? W - Ls * 0.62 : Ls * 0.62), y = i < 4 ? clampY(pt[1]) : (pt[1] ? H - Ls * 0.62 : Ls * 0.62);
-        return { x, y, rot: Math.random() * 6.2832, spin: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35), ph: Math.random() * 6.28, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 };
-      });
+      const N = 8, Ls = 0.75 * 1.5 * bs, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2;
+      const yLo = Math.min(H / 2, Ls / 2 + 8), yHi = H - yLo, xIn = half + 20 + Ls * 0.3, xOut = half + 20 + Ls * 0.62;
+      const sp = [];
+      for (let r = 0; r < 4; r++) for (let sd = 0; sd < 2; sd++) {
+        const off = (r % 2 ? xOut : xIn) * (sd ? 1 : -1), y = yLo + (yHi - yLo) * (r / 3);
+        const x = Math.max(Ls * 0.35, Math.min(W - Ls * 0.35, cx + off));
+        sp.push({ x, y, rot: Math.random() * 6.2832, spin: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35), ph: Math.random() * 6.28, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 });
+      }
       const T_APPEAR = 0.95, GAP = 0.3, T_AIM = T_APPEAR + N * GAP + 0.5, AIM_DUR = 0.55, T_FLY = T_AIM + 1.5, FLY_DUR = 0.3, T_HIT = T_FLY + FLY_DUR;
       const T_CRACK = 0.38, T_BURST = T_HIT + T_CRACK, BURST_DUR = 1.5, T_END = T_BURST + BURST_DUR + 0.2;
       sp.forEach((q, i) => { q.born = T_APPEAR + i * GAP; });
