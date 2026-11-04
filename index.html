@@ -367,13 +367,13 @@
         BOOST.buf[src] = fetch(src).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, no) => BOOST.ctx.decodeAudioData(ab, ok, no))).catch(() => null);
       } catch (e) {}
     }
-    function sfxBoost(a, gain) {
+    function sfxBoost(a, gain, delay, rate) {
       if (!AUD.on || AUD.vol === 0) return;
       const src = a.currentSrc || a.src, pr = BOOST.buf[src];
       if (!pr || !BOOST.ctx) { sfxPlay(a); return; }
       pr.then((b) => {
         if (!b) { sfxPlay(a); return; }
-        try { if (BOOST.ctx.state === 'suspended') BOOST.ctx.resume(); const n = BOOST.ctx.createBufferSource(), gn = BOOST.ctx.createGain(); n.buffer = b; gn.gain.value = gain * AUD.vol / 100; n.connect(gn); gn.connect(BOOST.ctx.destination); n.start(0); } catch (e) { sfxPlay(a); }
+        try { if (BOOST.ctx.state === 'suspended') BOOST.ctx.resume(); const n = BOOST.ctx.createBufferSource(), gn = BOOST.ctx.createGain(); n.buffer = b; if (rate) n.playbackRate.value = rate; gn.gain.value = gain * AUD.vol / 100; n.connect(gn); if (!BOOST.comp) { BOOST.comp = BOOST.ctx.createDynamicsCompressor(); BOOST.comp.connect(BOOST.ctx.destination); } gn.connect(BOOST.comp); n.start(BOOST.ctx.currentTime + (delay || 0)); } catch (e) { sfxPlay(a); }
       });
     }
     const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1), blaster: mkAudio('assets/sfx-blaster.mp3', 1), hit: mkAudio('assets/sfx-hit.mp3', 1) };
@@ -2761,7 +2761,7 @@
         if (frameA > 0) { g.save(); g.globalAlpha = frameA; g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeRect(bx - 4, by - 4, bs + 8, bs + 8); g.restore(); }
         // tiếng: mỗi cây giáo hiện ra 1 tiếng; cả đàn xoay mũi 1 tiếng; slide vỡ 1 tiếng
         for (let i = 0; i < N; i++) if (!played[i] && t >= sp[i].born) { played[i] = true; sfxPlay(SPSND.appear); }
-        if (!aimDone && t >= T_AIM) { aimDone = true; sp.forEach((q) => { q.aimFrom = q.rot; q.aimTo = q.rot + angDiff(q.rot, Math.atan2(cy - q.y, cx - q.x) + Math.PI / 2); }); sfxBoost(SPSND.aim, 1.5); }
+        if (!aimDone && t >= T_AIM) { aimDone = true; sp.forEach((q) => { q.aimFrom = q.rot; q.aimTo = q.rot + angDiff(q.rot, Math.atan2(cy - q.y, cx - q.x) + Math.PI / 2); }); for (let k = 0; k < N; k++) sfxBoost(SPSND.aim, 1.5, k * 0.012, 0.97 + Math.random() * 0.06); }
         if (!hitDone && t >= T_HIT) { hitDone = true; cur.group.visible = false; sfxPlay(SPSND.brk); impact(1); shake(1.2, 8); shk = 14; white = 0.8;
           for (let i = 0; i < 70 && particles.length < 500; i++) { const an = Math.random() * 6.283, v = 2 + Math.random() * 7; particles.push({ x: cx, y: cy, vx: Math.cos(an) * v, vy: Math.sin(an) * v, life: 22 + Math.random() * 30, age: 0, c: Math.random() < 0.5 ? '#7defff' : '#ffffff', s: PX * (0.25 + Math.random() * 0.4) }); } }
         // mảnh slide (từ lúc trúng): đứng yên + vết nứt sáng, rồi vỡ bay đi
