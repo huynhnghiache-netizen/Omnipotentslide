@@ -2714,11 +2714,11 @@
       // ----- 8 cây giáo (to gấp 1.5 so với trước: dài ~1.125 cạnh khung): 4 cây cột trái, 4 cây cột phải -----
       sfxBoostLoad(SPSND.aim);
       const N = 8, Ls = 0.75 * 1.5 * bs, Ws = Ls * SPEAR_IMG.naturalWidth / SPEAR_IMG.naturalHeight, half = bs / 2;
-      const yLo = Math.min(H / 2, Ls / 2 + 8), yHi = H - yLo, xIn = half + 20 + Ls * 0.3, xOut = half + 20 + Ls * 0.62;
+      const yLo = Math.min(H / 2, Ls / 2 + 8), yHi = H - yLo, xIn = half + 70 + Ls * 0.4, xOut = half + 70 + Ls * 0.95;
       const sp = [];
       for (let r = 0; r < 4; r++) for (let sd = 0; sd < 2; sd++) {
         const off = (r % 2 ? xOut : xIn) * (sd ? 1 : -1), y = yLo + (yHi - yLo) * (r / 3);
-        const x = Math.max(Ls * 0.35, Math.min(W - Ls * 0.35, cx + off));
+        const x = Math.max(Ls * 0.3, Math.min(W - Ls * 0.3, cx + off));
         sp.push({ x, y, rot: Math.random() * 6.2832, spin: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.35), ph: Math.random() * 6.28, born: 0, aimFrom: 0, aimTo: 0, fx: 0, fy: 0 });
       }
       const T_APPEAR = 0.95, GAP = 0.3, T_AIM = T_APPEAR + N * GAP + 0.5, AIM_DUR = 0.55, T_FLY = T_AIM + 1.5, FLY_DUR = 0.3, T_HIT = T_FLY + FLY_DUR;
