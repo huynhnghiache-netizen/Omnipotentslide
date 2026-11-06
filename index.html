@@ -401,6 +401,7 @@
       if (AMB.ctx.state === 'suspended') AMB.ctx.resume().catch(() => {});
       ambVol(); return AMB.ctx;
     }
+    ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, () => { try { ambCtx(); } catch (e) {} }, { capture: true, once: true }));   // mở khoá WebAudio ngay lần chạm đầu
     function ambStop() {
       const s = AMB.scene; AMB.scene = null; AMB.cur = -1; if (!s) return;
       s.timers.forEach(clearTimeout); s.dead = true;
@@ -409,7 +410,7 @@
     }
     function ambBuild(i) {
       const c = ambCtx(); if (!c) return null;
-      const out = c.createGain(); out.gain.value = 0; out.connect(AMB.master); out.gain.linearRampToValueAtTime(1, c.currentTime + 1.2);
+      const out = c.createGain(); out.gain.value = 0; out.connect(AMB.master); out.gain.linearRampToValueAtTime(1, c.currentTime + 0.4);
       const s = { out, nodes: [out], timers: [], dead: false };
       const add = (n) => { s.nodes.push(n); return n; };
       const gain = (v, to) => { const g = add(c.createGain()); g.gain.value = v; g.connect(to || out); return g; };
@@ -419,7 +420,7 @@
         const g = gain(v); src.connect(fl); fl.connect(g); src.start(); return { g, fl };
       };
       const lfo = (param, rate, depth, type) => { const o = add(c.createOscillator()); o.type = type || 'sine'; o.frequency.value = rate; const g = gain(depth, param.connect ? param : undefined); g.disconnect(); g.connect(param); o.connect(g); o.start(); return o; };
-      const every = (fn, a, b) => { const tick = () => { if (s.dead) return; fn(); s.timers.push(setTimeout(tick, a + Math.random() * (b - a))); }; s.timers.push(setTimeout(tick, a * 0.5 + Math.random() * a)); };
+      const every = (fn, a, b) => { const tick = () => { if (s.dead) return; fn(); s.timers.push(setTimeout(tick, a + Math.random() * (b - a))); }; s.timers.push(setTimeout(tick, 350 + Math.random() * a * 0.3)); };
       const tone = (f0, f1, dur, v, type) => {                    // 1 tiếng "ting/giọt/chim" ngắn có bao âm giảm dần
         if (s.dead) return; const t = c.currentTime, o = c.createOscillator(), g = c.createGain();
         o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
@@ -477,14 +478,13 @@
       ambStop();
       const s = ambBuild(i); if (!s) return;
       AMB.scene = s; AMB.cur = i;
-      if (i === 2 && AMB.doneAt) gustLoop(s);
-    }
+          }
     function gustLoop(s) {                                         // slide 3: cơn gió đầu sau 1.2s, rồi mỗi 6s (giống lịch gió của slide3-anim.html)
       const base = AMB.doneAt; if (s.gustOn) return; s.gustOn = true;
       const run = () => { if (s.dead) return; s.gust && s.gust(1); s.timers.push(setTimeout(run, 6000)); };
       const d = Math.max(0, base + 1200 - performance.now()); s.timers.push(setTimeout(run, d));
     }
-    function ambAnimDone(i) { AMB.doneAt = performance.now(); if (i === 2 && AMB.scene && AMB.cur === 2) gustLoop(AMB.scene); }
+    function ambAnimDone(i) { AMB.doneAt = performance.now(); }
     const BLOOD_TO_DISSOLVE_MS = 1000; // vết máu hiện xong, 1 giây sau mới chuyển
     const BLOCK_CHANCE = 0.3;          // xác suất vệt chém bị xương của Sans chặn
 
@@ -1567,7 +1567,7 @@
     function openSlide(i) {
       currentIndex = i;
       if (ANIM_SRC[i]) {                   // slide 2, 3: mở bản động
-        animState = GATED.has(i) ? 'loading' : null; ambStart(i);
+        animState = GATED.has(i) ? 'loading' : null; if (!GATED.has(i)) ambStart(i);      // slide có màn đen chờ click: âm thanh chỉ bắt đầu khi hình bắt đầu vẽ
         if (!takePre(i)) anim3.src = ANIM_SRC[i];
         anim3.style.opacity = '1';
         anim3.style.display = 'block';
@@ -1988,7 +1988,7 @@
 
     // ----- Slide 3 có bản động (iframe) -----
     function showAnim3(i = 2) {
-      ambStart(i);
+      if (!GATED.has(i)) ambStart(i);
       animState = GATED.has(i) ? 'loading' : null;
       if (!takePre(i)) anim3.src = ANIM_SRC[i];
       anim3.style.display = 'block';
@@ -2230,9 +2230,21 @@
       };
       frame();
       try { CLK_SND.currentTime = 0; CLK_SND.play().catch(() => {}); } catch (e) { }
+      // bỏ qua: sau 3 giây bấm / chạm / phím bất kỳ để nhảy luôn sang slide 1
+      let skipClk = false;
+      const hint = document.createElement('div');
+      hint.textContent = 'CLICK TO SKIP ▸';
+      hint.style.cssText = "position:absolute;right:18px;bottom:16px;font:10px 'Press Start 2P',monospace;color:#fff;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 0 6px #000;letter-spacing:1px";
+      soulIntro.appendChild(hint);
+      const hintT = setTimeout(() => { hint.style.opacity = '0.75'; }, 3000);
+      const onSkip = (e) => { if ((performance.now() - t0) < 3000) return; skipClk = true; if (e && e.preventDefault) e.preventDefault(); };
+      const skipEvs = ['pointerdown', 'keydown'];
+      skipEvs.forEach((ev) => document.addEventListener(ev, onSkip, true));
       await tw(soulIntro, { opacity: 1, duration: 0.45, ease: 'power1.out' });
       gridEl.style.display = 'none';
-      await wait(Math.max(0, CLK.GLITCH * 1000 - (performance.now() - t0)));
+      while (!skipClk && performance.now() - t0 < CLK.GLITCH * 1000) await wait(30);
+      skipEvs.forEach((ev) => document.removeEventListener(ev, onSkip, true)); clearTimeout(hintT); hint.remove();
+      if (skipClk) { try { CLK_SND.pause(); } catch (e) {} }
       // glitch: đồng hồ vỡ kênh màu, rồi slide 1 lộ ra
       startGlitch(1600, 0.45);
       const jit = setInterval(() => {
@@ -2946,9 +2958,11 @@
       if (d && d.type === 'hold-ready') { const q = POOL.find((x) => x.el.contentWindow === ev.source); if (q) q.ready = true; return; }
       if (d && ev.source === quizEl.contentWindow) { if (d.type === 'quiz-prev') quizBack(); else if (d.type === 'quiz-next') quizNext(); return; }
       if (ev.source !== anim3.contentWindow || !d) return;
+      if (d.type === 'wind-gust') { if (AMB.cur === 2 && AMB.scene && AMB.scene.gust) AMB.scene.gust(1); return; }      // cơn gió thật trên hình -> tiếng gió đúng lúc
       if (d.type === 'anim-state') {
         animState = d.state;
         if (d.state === 'busy') animBusyAt = performance.now();
+        if (d.state === 'busy' || d.state === 'done') { const ai = view === 'soul' ? soul.i : currentIndex; if (GATED.has(ai) && (view === 'soul' || view === 'detail')) ambStart(ai); }
         if (d.state === 'done') { ambAnimDone(view === 'soul' ? soul.i : currentIndex); animFinished(); }
         return;
       }

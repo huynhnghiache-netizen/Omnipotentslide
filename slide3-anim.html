@@ -416,7 +416,7 @@
 
     // sinh hiệu ứng khi bắt đầu cơn gió mới
     const gi = gustIndex(t);
-    if (t >= FIRST_GUST && gi !== lastSpawnIdx) { lastSpawnIdx = gi; spawnGust(t); }
+    if (t >= FIRST_GUST && gi !== lastSpawnIdx) { lastSpawnIdx = gi; spawnGust(t); if (window.parent !== window) window.parent.postMessage({ type: 'wind-gust' }, '*'); }
 
     // vẽ lớp pixel
     g.clearRect(0, 0, 1536, 864);

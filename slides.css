@@ -70,7 +70,7 @@ img.photo { object-fit: cover; }
 .ptape.tr { left: 730px; top: -10px; transform: rotate(42deg); }
 
 .s4 .title { top: 62px; font-size: 94px; left: 62px; }
-.s4 .rule { top: 184px; left: 238px; right: 54px; }
+.s4 .rule { top: 184px; left: 64px; right: 54px; }
 .s4 .c1 { left: 64px; top: 222px; width: 593px; height: 286px; }
 .s4 .c2 { left: 64px; top: 530px; width: 593px; height: 286px; }
 .s4 .photo { left: 679px; top: 218px; width: 801px; height: 608px; }

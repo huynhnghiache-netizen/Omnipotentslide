@@ -49,7 +49,7 @@
 
   /* màn chọn nhân vật */
   #sel { position: absolute; inset: 0; display: none; }
-  #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: 22px 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
+  #sel .ttl { position: absolute; top: 28px; width: 100%; text-align: center; font: min(22px, calc(92vw / 27)) 'Press Start 2P', monospace; text-shadow: 4px 4px 0 #8a0016; }
   #selRow { position: absolute; left: 0; right: 0; top: 130px; display: flex; justify-content: center; gap: 60px; pointer-events: none; }
   .chc { position: relative; width: 270px; height: 380px; border: 6px solid var(--line); background: rgba(0,0,0,.55); box-shadow: 0 0 0 4px #000, 0 0 28px rgba(255,255,255,.12); pointer-events: auto; }
   #selCard { cursor: pointer; }
@@ -126,7 +126,7 @@
   <div id="hud"></div>
 
   <div id="sel">
-    <div class="ttl">CHOOSE YOUR OPPONENT</div>
+    <div class="ttl">CHOOSE ONE TO PLAY MINIGAME</div>
     <div id="selRow">
       <div class="chc dis" id="cPap"><div class="spr" id="papSpr"></div><div class="nm">PAPYRUS</div></div>
       <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div></div>
