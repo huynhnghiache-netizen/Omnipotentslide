@@ -354,18 +354,29 @@
     function audApply(a) { a.volume = AUD.on ? Math.max(0, Math.min(1, a._b * AUD.vol / 100 * (a._m ? a._m() : 1))) : 0; a.muted = !AUD.on || AUD.vol === 0; }
     function mkAudio(src, base) { const a = new Audio(src); a.preload = 'auto'; a._b = base; AUD.list.push(a); audApply(a); return a; }
     function audApplyAll() { AUD.list.forEach(audApply); if (typeof ambVol === 'function') ambVol(); if (typeof musicRefresh === 'function') musicRefresh(); }
-    function sfxPlay(a) {              // phát chồng được (nhân bản), tôn trọng âm lượng chung
+    // Hiệu ứng âm thanh được tải + giải mã sẵn vào bộ nhớ (WebAudio) ở màn LOADING => bấm là phát ngay, không chờ tải/giải mã.
+    // Nếu vì lý do gì đó chưa kịp giải mã thì mới dùng cách cũ (nhân bản thẻ <audio>).
+    function sfxPlay(a) {              // phát chồng được, tôn trọng âm lượng chung
       if (!AUD.on || AUD.vol === 0) return;
+      const src = a.currentSrc || a.src, b = BOOST.dec[src];
+      if (b && BOOST.ctx) {
+        try {
+          if (BOOST.ctx.state !== 'running') BOOST.ctx.resume().catch(() => {});
+          const n = BOOST.ctx.createBufferSource(), gn = BOOST.ctx.createGain(); n.buffer = b; gn.gain.value = a.volume; n.connect(gn); gn.connect(BOOST.comp || BOOST.ctx.destination); n.start(0); return;
+        } catch (e) {}
+      }
+      sfxBoostLoad(a);
       try { const c = a.cloneNode(); c.volume = a.volume; c.play().catch(() => {}); } catch (e) {}
     }
     // phát tiếng to hơn mức tối đa của thẻ <audio> (khuếch đại bằng WebAudio, gain>1), vẫn theo âm lượng chung
-    const BOOST = { ctx: null, buf: {} };
+    const BOOST = { ctx: null, buf: {}, dec: {}, comp: null };
     function sfxBoostLoad(a) {
       try {
-        const src = a.currentSrc || a.src; if (!src || BOOST.buf[src]) return;
+        const src = a.currentSrc || a.src; if (!src) return Promise.resolve();
+        if (BOOST.buf[src]) return BOOST.buf[src];
         BOOST.ctx = BOOST.ctx || new (window.AudioContext || window.webkitAudioContext)();
-        BOOST.buf[src] = fetch(src).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, no) => BOOST.ctx.decodeAudioData(ab, ok, no))).catch(() => null);
-      } catch (e) {}
+        return (BOOST.buf[src] = fetch(src, { cache: 'force-cache' }).then((r) => r.arrayBuffer()).then((ab) => new Promise((ok, no) => BOOST.ctx.decodeAudioData(ab, ok, no))).then((b) => { BOOST.dec[src] = b; return b; }).catch(() => null));
+      } catch (e) { return Promise.resolve(); }
     }
     function sfxBoost(a, gain, delay, rate) {
       if (!AUD.on || AUD.vol === 0) return;
@@ -401,7 +412,7 @@
       if (AMB.ctx.state === 'suspended') AMB.ctx.resume().catch(() => {});
       ambVol(); return AMB.ctx;
     }
-    ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, () => { try { ambCtx(); } catch (e) {} }, { capture: true, once: true }));   // mở khoá WebAudio ngay lần chạm đầu
+    ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => addEventListener(ev, () => { try { ambCtx(); } catch (e) {} try { BOOST.ctx && BOOST.ctx.resume(); } catch (e) {} }, { capture: true, once: true }));   // mở khoá WebAudio ngay lần chạm đầu
     function ambStop() {
       const s = AMB.scene; AMB.scene = null; AMB.cur = -1; if (!s) return;
       s.timers.forEach(clearTimeout); s.dead = true;
@@ -2885,7 +2896,7 @@
       ['anim-blank.png', 'watch.png', 'spear.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
-      tasks.push(['Audio', get('assets/clock-reverse.mp3')]);
+      AUD.list.forEach((a) => { if (a.preload !== 'none' && !a.loop) tasks.push(['Audio', () => sfxBoostLoad(a)]); });      // mọi tiếng hiệu ứng: tải + giải mã sẵn
       ['sfx-slash', 'sfx-knight', 'sfx-finish', 'sfx-start', 'sfx-blaster', 'sfx-hit'].forEach((f) => tasks.push(['Audio', get('assets/' + f + '.mp3')]));
       tasks.push(['Video 2', get('assets/knight-front.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
       tasks.push(['Video', get('assets/knight-attack.' + (document.createElement('video').canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'mp4'))]);
