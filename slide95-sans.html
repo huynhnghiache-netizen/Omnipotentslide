@@ -491,6 +491,7 @@
   async function gotoSelect(opts) {
     token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
     gasIdleStop(); $('sX').style.display = 'none';
+    candies = 0; gcandy = 0; save();                           // thoát ra phần chọn nhân vật: tổng kẹo của lượt chơi về 0 (trạng thái COMPLETED/LOST vẫn giữ)
     stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
     showPanel('sel'); show('sel', 'sleep');
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
