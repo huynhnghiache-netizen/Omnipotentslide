@@ -235,7 +235,7 @@
       loadBuf('assets/sfx-correct.mp3').then((b) => { okBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-prize.mp3').then((b) => { prizeBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-rock.mp3').then((b) => { rockBuf = b; }).catch(() => {});
-      loadBuf('assets/sfx-wheel.mp3').then((b) => { wheelBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-wheel.mp3?v=2').then((b) => { wheelBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-gaster-talk.mp3?v=2').then((b) => { gasTalkBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-gaster-vanish.mp3?v=2').then((b) => { gasVanBuf = b; }).catch(() => {});
@@ -567,13 +567,15 @@
     // tìm wAng sao cho tâm ô p = 0 (mod 360)
     let target = -(p * 45 + 22.5); while (target < wAng + 360 * 9) target += 360;     // >= 9 vòng
     wheelSnd = sfx(wheelBuf);                                 // tiếng vòng quay: cả file 11.3s, bắt đầu cùng lúc với cú quay
-    const SPIN_MS = 9620, CUT = SPIN_MS - 500;                // 0.5s trước khi dừng hẳn: rock vang lên và kim đổi chiều NGAY (không đứng yên ở ô 10)
+    const SPIN_MS = 8832, CUT = SPIN_MS;                      // đúng độ dài file nhạc vòng quay (8.83s): quay hết nhạc thì kim dừng ở ô 10
     await new Promise((res, rej) => { const s0 = performance.now(); (function f() { if (!alive(t)) { rej(new Cancel()); return; } const el = performance.now() - s0, k = Math.min(1, el / SPIN_MS); wAng = (target - 1) * ease(k); if (el < CUT) requestAnimationFrame(f); else res(); })(); });
     chk(t);
+    await sleep(1000); chk(t);                                 // kim đứng yên ở ô 10 khoảng 1s
     sfx(rockBuf);
     const d = 1 + rnd(2);                                      // kim đổi chiều: quay ngược 1-2 ô sang ô kẹo thường
     await animAng(wAng, target - 1 - 45 * d, 700 + 250 * (d - 1), (x) => 1 - Math.pow(1 - x, 2), t);
     const kLand = (p + d) % 8, got = layout[kLand];
+    await sleep(1000); chk(t);                                 // kim nằm yên ở ô thật 1s rồi mới phát tiếng trúng
     sfx(prizeBuf);                                             // quay trúng đáp án thật: phát tiếng level-up
     await sleep(500); chk(t);
     $('wCap').textContent = 'YOU GOT ' + got + (got > 1 ? ' CANDIES' : ' CANDY') + '!'; $('wCap').style.animation = 'none'; $('wCap').style.visibility = 'visible';
