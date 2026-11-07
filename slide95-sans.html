@@ -60,9 +60,32 @@
   #papSpr { width: 185px; height: 275px; margin-left: -92px; top: 22px; background: url(assets/papyrus.png) 0 0 / 400% 100% no-repeat; animation: pap .667s steps(4) infinite; }
   @keyframes pap { from { background-position: 0 0 } to { background-position: 133.3333% 0 } }
   #gasSpr { height: 280px; margin-left: -57px; top: 26px; }
-  #status { position: absolute; left: 50%; top: 540px; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
+  #status { position: absolute; left: 50%; top: 540px; visibility: hidden !important; transform: translateX(-50%); font: 18px 'Press Start 2P', monospace; padding: 12px 22px; border: 5px solid; display: none; z-index: 3; background: #000; white-space: nowrap; }
   #status.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
   #status.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
+  .chc .st { position: absolute; left: 50%; bottom: -62px; transform: translateX(-50%); font: 16px 'Press Start 2P', monospace; padding: 10px 18px; border: 5px solid; display: none; background: #000; white-space: nowrap; }
+  .chc .st.ok { color: #5dff7a; border-color: #5dff7a; text-shadow: 3px 3px 0 #0b4a17; }
+  .chc .st.lost { color: #ff4455; border-color: #ff4455; text-shadow: 3px 3px 0 #5a0010; }
+  #cGas:not(.dis) { cursor: pointer; } #cGas:not(.dis):hover { border-color: var(--acc); }
+  /* Gaster trong lúc chơi */
+  #gasBig { position: absolute; left: 100px; top: 110px; height: 350px; image-rendering: pixelated; display: none; filter: drop-shadow(0 0 14px rgba(255,255,255,.18)); }
+  @keyframes gvan { 0% { opacity: 1; transform: translateX(0) } 15% { opacity: .2; transform: translateX(-14px) skewX(8deg) } 30% { opacity: 1; transform: translateX(10px) } 45% { opacity: .1; transform: translateX(-20px) skewX(-10deg) } 60% { opacity: .8; transform: translateX(6px) } 100% { opacity: 0; transform: translateX(0) scaleY(.02) } }
+  #gasBig.van { animation: gvan .9s steps(1, end) forwards; }
+  #dhead.gas { object-fit: cover; object-position: top; height: 88px; margin-top: -44px; }
+  /* 5 hộp phần thưởng */
+  #boxes { position: absolute; left: 380px; right: 30px; top: 150px; display: none; text-align: center; }
+  #boxes .info { font: 14px/2 'Press Start 2P', monospace; margin-bottom: 26px; }
+  #boxRow { display: flex; gap: 16px; justify-content: center; }
+  .bx { width: 112px; height: 150px; border: 6px solid var(--line); background: #000; position: relative; cursor: pointer; box-shadow: 0 6px 0 #000; font: 40px 'Press Start 2P', monospace; display: flex; align-items: center; justify-content: center; flex-direction: column; color: var(--acc); overflow: hidden; }
+  .bx::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.07) 0 3px, transparent 3px 7px); animation: bxn .4s steps(2) infinite; pointer-events: none; }
+  @keyframes bxn { to { transform: translateY(7px) } }
+  .bx:not(.open):hover { border-color: var(--acc); transform: translateY(-4px); }
+  .bx.open { cursor: default; font-size: 16px; color: #fff; background: #0d0d14; animation: bxo .35s steps(3); }
+  .bx.open::before { display: none; }
+  .bx.open .n { font-size: 34px; color: var(--acc); margin-top: 8px; }
+  .bx.pick { border-color: #5dff7a; box-shadow: 0 0 0 4px #000, 0 0 26px rgba(93,255,122,.55); }
+  .bx.other { opacity: .55; }
+  @keyframes bxo { 0% { transform: scaleX(.1) } 100% { transform: scaleX(1) } }
   #hint { position: absolute; left: 0; right: 0; top: 628px; text-align: center; font: 10px 'Press Start 2P', monospace; color: rgba(255,255,255,.55); }
 
   /* câu hỏi */
@@ -129,8 +152,8 @@
     <div class="ttl">CHOOSE ONE TO PLAY MINIGAME</div>
     <div id="selRow">
       <div class="chc dis" id="cPap"><div class="spr" id="papSpr"></div><div class="nm">PAPYRUS</div></div>
-      <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div></div>
-      <div class="chc dis" id="cGas"><img class="spr" id="gasSpr" src="assets/gaster.png" alt="Gaster" draggable="false"><div class="nm">GASTER</div></div>
+      <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div><div class="st" id="stS"></div></div>
+      <div class="chc" id="cGas"><img class="spr" id="gasSpr" src="assets/gaster.png" alt="Gaster" draggable="false"><div class="nm">GASTER</div><div class="st" id="stG"></div></div>
     </div>
     <div id="status"></div>
     <div id="hint">CLICK SANS</div>
@@ -139,6 +162,8 @@
   <img id="sans" src="assets/sans-shrug.png" alt="Sans" draggable="false">
   <div id="sansSp"></div>
 
+  <img id="gasBig" src="assets/gaster.png" alt="" draggable="false">
+  <div id="boxes"><div class="info" id="bxInfo"></div><div id="boxRow"></div></div>
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
   <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
@@ -165,8 +190,9 @@
   // ===== trạng thái: lưu theo phiên =====
   let status = null;            // 'ok' | 'lost' | null
   let candies = 0;
-  try { status = sessionStorage.getItem('sans95.status') || null; candies = parseInt(sessionStorage.getItem('sans95.candy'), 10) || 0; } catch (e) {}
-  const save = () => { try { sessionStorage.setItem('sans95.status', status || ''); sessionStorage.setItem('sans95.candy', String(candies)); } catch (e) {} };
+  let gstatus = null, gcandy = 0;   // Gaster: trạng thái + số kẹo riêng
+  try { status = sessionStorage.getItem('sans95.status') || null; candies = parseInt(sessionStorage.getItem('sans95.candy'), 10) || 0; gstatus = sessionStorage.getItem('gas95.status') || null; gcandy = parseInt(sessionStorage.getItem('gas95.candy'), 10) || 0; } catch (e) {}
+  const save = () => { try { sessionStorage.setItem('sans95.status', status || ''); sessionStorage.setItem('sans95.candy', String(candies)); sessionStorage.setItem('gas95.status', gstatus || ''); sessionStorage.setItem('gas95.candy', String(gcandy)); } catch (e) {} };
   let token = 0;                // mỗi lần thoát / reset tăng lên để huỷ các chuỗi async đang chạy
   const alive = (t) => t === token;
   class Cancel extends Error {}
@@ -232,7 +258,21 @@
   // giọng Sans: mỗi chữ cái / chữ số phát 1 tiếng "bla" ngắn (cùng chữ -> cùng âm), dấu cách và dấu câu thì im
   let vSrc = null;
   function voiceStop() { if (vSrc) { try { vSrc.stop(); } catch (e) {} vSrc = null; } }
+  let speaker = 'sans';
+  function setSpeaker(w) {
+    speaker = w; const h = $('dhead');
+    h.classList.toggle('gas', w === 'gas'); h.src = w === 'gas' ? 'assets/gaster.png' : 'assets/sans-head.png';
+    dlg.querySelector('.who').textContent = w === 'gas' ? 'GASTER' : 'SANS';
+  }
+  function gasBlip() {         // giọng Gaster: trầm, méo, ngẫu nhiên
+    if (!ctx || !talkBuf || gv() === 0) return;
+    voiceStop(); const rate = 0.42 + Math.random() * 0.28, dur = 0.07 + Math.random() * 0.05, off = Math.random() * 0.75;
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = talkBuf; src.playbackRate.value = rate;
+    const t0 = ctx.currentTime; g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(1, t0 + 0.006); g.gain.setValueAtTime(1, t0 + dur - 0.012); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    src.connect(g); g.connect(voiceG); src.start(t0, off, dur + 0.02); vSrc = src;
+  }
   function voiceChar(ch) {
+    if (speaker === 'gas') { if (!/\s/.test(ch)) gasBlip(); return; }
     if (!ctx || !talkBuf || gv() === 0 || !/[a-z0-9]/i.test(ch)) return;
     voiceStop(); window.__voices = (window.__voices || 0) + 1;
     const c = ch.toLowerCase().charCodeAt(0), vowel = 'aeiou'.indexOf(ch.toLowerCase()) >= 0;
@@ -382,7 +422,7 @@
   function hud(on) { const h = $('hud'); h.style.display = on ? 'block' : 'none'; if (!on) return; h.innerHTML = ''; h.appendChild(candyCv(4)); const s = document.createElement('span'); s.innerHTML = 'CANDY <b>' + candies + '</b>'; h.appendChild(s); }
 
   // ===== điều khiển màn =====
-  const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result'];
+  const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result', 'boxes'];
   function showPanel(id) { panels.forEach((p) => { $(p).style.display = (p === id) ? (p === 'qa' ? 'flex' : 'block') : 'none'; }); }
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
@@ -390,12 +430,11 @@
     token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
     stage.classList.remove('dark');
     showPanel('sel'); show('sel', 'sleep');
-    const st = $('status');
-    if (status === 'ok') { st.className = 'ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; }
-    else if (status === 'lost') { st.className = 'lost'; st.textContent = 'LOST'; st.style.display = 'block'; }
-    else st.style.display = 'none';
-    $('hint').textContent = 'CLICK SANS'; $('hint').style.display = status ? 'none' : 'block';
+    setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
+    [['stS', status], ['stG', gstatus]].forEach(([id, v]) => { const st = $(id); if (v === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else if (v === 'lost') { st.className = 'st lost'; st.textContent = 'LOST'; st.style.display = 'block'; } else st.style.display = 'none'; });
+    $('hint').textContent = 'CLICK SANS OR GASTER'; $('hint').style.display = (status && gstatus) ? 'none' : 'block';
     $('selCard').style.cursor = sp.style.cursor = status ? 'default' : 'pointer';
+    $('cGas').style.cursor = gstatus ? 'default' : 'pointer';
     selStage = 0;
     if (!(opts && opts.instant)) await fadeIn(500);
   }
@@ -406,7 +445,7 @@
     const t = token;
     try {
       if (selStage === 0) {
-        selStage = 1; $('hint').style.display = 'none'; $('status').style.display = 'none';
+        selStage = 1; $('hint').style.display = 'none';
         unlock(); setMusic('select');                         // bấm vào Sans lần đầu thì nhạc mới bắt đầu
         show('sel', 'normal');                                // Sans tỉnh giấc
         await say('huh? do you want to challenge me?', t);
@@ -424,9 +463,9 @@
   $('sel').addEventListener('click', (e) => { if (e.target === $('sel')) onSansClick(); });
 
   // ===== một câu hỏi =====
-  function ask(data, hard, t) {
+  function ask(data, hard, t, tag) {
     return new Promise((resolve) => {
-      $('qTag').textContent = hard ? 'EXTREME HARD  ·  QUESTION 2' : 'EASY  ·  QUESTION 1';
+      $('qTag').textContent = tag || (hard ? 'EXTREME HARD  ·  QUESTION 2' : 'EASY  ·  QUESTION 1');
       $('qText').textContent = data.q;
       const box = $('opts'); box.innerHTML = ''; box.className = hard ? 'c2' : 'c1';
       $('why').style.display = 'none';
@@ -586,10 +625,63 @@
     await sleep(80); await fadeIn(600);
   }
 
+  // ===== Gaster: 1 câu hỏi thường -> chọn 1 trong 5 hộp (1,1,2,2,3 kẹo) -> nói chữ lạ -> biến mất =====
+  const GGIB = ['&@%÷₫&♡\\£|●', '●|£\\♡&₫÷%@&', '₫♡&@£●÷|%\\&', '%&÷●@|£♡₫\\&'];
+  async function gasGame(t) {
+    setSpeaker('gas'); setMusic(null);
+    await fadeOut(450); chk(t);
+    showPanel('qa'); $('qa').style.display = 'none';
+    sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
+    const gb = $('gasBig'); gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
+     showPanel('qa'); setX(true); gcandy = 0; hud(false); await fadeIn(600); chk(t);
+    await say(GGIB[0], t); chk(t); hideDlg();
+    const r = await ask(pick(EASY), false, t, 'QUESTION'); chk(t);
+    await sleep(700); chk(t);
+    if (!r.ok) {
+      showWhy(r);
+      await say(GGIB[3], t); hideDlg();
+      await gasVanish(t); await finishG('lost', t); return;
+    }
+    await say(GGIB[1], t); hideDlg(); chk(t);
+    // ---- 5 hộp ----
+    showPanel('boxes'); $('bxInfo').innerHTML = 'CHOOSE ONE BOX';
+    const prizes = shuffle([1, 1, 2, 2, 3]), row = $('boxRow'); row.innerHTML = '';
+    const boxes = prizes.map((pz, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bx'; b.textContent = '?'; row.appendChild(b); return b; });
+    const idx = await new Promise((res) => boxes.forEach((b, i) => b.addEventListener('click', () => res(i), { once: true })));
+    chk(t);
+    const open = (i, pick) => { const b = boxes[i]; b.classList.add('open', pick ? 'pick' : 'other'); b.innerHTML = ''; b.appendChild(candyCv(5)); const n = document.createElement('div'); n.className = 'n'; n.textContent = 'x' + prizes[i]; b.appendChild(n); };
+    open(idx, true); sfx(prizeBuf); gcandy = prizes[idx]; save(); hud(false);
+    $('bxInfo').innerHTML = 'YOU GOT <span style="color:var(--acc)">' + prizes[idx] + '</span> CANDY' + (prizes[idx] > 1 ? 'S' : '');
+    await sleep(650); chk(t);
+    for (let i = 0; i < boxes.length; i++) if (i !== idx) { open(i, false); sfx(okBuf); await sleep(260); chk(t); }
+    await sleep(900); chk(t);
+    showPanel('boxes'); setX(false);
+    await say(GGIB[2], t); hideDlg(); chk(t);
+    await gasVanish(t); await finishG('ok', t);
+  }
+  async function gasVanish(t) {
+    $('qa').style.display = 'none'; $('boxes').style.display = 'none';
+    const gb = $('gasBig'); gb.classList.add('van'); await sleep(950); chk(t); gb.style.display = 'none';
+  }
+  async function finishG(st, t) {
+    gstatus = st; save(); chk(t);
+    await sleep(250); chk(t);
+    await fadeOut(600); chk(t);
+    await gotoSelect({ instant: true });
+    await sleep(80); await fadeIn(600);
+  }
+  async function onGasClick() {
+    if (selStage !== 0 || gstatus) return;
+    selStage = 2; const t = token;
+    try { unlock(); await gasGame(t); } catch (e) { if (!(e instanceof Cancel)) throw e; }
+  }
+  $('cGas').addEventListener('click', onGasClick);
+  $('gasSpr').addEventListener('click', onGasClick);
+
   // ===== nút =====
   $('bPrev').addEventListener('click', () => post('quiz-prev'));
   $('bNext').addEventListener('click', () => post('quiz-next'));
-  $('bReset').addEventListener('click', async () => { status = null; candies = 0; save(); await fadeOut(300); await gotoSelect({ instant: true }); await fadeIn(400); });
+  $('bReset').addEventListener('click', async () => { token++; status = null; candies = 0; gstatus = null; gcandy = 0; save(); await fadeOut(300); await gotoSelect({ instant: true }); await fadeIn(400); });
   $('bX').addEventListener('click', async () => { token++; cancelAnimationFrame(wheelRaf); await fadeOut(300); await gotoSelect({ instant: true }); await fadeIn(400); });
 
   // Phím Backspace / Enter không có tác dụng ở slide này (tránh xung đột khi bấm nhầm)
