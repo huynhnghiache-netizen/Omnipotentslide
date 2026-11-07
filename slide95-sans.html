@@ -78,7 +78,46 @@
   #gasBig { position: absolute; left: 100px; top: 110px; height: 350px; image-rendering: pixelated; display: none; filter: drop-shadow(0 0 14px rgba(255,255,255,.18)); }
   @keyframes gvan { 0% { opacity: 1; transform: translateX(0) } 15% { opacity: .2; transform: translateX(-14px) skewX(8deg) } 30% { opacity: 1; transform: translateX(10px) } 45% { opacity: .1; transform: translateX(-20px) skewX(-10deg) } 60% { opacity: .8; transform: translateX(6px) } 100% { opacity: 0; transform: translateX(0) scaleY(.02) } }
   #gasBig.van { animation: gvan .9s steps(1, end) forwards; }
-  #dhead.gas { object-fit: cover; object-position: top; height: 88px; margin-top: -44px; }
+  #dhead.gas { object-fit: cover; object-position: top; height: 106px; margin-top: -53px; }
+  @keyframes ggl { 0% { transform: translate(0) } 10% { transform: translate(-9px, 2px) skewX(10deg); filter: hue-rotate(90deg) drop-shadow(0 0 10px #f0f) } 20% { opacity: .3; transform: translate(4px, 0) } 30% { transform: translate(11px, -3px) skewX(-12deg); opacity: 1 } 40% { clip-path: inset(30% 0 40% 0); transform: translate(-14px, 0) } 55% { clip-path: none; opacity: .45; transform: translate(6px, 2px) } 70% { opacity: 1; transform: translate(-4px, -2px) skewX(6deg); filter: hue-rotate(-70deg) } 100% { transform: none; clip-path: none; opacity: 1 } }
+  #gasBig.gl { animation: ggl .55s steps(1) forwards; }
+  #gasBig.flick { animation: gflick .35s steps(1) forwards; } @keyframes gflick { 0% { opacity: 0 } 25% { opacity: 1 } 50% { opacity: .2 } 75% { opacity: 1 } 100% { opacity: .6 } }
+  /* màn tổng kết */
+  #summary { position: absolute; left: 420px; right: 40px; top: 120px; display: none; text-align: center; font: 16px/2 'Press Start 2P', monospace; }
+  #summary.center { left: 0; right: 0; }
+  #summary .sn { font-size: 20px; color: var(--acc); margin-bottom: 18px; letter-spacing: 1px; }
+  #summary .sn.lost { color: #ff4455; } #summary .sn.ok { color: #5dff7a; }
+  #summary .sc { margin: 10px 0 6px; } #summary .sc canvas { transform: scale(1.6); }
+  #summary .sl { font-size: 14px; margin-top: 24px; opacity: .85; }
+  #summary .num { font-size: 72px; color: var(--acc); text-shadow: 5px 5px 0 #000; line-height: 1.3; animation: snum .5s steps(4); }
+  @keyframes snum { 0% { transform: scale(.3); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+  #sX { position: absolute; right: 18px; top: 18px; width: 56px; height: 56px; background: #000; border: 5px solid #ff3344; display: none; align-items: center; justify-content: center; cursor: pointer; padding: 0; box-shadow: 0 5px 0 #000; z-index: 25; }
+  #sX svg { width: 30px; height: 30px; } #sX:hover { transform: translateY(-2px); background: #2a060b; }
+  /* rương */
+  #boxRow .bx { width: 150px; height: 112px; border: 0; background: none; box-shadow: none; padding: 0; overflow: visible; display: block; font: 12px 'Press Start 2P', monospace; transition: transform .15s; }
+  #boxRow .bx::before { display: none; }
+  #boxRow .bx .chs { width: 150px; height: 105px; display: block; overflow: visible; filter: drop-shadow(0 6px 0 rgba(0,0,0,.6)); }
+  #boxRow .bx .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .45s cubic-bezier(.3, 1.6, .5, 1); }
+  #boxRow .bx .inner { opacity: 0; transition: opacity .3s; }
+  #boxRow .bx.open .lid { transform: translateY(-30px) scaleY(.5); }
+  #boxRow .bx.open .inner { opacity: 1; }
+  #boxRow .bx:not(.open):hover { transform: translateY(-6px) rotate(-1.5deg); border: 0; }
+  #boxRow .bx.open { cursor: default; animation: none; background: none; }
+  #boxRow .bx.pick .chs { filter: drop-shadow(0 0 16px #c9a8ff) drop-shadow(0 6px 0 rgba(0,0,0,.6)); }
+  #boxRow .bx.other { opacity: .62; }
+  #boxRow .bx .lbl { position: absolute; left: 0; right: 0; bottom: -24px; text-align: center; color: var(--acc); opacity: 0; transition: opacity .4s; font-size: 14px; }
+  #boxRow .bx.open .lbl { opacity: 1; }
+  #boxRow .bx .glow { position: absolute; left: 50%; top: 18px; width: 340px; height: 340px; margin: -170px 0 0 -170px; pointer-events: none; opacity: 0; mix-blend-mode: screen; z-index: 0;
+    background: radial-gradient(circle, rgba(255,245,255,.95) 0, rgba(190,150,255,.55) 22%, rgba(141,99,255,0) 62%), repeating-conic-gradient(rgba(255,255,255,.32) 0 5deg, transparent 5deg 18deg);
+    -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 68%); mask-image: radial-gradient(circle, #000 25%, transparent 68%);
+    animation: glowOn 2.2s ease-out forwards, glowSpin 7s linear infinite; }
+  @keyframes glowOn { 0% { transform: scale(.2); opacity: 0 } 25% { opacity: 1 } 100% { transform: scale(1); opacity: .75 } }
+  @keyframes glowSpin { to { rotate: 360deg } }
+  #boxRow .bx.other .glow { width: 200px; height: 200px; margin: -100px 0 0 -100px; animation-duration: 1.4s, 7s; }
+  #boxRow .bx .cdy { position: absolute; left: 50%; top: 20px; margin-left: -17px; z-index: 3; pointer-events: none; image-rendering: pixelated; filter: drop-shadow(0 0 6px #fff); }
+  @keyframes cbob { 0%, 100% { translate: 0 0 } 50% { translate: 0 -8px } }
+  #boxes { top: 170px; }
+  #boxRow { margin-top: 130px; gap: 18px; }
   /* 5 hộp phần thưởng */
   #boxes { position: absolute; left: 380px; right: 30px; top: 150px; display: none; text-align: center; }
   #boxes .info { font: 14px/2 'Press Start 2P', monospace; margin-bottom: 26px; }
@@ -176,6 +215,8 @@
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
   <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
   <div id="result"></div>
+  <div id="summary"></div>
+  <button id="sX" aria-label="Back"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button>
 
   <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><span class="who">SANS</span><span id="dtxt"></span><div id="dtrans"></div><span class="nxt">▼</span></div>
   <div id="gust"></div>
@@ -443,12 +484,13 @@
   function hud(on) { const h = $('hud'); h.style.display = on ? 'block' : 'none'; if (!on) return; h.innerHTML = ''; h.appendChild(candyCv(4)); const s = document.createElement('span'); s.innerHTML = 'CANDY <b>' + candies + '</b>'; h.appendChild(s); }
 
   // ===== điều khiển màn =====
-  const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result', 'boxes'];
+  const panels = ['sel', 'qa', 'wheelBox', 'gamble', 'result', 'boxes', 'summary'];
   function showPanel(id) { panels.forEach((p) => { $(p).style.display = (p === id) ? (p === 'qa' ? 'flex' : 'block') : 'none'; }); }
   function setX(on) { $('bX').style.display = on ? 'flex' : 'none'; }
 
   async function gotoSelect(opts) {
     token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
+    gasIdleStop(); $('sX').style.display = 'none';
     stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
     showPanel('sel'); show('sel', 'sleep');
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
@@ -595,6 +637,7 @@
     if (!r1.ok) {
       showWhy(r1);
       await say('heh. nope. better luck next time, kid.', t); hideDlg();
+      await showSummary(t, 'BETTER LUCK NEXT TIME', 'lost', candies);
       await finish('lost', t); return;
     }
     prefetchHard();
@@ -618,8 +661,8 @@
     const yes = await new Promise((res) => { $('gYes').onclick = () => res(true); $('gNo').onclick = () => res(false); });
     chk(t); hideDlg();
     if (!yes) {
-      showPanel('result'); $('result').innerHTML = 'SAFE!<br><span class="num">' + candies + '</span><br>CANDIES KEPT';
       await say('smart choice. see ya, kid.', t); hideDlg();
+      await showSummary(t, 'SAFE! CANDIES KEPT', 'ok', candies);
       await finish('ok', t); return;
     }
     // ---- Câu 2 (cực khó) ----
@@ -633,12 +676,25 @@
     if (r2.ok) {
       candies *= 2; save(); hud(true);
       await say('...huh. you actually got it. fine, ' + candies + ' candies.', t); hideDlg();
+      await showSummary(t, 'DOUBLED!', 'ok', candies);
       await finish('ok', t); return;
     }
     candies = Math.max(0, candies - 1); save(); hud(true);
     showWhy(r2);
     await say('geez, almost got it. better luck next time, kid.', t); hideDlg();
+    await showSummary(t, 'WRONG! -1 CANDY', 'lost', candies);
     await finish('lost', t);
+  }
+  // màn tổng kết: tổng số kẹo nhận được + dấu X quay lại phần chọn nhân vật
+  async function showSummary(t, note, tone, total, center) {
+    const el = $('summary'); el.className = center ? 'center' : '';
+    el.innerHTML = '<div class="sn ' + (tone || '') + '">' + note + '</div><div class="sc"></div><div class="sl">TOTAL CANDIES</div><div class="num">' + total + '</div>';
+    el.querySelector('.sc').appendChild(candyCv(9));
+    hud(false); setX(false); dlg.style.display = 'none'; showPanel('summary');
+    if (total > 0) sfx(okBuf);
+    $('sX').style.display = 'flex';
+    await new Promise((res) => { $('sX').onclick = () => res(); });
+    chk(t); $('sX').style.display = 'none';
   }
   async function finish(st, t) {
     status = st; save(); chk(t);
@@ -657,17 +713,47 @@
     bye:   ['₫♡&@£●÷|%\\&', 'The past fades like dust... but it is never truly gone. Farewell.']
   };
   const gsay = (k, t) => say(GG[k][0], t, GG[k][1]);
+  // vị trí/kích thước Gaster (to hơn, đứng thấp hơn) + model 2
+  function gasModel(n) {
+    const gb = $('gasBig');
+    if (n === 2) { gb.src = 'assets/gaster-b.png'; gb.style.height = '400px'; gb.style.left = '10px'; gb.style.top = '215px'; }
+    else { gb.src = 'assets/gaster.png'; gb.style.height = '430px'; gb.style.left = '70px'; gb.style.top = '185px'; }
+  }
+  // mỗi 5 giây: 50% giật glitch, 50% chuyển sang model 2 một lúc
+  let gasIdleI = null, gasIdleT = null;
+  function gasIdleStop() { clearInterval(gasIdleI); clearTimeout(gasIdleT); gasIdleI = gasIdleT = null; const gb = $('gasBig'); gb.classList.remove('gl', 'flick'); if (gb.getAttribute('src') !== 'assets/gaster.png') gasModel(1); }
+  function gasIdleStart(t) {
+    gasIdleStop(); const gb = $('gasBig');
+    gasIdleI = setInterval(() => {
+      if (!alive(t)) { gasIdleStop(); return; }
+      if (Math.random() < 0.5) { gb.classList.remove('gl'); void gb.offsetWidth; gb.classList.add('gl'); setTimeout(() => gb.classList.remove('gl'), 600); }
+      else { gb.classList.remove('flick'); void gb.offsetWidth; gb.classList.add('flick'); gasModel(2); gasIdleT = setTimeout(() => { gb.classList.remove('flick'); void gb.offsetWidth; gb.classList.add('flick'); gasModel(1); setTimeout(() => gb.classList.remove('flick'), 400); }, 1300); }
+    }, 5000);
+  }
+  // rương kho báu (đen/tím)
+  const CHEST = '<svg class="chs" viewBox="0 0 200 140"><g stroke="#07030f" stroke-width="5" stroke-linejoin="round">'
+    + '<ellipse class="inner" cx="100" cy="64" rx="72" ry="13" fill="#f1e8ff"/>'
+    + '<g class="body"><rect x="22" y="64" width="156" height="66" rx="6" fill="#2d1a58"/><path d="M28 84H172M28 102H172" stroke="#43267f" stroke-width="3"/>'
+    + '<rect x="22" y="114" width="156" height="16" rx="4" fill="#8d63ff"/><rect x="22" y="64" width="18" height="66" rx="4" fill="#8d63ff"/><rect x="160" y="64" width="18" height="66" rx="4" fill="#8d63ff"/>'
+    + '<rect x="87" y="64" width="26" height="52" fill="#5b36b8"/></g>'
+    + '<g class="lid"><path d="M16 68V48Q16 22 44 22H156Q184 22 184 48V68Z" fill="#3a2070"/><path d="M34 40H166M28 54H172" stroke="#51309a" stroke-width="3"/>'
+    + '<path d="M16 68V48Q16 22 44 22H54V68Z" fill="#8d63ff"/><path d="M184 68V48Q184 22 156 22H146V68Z" fill="#8d63ff"/><rect x="16" y="58" width="168" height="12" rx="3" fill="#8d63ff"/>'
+    + '<rect x="87" y="22" width="26" height="48" fill="#5b36b8"/><rect x="78" y="50" width="44" height="34" rx="5" fill="#c9a8ff"/>'
+    + '<path d="M100 56l11 5v9q0 8-11 13-11-5-11-13v-9z" fill="#2d1a58" stroke-width="3"/></g></g>'
+    + '<g fill="#efe6ff"><circle cx="84" cy="55" r="2.6"/><circle cx="116" cy="55" r="2.6"/><circle cx="84" cy="79" r="2.6"/><circle cx="116" cy="79" r="2.6"/></g></svg>';
   async function gasGame(t) {
     setSpeaker('gas'); setMusic('gas');
     await fadeOut(450); chk(t);
     stage.classList.add('gas'); stage.classList.remove('dark');
     showPanel('qa'); $('qa').style.display = 'none';
     sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
-    const gb = $('gasBig'); gb.src = 'assets/gaster.png'; gb.style.height = '350px'; gb.style.left = '100px'; gb.style.top = '110px'; gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
+    const gb = $('gasBig'); gasModel(1); gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
     setX(true); gcandy = 0; hud(false); await fadeIn(600); chk(t);
     await gsay('hello', t); chk(t); hideDlg();
     showPanel('qa'); setX(true);                                  // hiện khung câu hỏi (trước đó đã ẩn khi nói chuyện)
+    gasIdleStart(t);
     const r = await ask(pick(EASY), false, t, 'QUESTION'); chk(t);
+    gasIdleStop();
     await sleep(700); chk(t);
     if (!r.ok) {
       showWhy(r);
@@ -675,17 +761,26 @@
       await gasVanish(t); await finishG('lost', t); return;
     }
     await gsay('right', t); hideDlg(); chk(t);
-    // ---- 5 hộp ----
-    showPanel('boxes'); $('bxInfo').innerHTML = 'CHOOSE ONE BOX';
+    // ---- 5 rương ----
+    showPanel('boxes'); $('bxInfo').innerHTML = 'CHOOSE ONE CHEST';
     const prizes = shuffle([1, 1, 2, 2, 3]), row = $('boxRow'); row.innerHTML = '';
-    const boxes = prizes.map((pz, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bx'; b.textContent = '?'; row.appendChild(b); return b; });
+    const boxes = prizes.map((pz, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bx'; b.innerHTML = CHEST + '<div class="lbl">x' + pz + '</div>'; row.appendChild(b); return b; });
     const idx = await new Promise((res) => boxes.forEach((b, i) => b.addEventListener('click', () => res(i), { once: true })));
     chk(t);
-    const open = (i, pick) => { const b = boxes[i]; b.classList.add('open', pick ? 'pick' : 'other'); b.innerHTML = ''; b.appendChild(candyCv(5)); const n = document.createElement('div'); n.className = 'n'; n.textContent = 'x' + prizes[i]; b.appendChild(n); };
-    open(idx, true); sfx(prizeBuf); gcandy = prizes[idx]; save(); hud(false);
+    const openChest = (i, pickd) => {
+      const b = boxes[i], n = prizes[i]; b.classList.add('open', pickd ? 'pick' : 'other');
+      const gl = document.createElement('div'); gl.className = 'glow'; b.insertBefore(gl, b.firstChild);
+      for (let k = 0; k < n; k++) {                                           // N cây kẹo bay lên khỏi rương
+        const c = candyCv(pickd ? 5 : 3); c.className = 'cdy'; c.style.marginLeft = (-c.width / 2) + 'px'; b.appendChild(c);
+        const dx = (k - (n - 1) / 2) * (pickd ? 46 : 28), up = (pickd ? 120 : 78) + Math.random() * 14;
+        const anim = c.animate([{ transform: 'translate(0,10px) scale(.2) rotate(0deg)', opacity: 0 }, { transform: 'translate(' + dx * 0.5 + 'px,' + (-up - 26) + 'px) scale(1.15) rotate(' + (k % 2 ? 160 : -160) + 'deg)', opacity: 1, offset: 0.6 }, { transform: 'translate(' + dx + 'px,' + (-up) + 'px) scale(1) rotate(' + (k % 2 ? 360 : -360) + 'deg)', opacity: 1 }], { duration: 900 + k * 140, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards', delay: k * 120 });
+        anim.onfinish = () => { c.style.transform = 'translate(' + dx + 'px,' + (-up) + 'px)'; c.style.animation = 'cbob 1.4s ease-in-out ' + (k * 0.25) + 's infinite'; };
+      }
+    };
+    openChest(idx, true); sfx(prizeBuf); gcandy = prizes[idx]; save(); hud(false);
     $('bxInfo').innerHTML = 'YOU GOT <span style="color:var(--acc)">' + prizes[idx] + '</span> CANDY' + (prizes[idx] > 1 ? 'S' : '');
-    await sleep(650); chk(t);
-    for (let i = 0; i < boxes.length; i++) if (i !== idx) { open(i, false); sfx(okBuf); await sleep(260); chk(t); }
+    await sleep(1500); chk(t);
+    for (let i = 0; i < boxes.length; i++) if (i !== idx) { openChest(i, false); sfx(okBuf); await sleep(280); chk(t); }
     await sleep(900); chk(t);
     showPanel('boxes'); setX(false);
     await gsay('bye', t); hideDlg(); chk(t);
@@ -696,12 +791,11 @@
     $('qa').style.display = 'none'; $('boxes').style.display = 'none'; setX(false);
     const gb = $('gasBig');
     await new Promise((r) => { const im = new Image(); im.onload = r; im.onerror = r; im.src = 'assets/gaster-b.png'; });
-    gb.style.opacity = '0'; await sleep(90); chk(t);                         // nháy nhẹ khi đổi model
-    const H = 330, W = Math.round(H * 150 / 203); gb.src = 'assets/gaster-b.png'; gb.style.height = H + 'px'; gb.style.left = Math.round(100 + 143 / 2 - W / 2) + 'px'; gb.style.top = '120px';
-    gb.style.opacity = '1'; await sleep(1500); chk(t);
+    gasIdleStop(); gb.style.opacity = '0'; await sleep(90); chk(t);          // nháy nhẹ khi đổi model
+    gasModel(2); gb.style.opacity = '1'; await sleep(1500); chk(t);
     const src = gasVanBuf && sfx(gasVanBuf);
     await dissolve(gb, 2300, t); setMusic(null);
-    gb.style.display = 'none'; gb.style.top = '110px';
+    gb.style.display = 'none';
   }
   // tan thành bụi pixel tím trôi lên (từ trên xuống dưới, lệch ngẫu nhiên)
   function dissolve(img, dur, t) {
@@ -737,6 +831,7 @@
   }
   async function finishG(st, t) {
     gstatus = st; save(); chk(t);
+    await showSummary(t, st === 'ok' ? 'CANDIES RECEIVED' : 'BETTER LUCK NEXT TIME', st === 'ok' ? 'ok' : 'lost', gcandy, true);
     await sleep(250); chk(t);
     await fadeOut(600); chk(t);
     await gotoSelect({ instant: true });
