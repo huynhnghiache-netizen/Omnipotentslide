@@ -15,6 +15,12 @@
   #stage.dark { --bg1: #1c0508; --bg2: #000; --line: #ff5566; --acc: #ff3344; }
   #stage.dark::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 160px 40px rgba(120, 0, 10, .55); animation: flick 3s steps(1) infinite; }
   @keyframes flick { 0%, 100% { opacity: 1 } 47% { opacity: .75 } 50% { opacity: 1 } 83% { opacity: .85 } }
+  #stage.gas { --bg1: #0b0518; --bg2: #000; --line: #8d63ff; --acc: #b794ff; }
+  #stage.gas::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 180px 50px rgba(70, 20, 140, .5); animation: gpulse 5s ease-in-out infinite; z-index: 2; }
+  @keyframes gpulse { 0%, 100% { opacity: .55 } 50% { opacity: 1 } }
+  #stage.gas #deco i.h { background: #8d63ff; } #stage.gas #deco i.b { background: #4b3a82; }
+  #stage.gas #gasBig { filter: drop-shadow(0 0 16px rgba(141, 99, 255, .55)); }
+  #gasCv { position: absolute; pointer-events: none; z-index: 6; image-rendering: pixelated; }
   .px { font-family: 'Press Start 2P', 'Courier New', monospace; }
   img, canvas { image-rendering: pixelated; }
 
@@ -46,6 +52,7 @@
   #dlg .who { position: absolute; top: -17px; left: 22px; background: #000; padding: 0 10px; font-size: 12px; color: var(--acc); }
   #dlg .nxt { position: absolute; right: 14px; bottom: 8px; font-size: 12px; animation: blink 1s steps(1) infinite; color: var(--acc); }
   @keyframes blink { 50% { opacity: 0 } }
+  #dtrans { position: absolute; left: 132px; right: 60px; bottom: 12px; font: italic 14px/1.3 'Courier New', monospace; color: #b8a0ff; opacity: 0; transition: opacity .5s; letter-spacing: 0; }
 
   /* màn chọn nhân vật */
   #sel { position: absolute; inset: 0; display: none; }
@@ -163,13 +170,14 @@
   <div id="sansSp"></div>
 
   <img id="gasBig" src="assets/gaster.png" alt="" draggable="false">
+  <canvas id="gasCv" style="display:none"></canvas>
   <div id="boxes"><div class="info" id="bxInfo"></div><div id="boxRow"></div></div>
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
   <div id="gamble"><div class="info" id="gInfo"></div><div class="row"><button class="big" id="gYes">YES</button><button class="big" id="gNo">NO</button></div></div>
   <div id="result"></div>
 
-  <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><span class="who">SANS</span><span id="dtxt"></span><span class="nxt">▼</span></div>
+  <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><span class="who">SANS</span><span id="dtxt"></span><div id="dtrans"></div><span class="nxt">▼</span></div>
   <div id="gust"></div>
   <div id="blk"></div>
 </div>
@@ -208,26 +216,30 @@
   }
   readSnd();
   const AC = window.AudioContext || window.webkitAudioContext;
-  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, wheelBuf = null, rockBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, musicWant = null, megaEl = null;
+  let ctx = null, voiceG = null, selG = null, sfxG = null, nuhBuf = null, okBuf = null, wheelBuf = null, rockBuf = null, prizeBuf = null, talkBuf = null, selBuf = null, selSrc = null, gasTalkBuf = null, gasVanBuf = null, gasMusBuf = null, gasSrc = null, gasG = null, musicWant = null, megaEl = null;
   const gv = () => (SND.on ? SND.vol / 100 : 0);
   const gm = () => (SND.on && SND.mon ? SND.vol / 100 * SND.mvol / 100 : 0);
   function applyVol() {
     if (voiceG) voiceG.gain.value = gv() * 0.9;
     if (sfxG) sfxG.gain.value = gv();
     if (selG) selG.gain.value = musicWant === 'select' ? gm() * 0.4 : 0;
+    if (gasG) gasG.gain.value = musicWant === 'gas' ? gm() * 0.55 : 0;
     if (megaEl) megaEl.volume = Math.max(0, Math.min(1, gm() * 0.4));
   }
   function loadBuf(url) { return fetch(url).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej))); }
   function initAudio() {
     if (ctx || !AC) return;
     try {
-      ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); sfxG = ctx.createGain(); sfxG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); applyVol();
+      ctx = new AC(); voiceG = ctx.createGain(); voiceG.connect(ctx.destination); sfxG = ctx.createGain(); sfxG.connect(ctx.destination); selG = ctx.createGain(); selG.connect(ctx.destination); gasG = ctx.createGain(); gasG.connect(ctx.destination); applyVol();
       loadBuf('assets/sfx-nuhuh.mp3').then((b) => { nuhBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-correct.mp3').then((b) => { okBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-prize.mp3').then((b) => { prizeBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-rock.mp3').then((b) => { rockBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-wheel.mp3').then((b) => { wheelBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-gaster-talk.mp3').then((b) => { gasTalkBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-gaster-vanish.mp3').then((b) => { gasVanBuf = b; }).catch(() => {});
+      loadBuf('assets/music-gaster.mp3').then((b) => { gasMusBuf = b; syncMusic(); }).catch(() => {});
       loadBuf('assets/music-sans-select.mp3').then((b) => { selBuf = b; syncMusic(); }).catch(() => {});
     } catch (e) { ctx = null; }
   }
@@ -236,7 +248,13 @@
   let musicNow = null;              // chỉ đổi nhạc khi trạng thái thật sự đổi (trước đây mỗi lần click lại phát lại từ đầu)
   function syncMusic() {
     if (!ctx) return;
-    if (musicWant === 'select') {
+    if (musicWant !== 'gas' && gasSrc) { try { gasSrc.stop(); } catch (e) {} gasSrc = null; }
+    if (musicWant === 'gas') {
+      if (selSrc) { try { selSrc.stop(); } catch (e) {} selSrc = null; }
+      if (megaEl) { try { megaEl.pause(); } catch (e) {} }
+      if (gasMusBuf && !gasSrc) { gasSrc = ctx.createBufferSource(); gasSrc.buffer = gasMusBuf; gasSrc.loop = true; gasSrc.connect(gasG); gasSrc.start(0); }
+      musicNow = 'gas';
+    } else if (musicWant === 'select') {
       if (musicNow !== 'select' && megaEl) { try { megaEl.pause(); megaEl.currentTime = 0; } catch (e) {} }
       if (selBuf && !selSrc) { selSrc = ctx.createBufferSource(); selSrc.buffer = selBuf; selSrc.loop = true; selSrc.connect(selG); selSrc.start(0); musicNow = 'select'; }
     } else if (musicWant === 'hard') {
@@ -265,9 +283,10 @@
     dlg.querySelector('.who').textContent = w === 'gas' ? 'GASTER' : 'SANS';
   }
   function gasBlip() {         // giọng Gaster: trầm, méo, ngẫu nhiên
-    if (!ctx || !talkBuf || gv() === 0) return;
-    voiceStop(); const rate = 0.42 + Math.random() * 0.28, dur = 0.07 + Math.random() * 0.05, off = Math.random() * 0.75;
-    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = talkBuf; src.playbackRate.value = rate;
+    const B = gasTalkBuf || talkBuf;
+    if (!ctx || !B || gv() === 0) return;
+    voiceStop(); const rate = gasTalkBuf ? 0.93 + Math.random() * 0.14 : 0.42 + Math.random() * 0.28, dur = 0.08 + Math.random() * 0.05, off = Math.random() * Math.max(0.1, B.duration - 0.3);
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = B; src.playbackRate.value = rate;
     const t0 = ctx.currentTime; g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(1, t0 + 0.006); g.gain.setValueAtTime(1, t0 + dur - 0.012); g.gain.linearRampToValueAtTime(0, t0 + dur);
     src.connect(g); g.connect(voiceG); src.start(t0, off, dur + 0.02); vSrc = src;
   }
@@ -320,16 +339,18 @@
   // ===== khung thoại (gõ chữ, bấm để tiếp) =====
   const dlg = $('dlg'), dtxt = $('dtxt');
   let typing = null;
-  function say(text, t) {
+  function say(text, t, trans) {
     return new Promise((res, rej) => {
+      const tr = $('dtrans'); tr.style.opacity = '0'; tr.textContent = trans ? '(' + trans + ')' : '';
+      const showTr = () => { if (trans) tr.style.opacity = '1'; };
       dlg.style.display = 'block'; dtxt.textContent = ''; dlg.querySelector('.nxt').style.visibility = 'hidden';
       let i = 0, done = false, timer = 0;
-      const fin = () => { done = true; clearTimeout(timer); voiceStop(); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; };
+      const fin = () => { done = true; clearTimeout(timer); voiceStop(); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; showTr(); };
       const delayFor = (ch) => (ch === ',' ? 230 : /[.?!]/.test(ch) ? 330 : ch === ' ' ? 55 : 46);
       const step = () => {
         if (!alive(t)) { voiceStop(); rej(new Cancel()); return; }
         const ch = text[i++]; dtxt.textContent = text.slice(0, i); voiceChar(ch);
-        if (i >= text.length) { done = true; dlg.querySelector('.nxt').style.visibility = 'visible'; return; }
+        if (i >= text.length) { done = true; dlg.querySelector('.nxt').style.visibility = 'visible'; showTr(); return; }
         timer = setTimeout(step, delayFor(ch));
       };
       typing = () => {
@@ -343,7 +364,7 @@
   // nói xong thì tự đóng sau một nhịp (không cần bấm): dùng cho câu ngắn giữa chừng
   
   dlg.addEventListener('click', () => { if (typing) typing(); });
-  function hideDlg() { dlg.style.display = 'none'; typing = null; voiceStop(); }
+  function hideDlg() { dlg.style.display = 'none'; typing = null; voiceStop(); $('dtrans').style.opacity = '0'; }
 
   // ===== màn đen chuyển cảnh =====
   const blk = $('blk');
@@ -428,7 +449,7 @@
 
   async function gotoSelect(opts) {
     token++; typing = null; voiceStop(); hideDlg(); setX(false); hud(false); $('gust').style.opacity = 0; cancelAnimationFrame(wheelRaf); wheelStop(); setMusic(null);                    // màn chọn nhân vật: im lặng, chỉ có nhạc sau khi bấm vào Sans
-    stage.classList.remove('dark');
+    stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
     showPanel('sel'); show('sel', 'sleep');
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
     [['stS', status], ['stG', gstatus]].forEach(([id, v]) => { const st = $(id); if (v === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else if (v === 'lost') { st.className = 'st lost'; st.textContent = 'LOST'; st.style.display = 'block'; } else st.style.display = 'none'; });
@@ -626,23 +647,31 @@
   }
 
   // ===== Gaster: 1 câu hỏi thường -> chọn 1 trong 5 hộp (1,1,2,2,3 kẹo) -> nói chữ lạ -> biến mất =====
-  const GGIB = ['&@%÷₫&♡\\£|●', '●|£\\♡&₫÷%@&', '₫♡&@£●÷|%\\&', '%&÷●@|£♡₫\\&'];
+  // chữ lạ + bản dịch tiếng Anh hiện dưới khung thoại
+  const GG = {
+    hello: ['&@%÷₫&♡\\£|●', '...so, you found me. Answer a question, and a gift awaits.'],
+    right: ['●|£\\♡&₫÷%@&', 'A fragment of knowledge... Now choose one box.'],
+    wrong: ['%&÷●@|£♡₫\\&', 'Incorrect. Forget this place and leave.'],
+    bye:   ['₫♡&@£●÷|%\\&', 'The past fades like dust... but it is never truly gone. Farewell.']
+  };
+  const gsay = (k, t) => say(GG[k][0], t, GG[k][1]);
   async function gasGame(t) {
-    setSpeaker('gas'); setMusic(null);
+    setSpeaker('gas'); setMusic('gas');
     await fadeOut(450); chk(t);
+    stage.classList.add('gas'); stage.classList.remove('dark');
     showPanel('qa'); $('qa').style.display = 'none';
     sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
-    const gb = $('gasBig'); gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
-     showPanel('qa'); setX(true); gcandy = 0; hud(false); await fadeIn(600); chk(t);
-    await say(GGIB[0], t); chk(t); hideDlg();
+    const gb = $('gasBig'); gb.src = 'assets/gaster.png'; gb.style.height = '350px'; gb.style.left = '100px'; gb.style.top = '110px'; gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
+    setX(true); gcandy = 0; hud(false); await fadeIn(600); chk(t);
+    await gsay('hello', t); chk(t); hideDlg();
     const r = await ask(pick(EASY), false, t, 'QUESTION'); chk(t);
     await sleep(700); chk(t);
     if (!r.ok) {
       showWhy(r);
-      await say(GGIB[3], t); hideDlg();
+      await gsay('wrong', t); hideDlg();
       await gasVanish(t); await finishG('lost', t); return;
     }
-    await say(GGIB[1], t); hideDlg(); chk(t);
+    await gsay('right', t); hideDlg(); chk(t);
     // ---- 5 hộp ----
     showPanel('boxes'); $('bxInfo').innerHTML = 'CHOOSE ONE BOX';
     const prizes = shuffle([1, 1, 2, 2, 3]), row = $('boxRow'); row.innerHTML = '';
@@ -656,12 +685,52 @@
     for (let i = 0; i < boxes.length; i++) if (i !== idx) { open(i, false); sfx(okBuf); await sleep(260); chk(t); }
     await sleep(900); chk(t);
     showPanel('boxes'); setX(false);
-    await say(GGIB[2], t); hideDlg(); chk(t);
+    await gsay('bye', t); hideDlg(); chk(t);
     await gasVanish(t); await finishG('ok', t);
   }
+  // đổi sang model khác 1.5s -> tan biến (tiếng biến mất phát đúng lúc bắt đầu tan)
   async function gasVanish(t) {
-    $('qa').style.display = 'none'; $('boxes').style.display = 'none';
-    const gb = $('gasBig'); gb.classList.add('van'); await sleep(950); chk(t); gb.style.display = 'none';
+    $('qa').style.display = 'none'; $('boxes').style.display = 'none'; setX(false);
+    const gb = $('gasBig');
+    await new Promise((r) => { const im = new Image(); im.onload = r; im.onerror = r; im.src = 'assets/gaster-b.png'; });
+    gb.style.opacity = '0'; await sleep(90); chk(t);                         // nháy nhẹ khi đổi model
+    const H = 330, W = Math.round(H * 150 / 203); gb.src = 'assets/gaster-b.png'; gb.style.height = H + 'px'; gb.style.left = Math.round(100 + 143 / 2 - W / 2) + 'px'; gb.style.top = '120px';
+    gb.style.opacity = '1'; await sleep(1500); chk(t);
+    const src = gasVanBuf && sfx(gasVanBuf);
+    await dissolve(gb, 2300, t); setMusic(null);
+    gb.style.display = 'none'; gb.style.top = '110px';
+  }
+  // tan thành bụi pixel tím trôi lên (từ trên xuống dưới, lệch ngẫu nhiên)
+  function dissolve(img, dur, t) {
+    return new Promise((res) => {
+      const cv = $('gasCv'), g = cv.getContext('2d'), r = { x: img.offsetLeft, y: img.offsetTop, w: img.offsetWidth, h: img.offsetHeight };
+      const B = 4, cols = Math.ceil(r.w / B), rows = Math.ceil(r.h / B);
+      cv.width = r.w + 120; cv.height = r.h + 160; cv.style.cssText = 'display:block;left:' + (r.x - 60) + 'px;top:' + (r.y - 120) + 'px;width:' + cv.width + 'px;height:' + cv.height + 'px';
+      const oc = document.createElement('canvas'); oc.width = r.w; oc.height = r.h; const og = oc.getContext('2d'); og.imageSmoothingEnabled = false; og.drawImage(img, 0, 0, r.w, r.h);
+      const d = og.getImageData(0, 0, r.w, r.h).data, P = [];
+      for (let by = 0; by < rows; by++) for (let bx = 0; bx < cols; bx++) {
+        const px = Math.min(r.w - 1, bx * B + 2), py = Math.min(r.h - 1, by * B + 2), k = (py * r.w + px) * 4;
+        if (d[k + 3] < 128) continue;
+        const white = d[k] > 128;
+        P.push({ x: bx * B, y: by * B, white, delay: (by / rows) * 0.55 + Math.random() * 0.25, vx: (Math.random() - .3) * 40, vy: -(30 + Math.random() * 90), sw: Math.random() * 6.28 });
+      }
+      img.style.opacity = '0';
+      const t0 = performance.now();
+      (function f() {
+        if (!alive(t)) { cv.style.display = 'none'; img.style.opacity = '1'; res(); return; }
+        const u = (performance.now() - t0) / dur; g.clearRect(0, 0, cv.width, cv.height);
+        for (const p of P) {
+          const k = Math.max(0, (u - p.delay) / 0.4);              // mỗi mảnh bắt đầu rời ra ở thời điểm riêng
+          if (k >= 1) continue;
+          const x = 60 + p.x + p.vx * k + Math.sin(p.sw + k * 5) * 6 * k, y = 120 + p.y + p.vy * k * 1.6;
+          g.globalAlpha = (1 - k) * (k > 0 ? 0.95 : 1);
+          g.fillStyle = k < 0.15 ? (p.white ? '#fff' : '#000') : (p.white ? (k < 0.5 ? '#e4d8ff' : '#b794ff') : (k < 0.5 ? '#2b1255' : '#5a36b5'));
+          const s = B * (1 - k * 0.5); g.fillRect(Math.round(x), Math.round(y), s, s);
+        }
+        g.globalAlpha = 1;
+        if (u < 1 + 0.1) requestAnimationFrame(f); else { cv.style.display = 'none'; res(); }
+      })();
+    });
   }
   async function finishG(st, t) {
     gstatus = st; save(); chk(t);
