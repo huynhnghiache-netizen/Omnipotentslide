@@ -664,6 +664,7 @@
     const gb = $('gasBig'); gb.src = 'assets/gaster.png'; gb.style.height = '350px'; gb.style.left = '100px'; gb.style.top = '110px'; gb.classList.remove('van'); gb.style.display = 'block'; gb.style.opacity = '1';
     setX(true); gcandy = 0; hud(false); await fadeIn(600); chk(t);
     await gsay('hello', t); chk(t); hideDlg();
+    showPanel('qa'); setX(true);                                  // hiện khung câu hỏi (trước đó đã ẩn khi nói chuyện)
     const r = await ask(pick(EASY), false, t, 'QUESTION'); chk(t);
     await sleep(700); chk(t);
     if (!r.ok) {
