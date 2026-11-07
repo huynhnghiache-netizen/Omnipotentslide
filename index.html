@@ -2284,12 +2284,13 @@
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
     // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
+    const QUIZ_V = '20261107b';
     const quiz = { on: false };
     const quizEl = document.getElementById('quiz95');
     function startQuiz() {
       quiz.on = true;
       if (ANIM_SRC[soul.i]) hideAnim3Now();
-      quizEl.src = 'slide95-sans.html?embed';
+      quizEl.src = 'slide95-sans.html?embed&v=' + QUIZ_V;      // đổi số này mỗi lần sửa slide 9.5 để điện thoại không dùng bản cũ trong cache
       gsap.killTweensOf(quizEl);
       quizEl.style.display = 'block'; quizEl.style.opacity = '0';
       gsap.to(quizEl, { opacity: 1, duration: 1, ease: 'none' });        // màn hình tối đen 1s rồi hiện slide câu hỏi

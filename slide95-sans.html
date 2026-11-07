@@ -237,9 +237,9 @@
       loadBuf('assets/sfx-rock.mp3').then((b) => { rockBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-wheel.mp3').then((b) => { wheelBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
-      loadBuf('assets/sfx-gaster-talk.mp3').then((b) => { gasTalkBuf = b; }).catch(() => {});
-      loadBuf('assets/sfx-gaster-vanish.mp3').then((b) => { gasVanBuf = b; }).catch(() => {});
-      loadBuf('assets/music-gaster.mp3').then((b) => { gasMusBuf = b; syncMusic(); }).catch(() => {});
+      loadBuf('assets/sfx-gaster-talk.mp3?v=2').then((b) => { gasTalkBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-gaster-vanish.mp3?v=2').then((b) => { gasVanBuf = b; }).catch(() => {});
+      loadBuf('assets/music-gaster.mp3?v=2').then((b) => { gasMusBuf = b; syncMusic(); }).catch(() => {});
       loadBuf('assets/music-sans-select.mp3').then((b) => { selBuf = b; syncMusic(); }).catch(() => {});
     } catch (e) { ctx = null; }
   }
@@ -763,7 +763,7 @@
   initAudio(); try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {}
   gotoSelect({ instant: true });
   post('quiz-ready');
-  window.__sans95 = { dbg: () => ({ ctx: ctx && ctx.state, talk: !!talkBuf, sel: !!selBuf, src: !!selSrc, music: musicWant, mega: !!(megaEl && !megaEl.paused), voices: window.__voices || 0 }), get status() { return status; }, get candies() { return candies; } };
+  window.__sans95 = { dbg: () => ({ ctx: ctx && ctx.state, gasMus: !!gasMusBuf, gasTalk: !!gasTalkBuf, gasVan: !!gasVanBuf, gasPlaying: !!gasSrc, talk: !!talkBuf, sel: !!selBuf, src: !!selSrc, music: musicWant, mega: !!(megaEl && !megaEl.paused), voices: window.__voices || 0 }), get status() { return status; }, get candies() { return candies; } };
 })();
 </script>
 </body>
