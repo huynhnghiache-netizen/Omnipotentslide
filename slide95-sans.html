@@ -570,7 +570,7 @@
     const SPIN_MS = 8832, CUT = SPIN_MS;                      // đúng độ dài file nhạc vòng quay (8.83s): quay hết nhạc thì kim dừng ở ô 10
     await new Promise((res, rej) => { const s0 = performance.now(); (function f() { if (!alive(t)) { rej(new Cancel()); return; } const el = performance.now() - s0, k = Math.min(1, el / SPIN_MS); wAng = (target - 1) * ease(k); if (el < CUT) requestAnimationFrame(f); else res(); })(); });
     chk(t);
-    await sleep(1000); chk(t);                                 // kim đứng yên ở ô 10 khoảng 1s
+    await sleep(500); chk(t);                                  // kim đứng yên ở ô 10 khoảng 0.5s rồi mới đổi hướng
     sfx(rockBuf);
     const d = 1 + rnd(2);                                      // kim đổi chiều: quay ngược 1-2 ô sang ô kẹo thường
     await animAng(wAng, target - 1 - 45 * d, 700 + 250 * (d - 1), (x) => 1 - Math.pow(1 - x, 2), t);
