@@ -13,18 +13,8 @@
     body { padding: 0; overflow: hidden; }
     .deck { position: absolute; left: 0; top: 0; transform-origin: 0 0; zoom: 1; display: block; gap: 0; }
     /* Hai lớp hiệu ứng nằm trên ảnh bếp: #glow (ánh lửa mượt, trộn "screen") và #pix (khói, lửa, gà vẽ pixel) */
-    /* Bố cục slide 5: ảnh bếp tràn sát mép trái/trên/dưới, mờ dần sang phải; hai thẻ giấy đè lên rìa ảnh; tiêu đề chữ sáng trên nền ảnh */
-    .s5 .photo { left: 0 !important; top: 0 !important; width: 1270px !important; height: 864px !important; overflow: hidden; box-shadow: none;
-                 -webkit-mask-image: linear-gradient(90deg, #000 84%, transparent 100%); mask-image: linear-gradient(90deg, #000 84%, transparent 100%); }
-    .s5 .photo > img { position: absolute; left: 0; top: -9px; width: 1270px; height: 882px; object-fit: cover; }
-    .s5::after { content: ''; left: 0; top: 0; width: 1270px; height: 330px; pointer-events: none; z-index: 1;
-                 background: linear-gradient(180deg, rgba(18,9,4,.82), rgba(18,9,4,.35) 55%, transparent); }
-    .s5 .title { left: 62px; top: 34px; font-size: 80px; color: #fff4e0; text-shadow: 0 2px 4px rgba(0,0,0,.7), 0 4px 22px rgba(0,0,0,.8); z-index: 5; }
-    .s5 .rule { display: none; }
-    .s5 .card { z-index: 5; box-shadow: 0 10px 26px rgba(30,12,4,.38); background: rgba(253,244,230,.96); }
-    .s5 .c1 { left: 916px; top: 186px; width: 554px; height: 290px; }
-    .s5 .c2 { left: 916px; top: 500px; width: 554px; height: 290px; }
-    #glow, #pix { position: absolute; left: 0; top: -9px; width: 1270px; height: 882px; pointer-events: none; }
+    .s5 .photo { overflow: hidden; }
+    #glow, #pix { position: absolute; left: 0; top: 0; width: 875px; height: 608px; pointer-events: none; }
     #glow { mix-blend-mode: screen; }
     #pix { image-rendering: pixelated; }
   </style>
