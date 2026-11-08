@@ -2268,6 +2268,7 @@
       soul.cur = createSlide(slideImages[0], 0);
       soul.cur.mesh.renderOrder = 1;
       scene.add(soul.cur.group);
+      if (ANIM_SRC[0]) showAnim3(0);
       run = false; cv.remove(); try { CLK_SND.pause(); } catch (e) { }
       for (const [o, ms] of [[0, 70], [1, 45], [0, 60], [1, 35], [0, 0]]) {      // màn đen nhấp nháy rồi tắt hẳn
         soulIntro.style.opacity = String(o);
