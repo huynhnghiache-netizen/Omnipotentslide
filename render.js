@@ -69,6 +69,16 @@ const path = require('path');
       console.log('slide2.png (từ slide2-anim.html)');
       continue;
     }
+    if (i === 5) {   // slide 5: ảnh bếp tràn khung + lửa/khói động, xuất từ slide5-anim.html (dừng ở giây thứ 3)
+      const p5 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
+      await p5.goto('file://' + path.join(__dirname, 'slide5-anim.html') + '?still=3', { waitUntil: 'load' });
+      await p5.waitForFunction('window.__ready');
+      await p5.evaluate(() => document.fonts.ready);
+      await p5.locator('#slide5').screenshot({ path: path.join(__dirname, 'slide5.png') });
+      await p5.close();
+      console.log('slide5.png (từ slide5-anim.html)');
+      continue;
+    }
     if (i === 7) {   // slide 7 có làng pixel: xuất từ slide7-anim.html (dừng ở giây thứ 17.5: chiều tà, đèn nhà bật)
       const p7 = await browser.newPage({ viewport: { width: 1536, height: 864 }, deviceScaleFactor: scale });
       await p7.goto('file://' + path.join(__dirname, 'slide7-anim.html') + '?still=17.5', { waitUntil: 'load' });

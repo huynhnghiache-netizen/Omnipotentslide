@@ -18,11 +18,20 @@
     .vpanel { left: 68px; top: 160px; width: 1400px; height: 440px; border: 2px solid var(--line); border-radius: 26px; overflow: hidden;
               box-shadow: 0 8px 20px rgba(60,30,10,.18); background: #cfe6ee; }
     #scene { position: absolute; left: 0; top: 0; width: 1400px; height: 440px; image-rendering: pixelated; }
-    .s8 .card { padding: 14px 36px 0; }
-    .s8 .card h3 { font-size: 40px; padding-bottom: 10px; margin-bottom: 12px; }
-    .s8 .card li { font: 400 27px/1.45 var(--sans); }
-    .s8 .c1 { left: 68px; top: 624px; width: 690px; height: 216px; }
-    .s8 .c2 { left: 778px; top: 624px; width: 690px; height: 216px; }
+    /* trục thời gian: 1980 -> 2020s, chấm vàng chạy theo năm đang hiện trên dải cảnh */
+    .s8 .axis { left: 118px; top: 640px; width: 1300px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, #a8643a, #d9a066 45%, #5d9bc4); box-shadow: 0 2px 0 rgba(60,30,10,.15); }
+    .s8 .axis::after { content: ''; position: absolute; right: -6px; top: -9px; border-left: 16px solid #5d9bc4; border-top: 11px solid transparent; border-bottom: 11px solid transparent; }
+    .s8 .node { width: 26px; height: 26px; border-radius: 50%; border: 5px solid #fff4dc; box-shadow: 0 0 0 3px #a8643a; top: 631px; background: #a8643a; }
+    .s8 .n1 { left: 132px; } .s8 .n2 { left: 1380px; background: #3f86b5; box-shadow: 0 0 0 3px #3f86b5; }
+    .s8 .tag { top: 598px; padding: 3px 16px 5px; border-radius: 30px; background: #3a2412; color: #fff4dc; font: 700 26px/1.2 var(--serif); white-space: nowrap; }
+    .s8 .t1 { left: 100px; } .s8 .t2 { left: 1318px; background: #174563; }
+    .s8 .pin { top: 626px; width: 20px; height: 36px; margin-left: -10px; z-index: 5; background: #ffd25a; border: 3px solid #3a2412; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
+    .s8 .card { border: 0; background: none; padding: 0 0 0 0; box-shadow: none; align-items: flex-start; justify-content: flex-start; }
+    .s8 .card h3 { font-size: 36px; padding-bottom: 0; margin: 0 0 12px; text-align: left; border: 0; }
+    .s8 .card ul { display: flex; gap: 12px; flex-wrap: wrap; }
+    .s8 .card li { font: 500 22px/1.2 var(--sans); background: #fbeedd; border: 2px solid var(--line); border-radius: 24px; padding: 6px 16px; }
+    .s8 .c1 { left: 100px; top: 672px; width: 660px; height: 150px; }
+    .s8 .c2 { left: 820px; top: 672px; width: 640px; height: 150px; }
     .snap { margin: 0; background: #fffaf2; padding: 6px; box-shadow: 0 4px 10px rgba(60,30,10,.35); z-index: 3; }
     .snap img { display: block; width: 100%; height: 100%; object-fit: cover; }
     .sa { left: 92px; top: 182px; width: 200px; height: 124px; transform: rotate(-2.5deg); }
@@ -48,6 +57,7 @@
     <div class="vpanel"><canvas id="scene" width="350" height="110"></canvas><div class="yr"><span id="yr">1980</span><small>&rarr; 2020s</small></div></div>
     <figure class="snap sa"><img src="assets/s8-past.jpg" alt="Street in the 1980s"></figure>
     <figure class="snap sb"><img src="assets/s8-present.jpg" alt="City skyline in the 2020s"></figure>
+    <div class="axis"></div><i class="node n1"></i><i class="node n2"></i><div class="tag t1">1980s</div><div class="tag t2">2020s</div><i class="pin" id="pin"></i>
     <article class="card c1">
       <h3>The Past (1980s)</h3>
       <ul><li>Simple technology</li><li>A slower pace of life</li><li>Talking face to face</li></ul>
@@ -456,6 +466,7 @@
     // bảng năm 1980 -> 2020 chạy dọc theo thời gian
     const cyc = t % 14, yr = 1980 + Math.floor(40 * smooth(0.6, 8.5, cyc));
     if (yrEl.textContent !== String(yr)) yrEl.textContent = yr;
+    document.getElementById('pin').style.left = (145 + (yr - 1980) / 40 * 1248) + 'px';
   }
   const yrEl = document.getElementById('yr');
 
