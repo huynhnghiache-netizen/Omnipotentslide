@@ -16,7 +16,7 @@
     glitch:   { cls: 'tf-glitch', dur: 480, parts: { n: 0 }, bars: true },
     sepia:    { cls: 'tf-sepia', dur: 1400, parts: { n: 4, col: ['150,110,70', '190,150,100'], vy: -10, vx: 12, life: 1300, size: 1.8 } },
     glow:     { cls: 'tf-glow',  dur: 1700, parts: { n: 4, col: ['255,214,120', '255,236,170'], vy: -16, vx: 10, life: 1500, size: 2.2, glow: true } },
-    puff:     { cls: 'tf-puff',  dur: 1300, parts: { n: 3, col: ['120,110,100', '150,140,130'], vy: -24, vx: 8, life: 1300, size: 4.5, soft: true } },
+    puff:     { cls: 'tf-puff',  dur: 1300, parts: { n: 2, col: ['120,110,100', '150,140,130'], vy: -24, vx: 8, life: 1100, size: 2.6, soft: true } },
     glint:    { cls: 'tf-glint', dur: 900,  parts: { n: 3, col: ['255,230,150', '255,250,220'], vy: -6, vx: 10, life: 800, size: 2, star: true, glow: true } }
   };
 
@@ -29,7 +29,7 @@
   @keyframes tfGlitch{ 0%{color:inherit;text-shadow:none} 15%{text-shadow:-2px 0 rgba(0,200,255,.85),2px 0 rgba(255,60,140,.85)} 35%{text-shadow:2px 0 rgba(0,200,255,.85),-2px 0 rgba(255,60,140,.85);opacity:.55} 55%{text-shadow:-1px 0 rgba(0,200,255,.7),1px 0 rgba(255,60,140,.7);opacity:1} 100%{color:inherit;text-shadow:none;opacity:1} }
   @keyframes tfSepia { 0%{color:inherit;opacity:1} 30%{color:#a7886a;opacity:.55} 70%{color:#a7886a;opacity:.55} 100%{color:inherit;opacity:1} }
   @keyframes tfGlow  { 0%{color:inherit;text-shadow:none} 35%{color:#b8742a;text-shadow:0 0 6px rgba(255,200,100,.9),0 0 14px rgba(255,190,90,.6)} 65%{color:#b8742a;text-shadow:0 0 6px rgba(255,200,100,.8)} 100%{color:inherit;text-shadow:none} }
-  @keyframes tfPuff  { 0%{color:inherit;opacity:1} 30%{color:#8a8176;opacity:.5} 60%{color:#8a8176;opacity:.6} 100%{color:inherit;opacity:1} }
+  @keyframes tfPuff  { 0%{color:inherit;opacity:1} 30%{color:#7a7166;opacity:.8} 60%{color:#7a7166;opacity:.85} 100%{color:inherit;opacity:1} }
   @keyframes tfGlint { 0%{color:inherit;text-shadow:none} 30%{color:#b8862a;text-shadow:0 0 5px #fff3b8,0 0 11px #ffd978} 100%{color:inherit;text-shadow:none} }
   .tf-fire{animation:tfFire 1.1s ease-out} .tf-elec{animation:tfElec .52s linear} .tf-water{animation:tfWater 1.3s ease-in-out}
   .tf-glitch{animation:tfGlitch .48s steps(6)} .tf-sepia{animation:tfSepia 1.4s ease-in-out} .tf-glow{animation:tfGlow 1.7s ease-in-out}
