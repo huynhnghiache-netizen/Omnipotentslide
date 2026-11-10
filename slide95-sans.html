@@ -192,6 +192,14 @@
   #papSp.hop { animation: pjump .75s ease-out; }
   @keyframes pjump { 0% { transform: translateY(0) scale(1.08, .88) } 18% { transform: translateY(0) scale(.94, 1.1) } 50% { transform: translateY(-60px) scale(1, 1) } 82% { transform: translateY(0) scale(1.08, .9) } 100% { transform: translateY(0) scale(1, 1) } }
   #papSpr { background: url(assets/papyrus-bw.png) center / contain no-repeat !important; animation: none !important; width: 170px !important; height: 250px !important; margin-left: -85px !important; top: 30px !important; }
+  #papShelf { position: absolute; left: 24px; top: 76px; display: none; z-index: 4; }
+  #papShelf .lb { font: 9px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 6px; letter-spacing: 1px; }
+  #papShelf .row { display: flex; gap: 8px; }
+  #papShelf .sl { width: 62px; height: 62px; border: 4px dashed #8a5a7a; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; }
+  #papShelf .sl.on { border-style: solid; border-color: var(--line); }
+  #papShelf .sl canvas { width: 44px; height: 44px; image-rendering: pixelated; }
+  #papPot { position: absolute; left: 490px; top: 160px; width: 300px; height: auto; display: none; z-index: 6; pointer-events: none; transform-origin: 50% 90%; }
+  #papFx .bub { position: absolute; border-radius: 50%; background: #6cc04a; border: 3px solid #3c8a2a; }
   #papFx { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
   #papFx .plate { position: absolute; width: 90px; height: 38px; transform-origin: 50% 50%; filter: drop-shadow(0 4px 0 rgba(0,0,0,.5)); }
   #papFx .flash { position: absolute; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #ffe9a0 35%, rgba(255,200,80,0) 70%); }
@@ -255,7 +263,7 @@
   <img id="gasBig" src="assets/gaster.png" alt="" draggable="false">
   <canvas id="gasCv" style="display:none"></canvas>
   <div id="boxes"><div class="info" id="bxInfo"></div><div id="boxRow"></div></div>
-  <div id="papBig"><div id="papSp"></div></div><div id="papFx"></div>
+  <div id="papBig"><div id="papSp"></div></div><div id="papShelf"><div class="lb">INGREDIENTS</div><div class="row"><div class="sl"></div><div class="sl"></div><div class="sl"></div></div></div><img id="papPot" src="assets/cauldron.png?v=1" alt=""><div id="papFx"></div>
   <div id="wsBox"><div class="tag" id="wsTag"></div><div class="q" id="wsQ"></div><div class="hintw">PICK THE FRESH INGREDIENT (THE RIGHT WORD)</div><div id="wsCards"></div></div>
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
@@ -921,6 +929,7 @@
     rule: 'PICK THE FRESH INGREDIENT, THE RIGHT WORD, TO FINISH EACH SENTENCE! BUT BEWARE OF THE ROTTEN ONES! NYEH!',
     right: ['WOWIE! YOU FOUND IT!', 'NYEH HEH! EXCELLENT WORK!', 'THAT IS RIGHT! SPAGHETTI FOR YOU!'],
     wrong: ['OH NO... THE WORD WAS ', 'NYEH... IT WAS ', 'DON\'T GIVE UP! THE WORD WAS '],
+    cook: 'NOW, LET US COOK THE INGREDIENTS YOU COLLECTED! NYEH HEH HEH!',
     end3: 'INCREDIBLE! YOU ARE A TRUE SPAGHETTI MASTER! NYEH HEH HEH!',
     end0: 'NYEH... NO SPAGHETTI THIS TIME. BUT I BELIEVE IN YOU, HUMAN!',
     endN: 'NYEH HEH HEH! THANK YOU FOR PLAYING MY PUZZLE! TAKE YOUR CANDY!'
@@ -951,42 +960,71 @@
   }
   function plateSvg() { return '<svg viewBox="0 0 90 38"><ellipse cx="45" cy="28" rx="42" ry="9" fill="#e9e4da" stroke="#07030f" stroke-width="3"/><ellipse cx="45" cy="26" rx="30" ry="6" fill="#cfc8ba"/><path d="M18 24Q22 6 45 6Q68 6 72 24Q60 30 45 30Q30 30 18 24Z" fill="#ffcf4a" stroke="#07030f" stroke-width="3"/><path d="M28 20Q45 10 62 20M32 14Q45 8 58 14" stroke="#e2a31c" stroke-width="3" fill="none"/><circle cx="45" cy="11" r="5" fill="#e63b2e" stroke="#07030f" stroke-width="2"/></svg>'; }
   function papCleanup() {
-    $('papBig').style.display = 'none'; $('papBig').getAnimations().forEach((a) => a.cancel()); $('papFx').innerHTML = ''; $('wsBox').style.display = 'none';
+    $('papBig').style.display = 'none'; $('papBig').getAnimations().forEach((a) => a.cancel()); $('papFx').innerHTML = ''; $('papShelf').style.display = 'none'; $('papPot').style.display = 'none'; $('wsBox').style.display = 'none';
     stage.classList.remove('pap');
   }
-  function papHud() { const h = $('hud'); h.style.display = 'block'; h.innerHTML = ''; h.appendChild(candyCv(4)); const sp2 = document.createElement('span'); sp2.innerHTML = 'CANDY <b>' + pcandy + '</b>'; h.appendChild(sp2); }
-  // mỗi câu đúng: một đĩa spaghetti riêng bay vào giữa màn hình, phóng to rồi nổ ra kẹo; kẹo bay lên bộ đếm
-  async function plateBurst(t, nCandy) {
-    const fx = $('papFx'), W0 = 90, H0 = 38, sx = 250, sy = 500, cx = 640, cy = 300;
-    const d = document.createElement('div'); d.innerHTML = plateSvg(); const pl = d.firstChild; pl.setAttribute('class', 'plate'); pl.style.left = sx + 'px'; pl.style.top = sy + 'px'; fx.appendChild(pl);
-    const big = 3.4 + 0.6 * nCandy;                                          // phóng to theo số kẹo
-    const mv = (k) => 'translate(' + ((cx - W0 / 2 - sx) * k) + 'px,' + ((cy - H0 / 2 - sy) * k - Math.sin(k * Math.PI) * 120) + 'px) scale(' + (1 + (big - 1) * k) + ')';
-    const a = pl.animate([{ transform: mv(0), opacity: 0 }, { transform: mv(0.15), opacity: 1, offset: 0.15 }, { transform: mv(1) }], { duration: 1100, easing: 'ease-in-out', fill: 'forwards' });
-    await new Promise((r) => { a.onfinish = r; }); chk(t);
-    const sh = pl.animate([{ transform: mv(1) + ' rotate(0deg)' }, { transform: mv(1) + ' rotate(-5deg) scale(1.04)' }, { transform: mv(1) + ' rotate(5deg) scale(1.08)' }, { transform: mv(1) + ' rotate(-4deg) scale(1.12)' }, { transform: mv(1) + ' rotate(0deg) scale(1.2)' }], { duration: 520, fill: 'forwards' });
-    await new Promise((r) => { sh.onfinish = r; }); chk(t);
+  // ---- kệ nguyên liệu (3 ô ở góc trái): mỗi câu đúng thu được 1 nguyên liệu ----
+  let shelfN = 0, shelfIc = [];
+  const stK = () => stage.getBoundingClientRect().width / 1280;
+  function stPos(r) { const st = stage.getBoundingClientRect(), k = st.width / 1280; return { x: (r.left - st.left) / k, y: (r.top - st.top) / k, w: r.width / k, h: r.height / k }; }
+  function shelfReset() { shelfN = 0; shelfIc = []; document.querySelectorAll('#papShelf .sl').forEach((e) => { e.innerHTML = ''; e.classList.remove('on'); }); $('papShelf').style.display = 'block'; }
+  async function collectIng(t, card, ic) {
+    const slot = document.querySelectorAll('#papShelf .sl')[shelfN], fx = $('papFx'), a = stPos(card.getBoundingClientRect()), b = stPos(slot.getBoundingClientRect());
+    const c = ingCv(ic); c.style.left = (a.x + a.w / 2 - 27) + 'px'; c.style.top = (a.y + a.h / 2 - 27) + 'px'; c.style.width = '54px'; c.style.height = '54px'; c.style.filter = 'drop-shadow(0 0 8px #fff)'; fx.appendChild(c);
+    const dx = b.x + b.w / 2 - 27 - (a.x + a.w / 2 - 27), dy = b.y + b.h / 2 - 27 - (a.y + a.h / 2 - 27);
+    const an = c.animate([{ transform: 'translate(0,0) scale(1)' }, { transform: 'translate(' + dx * .4 + 'px,' + (dy * .4 - 70) + 'px) scale(1.5) rotate(180deg)', offset: .45 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.8) rotate(360deg)' }], { duration: 800, easing: 'ease-in-out', fill: 'forwards' });
+    await new Promise((r) => { an.onfinish = r; }); chk(t);
+    c.remove(); const k2 = ingCv(ic); slot.appendChild(k2); slot.classList.add('on'); shelfIc.push(ic); shelfN++; sfx(okBuf);
+  }
+  // ---- nấu: các nguyên liệu bay vào nồi, hợp nhất thành món ăn rồi nổ ra N kẹo ----
+  async function cookAndBurst(t, nCandy) {
+    const fx = $('papFx'), pot = $('papPot'), cx = 640, cy = 300;
+    pot.style.display = 'block'; pot.style.transform = 'scale(0)';
+    await new Promise((r) => { pot.animate([{ transform: 'scale(0) translateY(60px)' }, { transform: 'scale(1.12)', offset: .7 }, { transform: 'scale(1)' }], { duration: 600, easing: 'ease-out', fill: 'forwards' }).onfinish = r; }); chk(t);
+    pot.style.transform = 'scale(1)';
+    const mouth = { x: 640, y: 255 }, slots = [...document.querySelectorAll('#papShelf .sl')];
+    const bub = () => { const d = document.createElement('i'); d.className = 'bub'; const sz = 8 + Math.random() * 16; d.style.cssText = 'width:' + sz + 'px;height:' + sz + 'px;left:' + (mouth.x - 90 + Math.random() * 180) + 'px;top:' + (mouth.y - 10) + 'px'; fx.appendChild(d); d.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(' + (-70 - Math.random() * 90) + 'px)', opacity: 0 }], { duration: 800 + Math.random() * 500, fill: 'forwards' }).onfinish = () => d.remove(); };
+    let boil = setInterval(bub, 140);
+    for (let k = 0; k < shelfIc.length; k++) {
+      const a = stPos(slots[k].getBoundingClientRect()), c = ingCv(shelfIc[k]); slots[k].innerHTML = ''; slots[k].classList.remove('on');
+      c.style.left = (a.x + a.w / 2 - 27) + 'px'; c.style.top = (a.y + a.h / 2 - 27) + 'px'; c.style.width = '54px'; c.style.height = '54px'; fx.appendChild(c);
+      const dx = mouth.x - 27 - (a.x + a.w / 2 - 27), dy = mouth.y - 27 - (a.y + a.h / 2 - 27);
+      const an = c.animate([{ transform: 'translate(0,0) scale(1)' }, { transform: 'translate(' + dx * .5 + 'px,' + (dy * .5 - 140) + 'px) scale(1.4) rotate(200deg)', offset: .5 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.3) rotate(420deg)', opacity: .2 }], { duration: 850, easing: 'ease-in', fill: 'forwards' });
+      await new Promise((r) => { an.onfinish = r; }); chk(t); c.remove(); sfx(okBuf);
+      pot.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.07, .93)' }, { transform: 'scale(1)' }], { duration: 260 }); for (let q = 0; q < 6; q++) bub();
+    }
+    $('papShelf').style.display = 'none';
+    await sleep(500); chk(t);
+    const sh = pot.animate([{ transform: 'translateX(0) scale(1)' }, { transform: 'translateX(-8px) scale(1.04)' }, { transform: 'translateX(8px) scale(1.08)' }, { transform: 'translateX(-10px) scale(1.12)' }, { transform: 'translateX(10px) scale(1.16)' }, { transform: 'translateX(0) scale(1.2)' }], { duration: 1100, fill: 'forwards' });
+    clearInterval(boil); boil = setInterval(bub, 50);
+    await new Promise((r) => { sh.onfinish = r; }); chk(t); clearInterval(boil);
+    sfx(prizeBuf);
+    const fl0 = document.createElement('div'); fl0.className = 'flash'; fl0.style.cssText = 'left:' + (cx - 200) + 'px;top:' + (cy - 200) + 'px;width:400px;height:400px'; fx.appendChild(fl0);
+    fl0.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.5)', opacity: 0 }], { duration: 500, fill: 'forwards' }).onfinish = () => fl0.remove();
+    pot.style.display = 'none'; pot.getAnimations().forEach((q) => q.cancel());
+    const d = document.createElement('div'); d.innerHTML = plateSvg(); const pl = d.firstChild; pl.setAttribute('class', 'plate'); pl.style.left = (cx - 45) + 'px'; pl.style.top = (cy - 19) + 'px'; fx.appendChild(pl);   // món ăn hiện ra
+    const sc = 3.6 + 0.5 * nCandy;
+    await new Promise((r) => { pl.animate([{ transform: 'scale(.2) translateY(60px)', opacity: 0 }, { transform: 'scale(' + sc * 1.15 + ')', opacity: 1, offset: .7 }, { transform: 'scale(' + sc + ')' }], { duration: 700, easing: 'ease-out', fill: 'forwards' }).onfinish = r; }); chk(t);
+    await sleep(600); chk(t);
+    const sh2 = pl.animate([{ transform: 'scale(' + sc + ') rotate(0)' }, { transform: 'scale(' + sc * 1.05 + ') rotate(-5deg)' }, { transform: 'scale(' + sc * 1.1 + ') rotate(5deg)' }, { transform: 'scale(' + sc * 1.18 + ') rotate(0)' }], { duration: 480, fill: 'forwards' });
+    await new Promise((r) => { sh2.onfinish = r; }); chk(t);
     sfx(prizeBuf); pl.remove();                                              // nổ
-    const fl = document.createElement('div'); fl.className = 'flash'; fl.style.cssText = 'left:' + (cx - 160) + 'px;top:' + (cy - 160) + 'px;width:320px;height:320px'; fx.appendChild(fl);
-    fl.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 0 }], { duration: 520, easing: 'ease-out', fill: 'forwards' }).onfinish = () => fl.remove();
-    for (let k = 0; k < 16; k++) {
+    const fl = document.createElement('div'); fl.className = 'flash'; fl.style.cssText = 'left:' + (cx - 180) + 'px;top:' + (cy - 180) + 'px;width:360px;height:360px'; fx.appendChild(fl);
+    fl.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.7)', opacity: 0 }], { duration: 560, easing: 'ease-out', fill: 'forwards' }).onfinish = () => fl.remove();
+    for (let k = 0; k < 22; k++) {
       const b = document.createElement('i'); b.className = 'bit'; b.style.left = cx + 'px'; b.style.top = cy + 'px'; fx.appendChild(b);
-      const ang = Math.random() * 6.283, dist = 120 + Math.random() * 190;
-      b.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: 'translate(' + Math.cos(ang) * dist + 'px,' + (Math.sin(ang) * dist + 70) + 'px) rotate(' + (Math.random() * 540) + 'deg)', opacity: 0 }], { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' }).onfinish = () => b.remove();
+      const ang = Math.random() * 6.283, dist = 140 + Math.random() * 220;
+      b.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: 'translate(' + Math.cos(ang) * dist + 'px,' + (Math.sin(ang) * dist + 80) + 'px) rotate(' + (Math.random() * 540) + 'deg)', opacity: 0 }], { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' }).onfinish = () => b.remove();
     }
     const cs = [];
-    for (let k = 0; k < nCandy; k++) {
+    for (let k = 0; k < nCandy; k++) {                                       // N kẹo văng ra
       const c = candyCv(7); c.style.left = (cx - c.width / 2) + 'px'; c.style.top = (cy - c.height / 2) + 'px'; fx.appendChild(c); cs.push(c);
-      const ox = (k - (nCandy - 1) / 2) * 90, oy = -40 - Math.random() * 40;
-      c.animate([{ transform: 'translate(0,0) scale(.3)', opacity: 0 }, { transform: 'translate(' + ox + 'px,' + (oy - 60) + 'px) scale(1.5) rotate(200deg)', opacity: 1, offset: .55 }, { transform: 'translate(' + ox + 'px,' + oy + 'px) scale(1.25) rotate(360deg)', opacity: 1 }], { duration: 800, easing: 'ease-out', fill: 'forwards' });
+      const ox = (k - (nCandy - 1) / 2) * 110, oy = -30 - Math.random() * 40;
+      c.animate([{ transform: 'translate(0,0) scale(.3)', opacity: 0 }, { transform: 'translate(' + ox + 'px,' + (oy - 80) + 'px) scale(1.6) rotate(200deg)', opacity: 1, offset: .55 }, { transform: 'translate(' + ox + 'px,' + oy + 'px) scale(1.3) rotate(360deg)', opacity: 1 }], { duration: 850, easing: 'ease-out', fill: 'forwards' });
     }
-    await sleep(1300); chk(t);
-    for (const c of cs) {                                                    // kẹo bay lên góc trái, vào bộ đếm
-      const cur = c.getBoundingClientRect(), st = stage.getBoundingClientRect(), k = st.width / 1280;
-      const x0 = (cur.left - st.left) / k, y0 = (cur.top - st.top) / k;
-      c.getAnimations().forEach((q) => q.cancel()); c.style.left = x0 + 'px'; c.style.top = y0 + 'px';
-      c.animate([{ transform: 'scale(1.25)', opacity: 1 }, { transform: 'translate(' + (90 - x0) + 'px,' + (110 - y0) + 'px) scale(.5)', opacity: .9 }], { duration: 650, easing: 'ease-in', fill: 'forwards' }).onfinish = () => c.remove();
-    }
-    await sleep(650); chk(t);
+    await sleep(1900); chk(t);
+    cs.forEach((c) => c.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: 'forwards' }).onfinish = () => c.remove());
+    await sleep(450); chk(t);
   }
   const psay = (text, t, face) => { if (face) setFace(face); return say(text, t); };
   function papSpeakQuick(text, t, ms, face) {
@@ -1008,7 +1046,7 @@
         btns[i].classList.add(o.ok ? 'fresh' : 'rot');
         if (!o.ok) { const g = list.findIndex((x) => x.ok); btns[g].classList.add('fresh'); }
         btns.forEach((b, k) => { if (!b.classList.contains('fresh') && !b.classList.contains('rot')) b.classList.add('dim'); });
-        resolve({ ok: o.ok });
+        resolve({ ok: o.ok, ic: o.ic, el: btns[i], word: o.t });
       }));
     });
   }
@@ -1032,7 +1070,7 @@
     // thu nhỏ lại và về góc màn hình rồi bắt đầu trò chơi
     await new Promise((res) => { const a = big.animate([{ transform: CEN }, { transform: 'translate(0,0) scale(1)' }], { duration: 900, easing: 'ease-in-out', fill: 'forwards' }); a.onfinish = res; });
     chk(t); big.style.transform = 'none'; big.getAnimations().forEach((a) => a.cancel());
-    setFace('smug'); setX(true); papHud();
+    setFace('smug'); setX(true); shelfReset();
     const items = shuffle(WORDS).slice(0, 3);
     for (let n = 0; n < 3; n++) {
       showPanel('wsBox'); setX(true);
@@ -1040,8 +1078,9 @@
       await sleep(500); chk(t);
       if (r.ok) {
         pcandy++; save(); hop(); setFace('wow');
-        await sleep(700); chk(t); $('wsBox').style.display = 'none';
-        await plateBurst(t, 1); papHud();
+        await sleep(700); chk(t);
+        await collectIng(t, r.el, r.ic); chk(t);                        // nguyên liệu đúng bay lên góc màn hình
+        $('wsBox').style.display = 'none';
         await papSpeakQuick(pick(PP.right), t, 1300, pick(['happy', 'wow'])); chk(t);
       } else {
         await papSpeakQuick(pick(PP.wrong) + items[n].w.toUpperCase() + '!', t, 2200, pick(['sad', 'sweat', 'cry', 'angry'])); chk(t);
@@ -1049,13 +1088,16 @@
       hideDlg();
     }
     $('wsBox').style.display = 'none'; setX(false);
+    if (pcandy > 0) {
+      await psay(PP.cook, t, 'smug'); chk(t); hideDlg();
+      await cookAndBurst(t, pcandy); chk(t);
+    }
     await psay(pcandy === 3 ? PP.end3 : pcandy === 0 ? PP.end0 : PP.endN, t, pcandy === 3 ? 'cool' : pcandy === 0 ? 'cry' : 'happy'); chk(t); hideDlg();
-    await sleep(300); chk(t);
     await finishP(pcandy > 0 ? 'ok' : 'lost', t);
   }
   async function finishP(st, t) {
     pstatus = st; save(); chk(t);
-    $('papBig').style.display = 'none'; $('papFx').innerHTML = ''; setMusic(null);
+    $('papBig').style.display = 'none'; $('papFx').innerHTML = ''; $('papShelf').style.display = 'none'; $('papPot').style.display = 'none'; setMusic(null);
     await showSummary(t, st === 'ok' ? 'CANDIES RECEIVED' : 'BETTER LUCK NEXT TIME', st === 'ok' ? 'ok' : 'lost', pcandy, true);
     await sleep(250); chk(t);
     await fadeOut(600); chk(t);
