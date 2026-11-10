@@ -183,14 +183,20 @@
   @keyframes gw { from { transform: translateX(-260px) } to { transform: translateX(1500px) } }
 
   /* Papyrus: nền cam đỏ ấm, bảng ô chữ + tháp spaghetti */
-  #stage.pap { --bg1: #1c1c1c; --bg2: #000; --line: #fff; --acc: #fff; }
-  #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 160px 30px rgba(0, 0, 0, .7); z-index: 2; }
-  #stage.pap #deco i.h { background: #fff; } #stage.pap #deco i.b { background: #777; }
-  #papBig { position: absolute; left: 30px; top: 262px; width: 200px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; filter: grayscale(1); }
-  #papSp { width: 100%; height: 100%; background: url(assets/papyrus.png) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .667s steps(4) infinite; transform-origin: 50% 100%; }
-  #papSp.hop { animation: pap .667s steps(4) infinite, pjump .75s ease-out; }
-  @keyframes pjump { 0% { transform: translateY(0) scale(1.08, .88) } 18% { transform: translateY(0) scale(.94, 1.1) } 50% { transform: translateY(-90px) scale(1, 1) } 82% { transform: translateY(0) scale(1.08, .9) } 100% { transform: translateY(0) scale(1, 1) } }
-  #papSpr { filter: grayscale(1); }
+  #stage.pap { --bg1: #3b1830; --bg2: #0a0408; --line: #ffd23c; --acc: #ffd23c; }
+  #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 170px 40px rgba(10, 0, 8, .6); z-index: 2; }
+  #stage.pap #deco i.h { background: #ffd23c; } #stage.pap #deco i.b { background: #8a5a7a; }
+  #papBig { position: absolute; left: 30px; top: 262px; width: 200px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; }
+  #papSp { width: 100%; height: 100%; background: url(assets/papyrus-bw.png) center bottom / contain no-repeat; image-rendering: pixelated; animation: pbob 1s steps(1) infinite; transform-origin: 50% 100%; }
+  @keyframes pbob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+  #papSp.hop { animation: pjump .75s ease-out; }
+  @keyframes pjump { 0% { transform: translateY(0) scale(1.08, .88) } 18% { transform: translateY(0) scale(.94, 1.1) } 50% { transform: translateY(-60px) scale(1, 1) } 82% { transform: translateY(0) scale(1.08, .9) } 100% { transform: translateY(0) scale(1, 1) } }
+  #papSpr { background: url(assets/papyrus-bw.png) center / contain no-repeat !important; animation: none !important; width: 170px !important; height: 250px !important; margin-left: -85px !important; top: 30px !important; }
+  #papFx { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+  #papFx .plate { position: absolute; width: 90px; height: 38px; transform-origin: 50% 50%; filter: drop-shadow(0 4px 0 rgba(0,0,0,.5)); }
+  #papFx .flash { position: absolute; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #ffe9a0 35%, rgba(255,200,80,0) 70%); }
+  #papFx canvas { position: absolute; image-rendering: pixelated; filter: drop-shadow(0 0 8px #fff); }
+  #papFx .bit { position: absolute; width: 10px; height: 10px; background: #ffcf4a; box-shadow: 0 0 0 2px #07030f; }
   #dhead.pap { display: none; }
   #pHead { position: absolute; left: 24px; top: 50%; width: 72px; height: 91.6px; margin-top: -46px; background: url(assets/papyrus-faces.png?v=1) 0 0 / 144px auto no-repeat; image-rendering: pixelated; display: none; }
   #wsBox { position: absolute; left: 390px; right: 40px; top: 84px; bottom: 170px; display: none; flex-direction: column; align-items: center; justify-content: center; }
@@ -199,19 +205,18 @@
   #wsBox .q b { color: var(--acc); border-bottom: 4px solid var(--acc); padding: 0 8px; letter-spacing: 3px; }
   #wsBox .hintw { font: 10px 'Press Start 2P', monospace; opacity: .85; margin-bottom: 10px; }
   #wsCards { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
-  #wsCards .card { width: 150px; height: 132px; background: #000; border: 5px solid #fff; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 0; position: relative; font: 13px 'Press Start 2P', monospace; transition: transform .12s; touch-action: manipulation; }
+  #wsCards .card { width: 150px; height: 132px; background: #170713; border: 5px solid var(--line); color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 0; position: relative; font: 13px 'Press Start 2P', monospace; transition: transform .12s; touch-action: manipulation; }
   #wsCards .card canvas { width: 54px; height: 54px; image-rendering: pixelated; }
-  #wsCards .card:hover { transform: translateY(-5px) rotate(-1.5deg); background: #1c1c1c; }
-  #wsCards.lock .card { cursor: default; } #wsCards.lock .card:hover { transform: none; background: #000; }
-  #wsCards .card.fresh { background: #fff; color: #000; border-color: #fff; box-shadow: 0 0 22px #fff; animation: cfresh .5s steps(2) 2; }
-  #wsCards .card.fresh canvas { filter: invert(1); }
+  #wsCards .card:hover { transform: translateY(-5px) rotate(-1.5deg); background: #2a0f22; }
+  #wsCards.lock .card { cursor: default; } #wsCards.lock .card:hover { transform: none; background: #170713; }
+  #wsCards .card.fresh { background: #5dff7a; color: #08240f; border-color: #fff; box-shadow: 0 0 24px #5dff7a; animation: cfresh .5s steps(2) 2; }
   @keyframes cfresh { 50% { transform: scale(1.08) } }
-  #wsCards .card.rot { background: #000; border-style: dashed; border-color: #888; color: #888; }
-  #wsCards .card.rot canvas { filter: brightness(.45) contrast(.8); animation: crot .4s steps(2) infinite; }
+  #wsCards .card.rot { background: #1c200a; border-style: dashed; border-color: #8a9b3c; color: #9fae4a; }
+  #wsCards .card.rot canvas { filter: sepia(.9) hue-rotate(35deg) saturate(1.8) brightness(.55); animation: crot .4s steps(2) infinite; }
   @keyframes crot { 50% { transform: translateY(2px) rotate(3deg) } }
-  #wsCards .card.rot::before { content: '~ ~ ~'; position: absolute; top: -14px; left: 0; right: 0; text-align: center; color: #aaa; letter-spacing: 6px; animation: stink 1s linear infinite; }
+  #wsCards .card.rot::before { content: '~ ~ ~'; position: absolute; top: -14px; left: 0; right: 0; text-align: center; color: #9fae4a; letter-spacing: 6px; animation: stink 1s linear infinite; }
   @keyframes stink { from { transform: translateY(8px); opacity: 1 } to { transform: translateY(-10px); opacity: 0 } }
-  #wsCards .card.rot::after { content: 'X'; position: absolute; right: 6px; top: 2px; color: #fff; font-size: 16px; }
+  #wsCards .card.rot::after { content: 'X'; position: absolute; right: 6px; top: 2px; color: #ff4455; font-size: 16px; }
   #wsCards .card.dim { opacity: .4; }
   #tower { position: absolute; left: 236px; bottom: 176px; width: 96px; display: none; flex-direction: column-reverse; align-items: center; z-index: 3; }
   #tower svg { width: 90px; height: 38px; margin-top: -20px; filter: grayscale(1) drop-shadow(0 3px 0 rgba(0,0,0,.5)); animation: tpop .35s ease-out; } #tower svg:first-child { margin-top: 0; }
@@ -250,7 +255,7 @@
   <img id="gasBig" src="assets/gaster.png" alt="" draggable="false">
   <canvas id="gasCv" style="display:none"></canvas>
   <div id="boxes"><div class="info" id="bxInfo"></div><div id="boxRow"></div></div>
-  <div id="papBig"><div id="papSp"></div></div><div id="tower"></div><div id="papCdy"></div>
+  <div id="papBig"><div id="papSp"></div></div><div id="papFx"></div>
   <div id="wsBox"><div class="tag" id="wsTag"></div><div class="q" id="wsQ"></div><div class="hintw">PICK THE FRESH INGREDIENT (THE RIGHT WORD)</div><div id="wsCards"></div></div>
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
@@ -938,15 +943,50 @@
     ['...D....', '..DD....', '.WWWWWW.', 'WWGWWWWW', 'WWWWWWWW', 'WWWWWWWW', '.WWWWWW.', '..WWWW..'],
     ['..WWWW..', '.WWWWWW.', 'WWGWWWWW', 'WWWWWWWW', 'WWWWWWWW', 'WWWWWWWW', '.WWWWWW.', '..WWWW..']
   ];
+  const ING_COL = [['#e63b2e', '#a82418', '#3f9b2c'], ['#ff9a2e', '#d46a12', '#3f9b2c'], ['#f0e2c6', '#c0463a', '#8a6a4a'], ['#ffd23c', '#e3a91c', '#b8860b'], ['#e7d3f0', '#b58ccf', '#5cae3a'], ['#fff6e0', '#f2b134', '#c9a24a']];
   function ingCv(k) {
     const c = document.createElement('canvas'); c.width = 8; c.height = 8; const g = c.getContext('2d');
-    ING[k % ING.length].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '.') return; g.fillStyle = ch === 'W' ? '#fff' : ch === 'G' ? '#bbb' : '#777'; g.fillRect(x, y, 1, 1); }));
+    ING[k % ING.length].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '.') return; const pc = ING_COL[k % ING_COL.length]; g.fillStyle = ch === 'W' ? pc[0] : ch === 'G' ? pc[1] : pc[2]; g.fillRect(x, y, 1, 1); }));
     return c;
   }
   function plateSvg() { return '<svg viewBox="0 0 90 38"><ellipse cx="45" cy="28" rx="42" ry="9" fill="#e9e4da" stroke="#07030f" stroke-width="3"/><ellipse cx="45" cy="26" rx="30" ry="6" fill="#cfc8ba"/><path d="M18 24Q22 6 45 6Q68 6 72 24Q60 30 45 30Q30 30 18 24Z" fill="#ffcf4a" stroke="#07030f" stroke-width="3"/><path d="M28 20Q45 10 62 20M32 14Q45 8 58 14" stroke="#e2a31c" stroke-width="3" fill="none"/><circle cx="45" cy="11" r="5" fill="#e63b2e" stroke="#07030f" stroke-width="2"/></svg>'; }
   function papCleanup() {
-    $('papBig').style.display = 'none'; $('tower').style.display = 'none'; $('tower').innerHTML = ''; $('tower').classList.remove('fall'); $('papCdy').innerHTML = ''; $('wsBox').style.display = 'none';
+    $('papBig').style.display = 'none'; $('papBig').getAnimations().forEach((a) => a.cancel()); $('papFx').innerHTML = ''; $('wsBox').style.display = 'none';
     stage.classList.remove('pap');
+  }
+  function papHud() { const h = $('hud'); h.style.display = 'block'; h.innerHTML = ''; h.appendChild(candyCv(4)); const sp2 = document.createElement('span'); sp2.innerHTML = 'CANDY <b>' + pcandy + '</b>'; h.appendChild(sp2); }
+  // mỗi câu đúng: một đĩa spaghetti riêng bay vào giữa màn hình, phóng to rồi nổ ra kẹo; kẹo bay lên bộ đếm
+  async function plateBurst(t, nCandy) {
+    const fx = $('papFx'), W0 = 90, H0 = 38, sx = 250, sy = 500, cx = 640, cy = 300;
+    const d = document.createElement('div'); d.innerHTML = plateSvg(); const pl = d.firstChild; pl.setAttribute('class', 'plate'); pl.style.left = sx + 'px'; pl.style.top = sy + 'px'; fx.appendChild(pl);
+    const big = 3.4 + 0.6 * nCandy;                                          // phóng to theo số kẹo
+    const mv = (k) => 'translate(' + ((cx - W0 / 2 - sx) * k) + 'px,' + ((cy - H0 / 2 - sy) * k - Math.sin(k * Math.PI) * 120) + 'px) scale(' + (1 + (big - 1) * k) + ')';
+    const a = pl.animate([{ transform: mv(0), opacity: 0 }, { transform: mv(0.15), opacity: 1, offset: 0.15 }, { transform: mv(1) }], { duration: 1100, easing: 'ease-in-out', fill: 'forwards' });
+    await new Promise((r) => { a.onfinish = r; }); chk(t);
+    const sh = pl.animate([{ transform: mv(1) + ' rotate(0deg)' }, { transform: mv(1) + ' rotate(-5deg) scale(1.04)' }, { transform: mv(1) + ' rotate(5deg) scale(1.08)' }, { transform: mv(1) + ' rotate(-4deg) scale(1.12)' }, { transform: mv(1) + ' rotate(0deg) scale(1.2)' }], { duration: 520, fill: 'forwards' });
+    await new Promise((r) => { sh.onfinish = r; }); chk(t);
+    sfx(prizeBuf); pl.remove();                                              // nổ
+    const fl = document.createElement('div'); fl.className = 'flash'; fl.style.cssText = 'left:' + (cx - 160) + 'px;top:' + (cy - 160) + 'px;width:320px;height:320px'; fx.appendChild(fl);
+    fl.animate([{ transform: 'scale(.2)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 0 }], { duration: 520, easing: 'ease-out', fill: 'forwards' }).onfinish = () => fl.remove();
+    for (let k = 0; k < 16; k++) {
+      const b = document.createElement('i'); b.className = 'bit'; b.style.left = cx + 'px'; b.style.top = cy + 'px'; fx.appendChild(b);
+      const ang = Math.random() * 6.283, dist = 120 + Math.random() * 190;
+      b.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: 'translate(' + Math.cos(ang) * dist + 'px,' + (Math.sin(ang) * dist + 70) + 'px) rotate(' + (Math.random() * 540) + 'deg)', opacity: 0 }], { duration: 900 + Math.random() * 300, easing: 'cubic-bezier(.2,.7,.4,1)', fill: 'forwards' }).onfinish = () => b.remove();
+    }
+    const cs = [];
+    for (let k = 0; k < nCandy; k++) {
+      const c = candyCv(7); c.style.left = (cx - c.width / 2) + 'px'; c.style.top = (cy - c.height / 2) + 'px'; fx.appendChild(c); cs.push(c);
+      const ox = (k - (nCandy - 1) / 2) * 90, oy = -40 - Math.random() * 40;
+      c.animate([{ transform: 'translate(0,0) scale(.3)', opacity: 0 }, { transform: 'translate(' + ox + 'px,' + (oy - 60) + 'px) scale(1.5) rotate(200deg)', opacity: 1, offset: .55 }, { transform: 'translate(' + ox + 'px,' + oy + 'px) scale(1.25) rotate(360deg)', opacity: 1 }], { duration: 800, easing: 'ease-out', fill: 'forwards' });
+    }
+    await sleep(1300); chk(t);
+    for (const c of cs) {                                                    // kẹo bay lên góc trái, vào bộ đếm
+      const cur = c.getBoundingClientRect(), st = stage.getBoundingClientRect(), k = st.width / 1280;
+      const x0 = (cur.left - st.left) / k, y0 = (cur.top - st.top) / k;
+      c.getAnimations().forEach((q) => q.cancel()); c.style.left = x0 + 'px'; c.style.top = y0 + 'px';
+      c.animate([{ transform: 'scale(1.25)', opacity: 1 }, { transform: 'translate(' + (90 - x0) + 'px,' + (110 - y0) + 'px) scale(.5)', opacity: .9 }], { duration: 650, easing: 'ease-in', fill: 'forwards' }).onfinish = () => c.remove();
+    }
+    await sleep(650); chk(t);
   }
   const psay = (text, t, face) => { if (face) setFace(face); return say(text, t); };
   function papSpeakQuick(text, t, ms, face) {
@@ -978,28 +1018,30 @@
     stage.classList.add('pap'); stage.classList.remove('dark', 'gas');
     showPanel('qa'); $('qa').style.display = 'none';
     sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
-    const big = $('papBig'), spr = $('papSp'); big.style.display = 'none'; $('tower').style.display = 'flex'; $('tower').innerHTML = '';
+    const big = $('papBig'), spr = $('papSp'); big.style.display = 'none'; $('papFx').innerHTML = '';
     setX(false); pcandy = 0; hud(false);
     const CEN = 'translate(510px, -96px) scale(1.75)';                    // vị trí giữa màn hình, to
-    big.style.transform = CEN; big.style.display = 'block';
     const hop = () => { spr.classList.remove('hop'); void spr.offsetWidth; spr.classList.add('hop'); };
-    await sleep(900); chk(t);                                               // màn hình đen một nhịp rồi mới hiện Papyrus
-    await fadeIn(500); chk(t);
-    hop(); sfx(papNyehBuf); await sleep(900); chk(t);
-    hop(); await sleep(500); chk(t);
+    await sleep(900); chk(t);                                               // màn hình đen một nhịp
+    await fadeIn(400); chk(t);
+    big.style.transform = 'translate(510px, 800px) scale(1.75)'; big.style.display = 'block';
+    sfx(papNyehBuf);                                                        // Papyrus nhảy vọt lên từ dưới hư không, một lần duy nhất
+    await new Promise((res) => { const a = big.animate([{ transform: 'translate(510px, 800px) scale(1.75)' }, { transform: 'translate(510px, -210px) scale(1.75)', offset: .55 }, { transform: 'translate(510px, -60px) scale(1.75)', offset: .8 }, { transform: CEN }], { duration: 1200, easing: 'ease-out', fill: 'forwards' }); a.onfinish = res; });
+    chk(t); await sleep(300); chk(t);
     await psay(PP.hello, t, 'happy'); chk(t); await psay(PP.rule, t, 'normal'); chk(t); hideDlg();
     // thu nhỏ lại và về góc màn hình rồi bắt đầu trò chơi
     await new Promise((res) => { const a = big.animate([{ transform: CEN }, { transform: 'translate(0,0) scale(1)' }], { duration: 900, easing: 'ease-in-out', fill: 'forwards' }); a.onfinish = res; });
     chk(t); big.style.transform = 'none'; big.getAnimations().forEach((a) => a.cancel());
-    setFace('smug'); setX(true);
+    setFace('smug'); setX(true); papHud();
     const items = shuffle(WORDS).slice(0, 3);
     for (let n = 0; n < 3; n++) {
       showPanel('wsBox'); setX(true);
       const r = await askWord(items[n], n + 1, t); chk(t);
       await sleep(500); chk(t);
       if (r.ok) {
-        pcandy++; save(); hop();
-        const tw = $('tower'); const d = document.createElement('div'); d.innerHTML = plateSvg(); tw.appendChild(d.firstChild);
+        pcandy++; save(); hop(); setFace('wow');
+        await sleep(700); chk(t); $('wsBox').style.display = 'none';
+        await plateBurst(t, 1); papHud();
         await papSpeakQuick(pick(PP.right), t, 1300, pick(['happy', 'wow'])); chk(t);
       } else {
         await papSpeakQuick(pick(PP.wrong) + items[n].w.toUpperCase() + '!', t, 2200, pick(['sad', 'sweat', 'cry', 'angry'])); chk(t);
@@ -1008,20 +1050,12 @@
     }
     $('wsBox').style.display = 'none'; setX(false);
     await psay(pcandy === 3 ? PP.end3 : pcandy === 0 ? PP.end0 : PP.endN, t, pcandy === 3 ? 'cool' : pcandy === 0 ? 'cry' : 'happy'); chk(t); hideDlg();
-    if (pcandy > 0) {                                                    // tháp đổ, kẹo bay ra
-      sfx(prizeBuf); $('tower').classList.add('fall');
-      const box = $('papCdy'); box.innerHTML = '';
-      for (let k = 0; k < pcandy; k++) {
-        const c = candyCv(6); c.style.left = (k * 44) + 'px'; c.style.top = '0'; box.appendChild(c);
-        c.animate([{ transform: 'translate(0,40px) scale(.2)', opacity: 0 }, { transform: 'translate(' + ((k - 1) * 16) + 'px,-90px) scale(1.2) rotate(' + (k % 2 ? 140 : -140) + 'deg)', opacity: 1, offset: .6 }, { transform: 'translate(' + ((k - 1) * 20) + 'px,-70px) scale(1)', opacity: 1 }], { duration: 1100, delay: k * 200, fill: 'forwards', easing: 'ease-out' });
-      }
-      await sleep(2000); chk(t);
-    } else await sleep(500);
+    await sleep(300); chk(t);
     await finishP(pcandy > 0 ? 'ok' : 'lost', t);
   }
   async function finishP(st, t) {
     pstatus = st; save(); chk(t);
-    $('papBig').style.display = 'none'; $('tower').style.display = 'none'; $('papCdy').innerHTML = ''; setMusic(null);
+    $('papBig').style.display = 'none'; $('papFx').innerHTML = ''; setMusic(null);
     await showSummary(t, st === 'ok' ? 'CANDIES RECEIVED' : 'BETTER LUCK NEXT TIME', st === 'ok' ? 'ok' : 'lost', pcandy, true);
     await sleep(250); chk(t);
     await fadeOut(600); chk(t);
