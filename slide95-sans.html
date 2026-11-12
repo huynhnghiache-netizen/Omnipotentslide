@@ -187,11 +187,11 @@
   #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 170px 40px rgba(10, 0, 8, .6); z-index: 2; }
   #stage.pap #deco i.h { background: #ffd23c; } #stage.pap #deco i.b { background: #8a5a7a; }
   #papBig { position: absolute; left: -4px; top: 262px; width: 268px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; }
-  #papSp { width: 100%; height: 100%; background: url(assets/papyrus-bw-anim.png?v=1) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .667s steps(4) infinite; transform-origin: 50% 100%; }
+  #papSp { width: 100%; height: 100%; background: url(assets/papyrus-bw-anim.png?v=2) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .667s steps(4) infinite; transform-origin: 50% 100%; }
   @keyframes pbob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
   #papSp.hop { animation: pap .667s steps(4) infinite, pjump .75s ease-out; }
   @keyframes pjump { 0% { transform: translateY(0) scale(1.08, .88) } 18% { transform: translateY(0) scale(.94, 1.1) } 50% { transform: translateY(-60px) scale(1, 1) } 82% { transform: translateY(0) scale(1.08, .9) } 100% { transform: translateY(0) scale(1, 1) } }
-  #papSpr { background: url(assets/papyrus-bw-anim.png?v=1) 0 0 / 400% 100% no-repeat !important; animation: pap .667s steps(4) infinite !important; width: 196px !important; height: 219px !important; margin-left: -98px !important; top: 34px !important; }
+  #papSpr { background-image: url(assets/papyrus-bw-anim.png?v=2) !important; background-size: 400% 100% !important; background-repeat: no-repeat !important; animation: pap .667s steps(4) infinite; width: 196px !important; height: 219px !important; margin-left: -98px !important; top: 92px !important; }
   #papShelf { position: absolute; left: 24px; top: 76px; display: none; z-index: 4; }
   #papShelf .lb { font: 9px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 6px; letter-spacing: 1px; }
   #papShelf .row { display: flex; gap: 8px; }
