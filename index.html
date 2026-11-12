@@ -1415,7 +1415,7 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261112a' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261112b' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
@@ -2841,17 +2841,30 @@
       await wait(700);
       requestAnimationFrame((n) => { /* t0 tính từ lúc vòng lặp bắt đầu */ loop(n); });
       while ((performance.now() - t0) / 1000 < T_END) await wait(30);
-      ended = true; g.clearRect(0, 0, W, H); cv.style.display = 'none';
-      // tối đen 0.75s rồi sang slide kế
-      blk.style.transition = 'opacity .1s linear'; blk.style.opacity = '1';
-      await wait(120);
+      ended = true; g.clearRect(0, 0, W, H);
+      // slide kế hiện ra NHỎ trong đúng khung vừa có slide trước, giữ một nhịp rồi phóng to ra toàn màn hình
       disposeSlide(cur); soul.cur = null; particles.length = 0;
-      const next = createSlide(slidePath(ni), 0); next.mesh.renderOrder = 1; scene.add(next.group);
+      const next = createSlide(slidePath(ni), 0); next.mesh.renderOrder = 1;
+      const fs1 = { x: next.group.scale.x, y: next.group.scale.y, z: next.group.scale.z }, fp1 = { x: next.group.position.x, y: next.group.position.y, z: next.group.position.z };
+      const sxS = bs * k / SLIDE_W, syS = bs * k / SLIDE_H;
+      next.group.scale.set(sxS * 0.55, syS * 0.55, fs1.z); next.group.position.set(0, 0, fp1.z); scene.add(next.group);
       soul.cur = next; soul.i = ni;
-      await wait(750);
+      const POP = 0.32, HOLD = 0.55, ZOOM = 1.0, a1 = performance.now();
+      await new Promise((res) => {
+        const stepZ = (now) => {
+          const t = (now - a1) / 1000; let fx = sxS, fy = syS, fa = 1, fz = 1;
+          if (t < POP) { const e = eas.out(t / POP); fx = sxS * lerp(0.55, 1, e); fy = syS * lerp(0.55, 1, e); fa = e; }
+          else if (t >= POP + HOLD) { const u = Math.min(1, (t - POP - HOLD) / ZOOM), e = eas.io(u); fx = lerp(sxS, fs1.x, e); fy = lerp(syS, fs1.y, e); fz = fx / sxS; fa = 1 - Math.max(0, (u - 0.35) / 0.4); }
+          next.group.scale.set(fx, fy, fs1.z); next.group.position.set(lerp(0, fp1.x, 0), lerp(0, fp1.y, 0), fp1.z);
+          g.clearRect(0, 0, W, H);
+          if (fa > 0.01) { g.save(); g.globalAlpha = fa; g.lineWidth = 6; g.strokeStyle = '#fff'; const hs = bs / 2 * fz + 4; g.strokeRect(cx - hs, cy - hs, hs * 2, hs * 2); g.restore(); }
+          if (t < POP + HOLD + ZOOM) requestAnimationFrame(stepZ); else res();
+        };
+        requestAnimationFrame(stepZ);
+      });
+      next.group.scale.set(fs1.x, fs1.y, fs1.z); next.group.position.set(fp1.x, fp1.y, fp1.z);
+      g.clearRect(0, 0, W, H); cv.style.display = 'none';
       if (ANIM_SRC[ni]) showAnim3(ni);
-      blk.style.transition = 'opacity .3s linear'; blk.style.opacity = '0';
-      await wait(300);
     }
 
     // Thoát chế độ tim xanh: slide hiện tại tan, quay về danh sách

@@ -30,7 +30,9 @@
   const EMBED = location.search.includes('embed');
   const STILL = parseFloat((/[?&]still=([\d.]+)/.exec(location.search) || [])[1]);
   const IS_STILL = !isNaN(STILL);
-  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const cv = document.getElementById('c'), mainCtx = cv.getContext('2d');
+  let ctx = mainCtx;
+  const mc = document.createElement('canvas'), mctx = mc.getContext('2d');       // khung phụ: vẽ cảnh montage rồi quay + vẽ bóng mờ cho cú hút hố đen
   let W = 0, H = 0, dpr = 1;
   function resize() {
     dpr = Math.min(1.5, window.devicePixelRatio || 1);
@@ -360,7 +362,42 @@
     if (t > 32) { const a = clamp((t - 32) / 6.5, 0, 1) * .45; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,255,255,' + a + ')'; ctx.lineWidth = 1.2; for (let i = 0; i < 46; i++) { const aa = hash(i + 5) * TAU + t * 1.6, r0 = Math.min(W, H) * (.28 + hash(i) * .1), r1 = r0 + Math.min(W, H) * (.2 + hash(i + 40) * .4); ctx.beginPath(); ctx.moveTo(cx + Math.cos(aa) * r0, cy + Math.sin(aa) * r0); ctx.lineTo(cx + Math.cos(aa) * r1, cy + Math.sin(aa) * r1); ctx.stroke(); } ctx.restore(); }
     ctx.restore();
     drawBar(t, inten, pulse, 1);
-    const wh = smooth((t - (TD - 1.0)) / 1.0) * .6; if (wh > 0) { ctx.fillStyle = 'rgba(255,255,255,' + wh + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+
+
+  // ================= HỐ ĐEN: 4 giây cuối trước cú drop, cả hai nửa xoay cực nhanh, có dư ảnh, bị hút vào tâm rồi biến mất =================
+  const COL = 4.0, COL_END = 0.4;
+  function drawCollapse(t) {
+    const c = clamp((t - (TD - COL)) / (COL - COL_END), 0, 1), cx = W / 2, cy = H / 2, md = Math.min(W, H), R = Math.hypot(W, H) / 2;
+    if (mc.width !== Math.round(W * dpr) || mc.height !== Math.round(H * dpr)) { mc.width = Math.round(W * dpr); mc.height = Math.round(H * dpr); }
+    ctx = mctx; mctx.setTransform(dpr, 0, 0, dpr, 0, 0); mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-over'; drawMontage(t); ctx = mainCtx;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    const rot = Math.pow(c, 1.8) * Math.PI * 12, sc = Math.max(0.0001, 1 - Math.pow(c, 2.4) * 1.0), dth = 0.05 + 0.34 * c * c;
+    // vệt xoáy: các nét cong chạy vào tâm
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {
+      const ph = (hash(i * 3) + t * (.5 + hash(i) * .8) * (1 + c * 3)) % 1, r = (1 - ph) * R * (1.05 - .45 * c), a = hash(i + 9) * TAU + rot * 1.15 + (1 - ph) * 2.2 * c;
+      const r2 = r * (.9 - .08 * c), a2 = a - .1 - .28 * c; ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,214,150,' + (c * .55) + ')' : (i % 3 === 1 ? 'rgba(130,240,255,' + (c * .55) + ')' : 'rgba(255,255,255,' + (c * .45) + ')');
+      ctx.lineWidth = 1 + hash(i + 4) * 2; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.lineTo(cx + Math.cos(a2) * r2, cy + Math.sin(a2) * r2); ctx.stroke();
+    }
+    ctx.restore();
+    // cảnh montage: bản gốc + 7 bóng mờ lệch góc (dư ảnh)
+    for (let k = 7; k >= 0; k--) {
+      const s2 = sc * (1 + k * .05 * c), al = k ? .42 / (1 + k * .55) * (.35 + c * .65) : 1;
+      if (s2 < .002) continue;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot - k * dth); ctx.scale(s2, s2); ctx.globalAlpha = al; ctx.drawImage(mc, -W / 2, -H / 2, W, H); ctx.restore();
+    }
+    // đĩa tụ + vành sáng quanh phần cảnh đang co lại
+    const ringR = Math.max(2, sc * R * .62 + c * md * .05);
+    if (c > .02) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const rg = ctx.createRadialGradient(cx, cy, Math.max(1, ringR * .75), cx, cy, ringR * 1.45); rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(.35, 'rgba(255,230,190,' + (.38 * c) + ')'); rg.addColorStop(.6, 'rgba(90,220,255,' + (.28 * c) + ')'); rg.addColorStop(1, 'rgba(90,220,255,0)');
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(cx, cy, ringR * 1.45, 0, TAU); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.fillStyle = '#000'; ctx.shadowColor = 'rgba(255,240,210,.9)'; ctx.shadowBlur = 18 + 30 * c; ctx.beginPath(); ctx.arc(cx, cy, Math.max(0, md * .06 * smooth(c * 1.3) * (1 - Math.pow(c, 6) * .9)), 0, TAU); ctx.fill(); ctx.restore();
+    }
+    // sau khi bị hút hết: tối đen, chỉ còn một chấm sáng lớn dần
+    const dead = clamp((t - (TD - COL_END)) / COL_END, 0, 1);
+    if (c >= 1) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); const rr = 2 + dead * dead * md * .05; ctx.save(); ctx.globalCompositeOperation = 'lighter'; const dg = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr * 6); dg.addColorStop(0, 'rgba(255,255,255,1)'); dg.addColorStop(.25, 'rgba(255,235,200,.7)'); dg.addColorStop(1, 'rgba(120,230,255,0)'); ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(cx, cy, rr * 6, 0, TAU); ctx.fill(); ctx.restore(); }
   }
 
   // ================= SAU CÚ DROP: 2026 + THANKS FOR LISTENING + CREDITS =================
@@ -387,11 +424,11 @@
     const br = .5 + .5 * Math.sin(t * .9);
     let g1 = ctx.createRadialGradient(W * .05, H * 1.0, 0, W * .05, H * 1.0, Math.max(W, H) * .8); g1.addColorStop(0, 'rgba(205,140,70,' + (.28 + .06 * br) + ')'); g1.addColorStop(1, 'rgba(205,140,70,0)'); ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
     let g2 = ctx.createRadialGradient(W * .95, 0, 0, W * .95, 0, Math.max(W, H) * .8); g2.addColorStop(0, 'rgba(60,200,255,' + (.26 + .06 * (1 - br)) + ')'); g2.addColorStop(1, 'rgba(60,200,255,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
-    const ang = Math.atan2(H, W) + Math.PI * 8, cx = W / 2, cy = H / 2, L = Math.hypot(W, H), seamA = 1 - smooth((u - 1.2) / 2.2);
+    const ang = Math.atan2(H, W) + Math.PI * 8, cx = W / 2, cy = H / 2, L = Math.hypot(W, H), seamA = 1 - smooth(u / .5);
     if (seamA > 0.01) { ctx.save(); ctx.globalAlpha = seamA; ctx.globalCompositeOperation = 'lighter'; const lg = ctx.createLinearGradient(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L, cx + Math.cos(ang) * L, cy + Math.sin(ang) * L);
     lg.addColorStop(0, 'rgba(233,184,112,0)'); lg.addColorStop(.35, 'rgba(233,184,112,.35)'); lg.addColorStop(.5, 'rgba(255,255,255,.5)'); lg.addColorStop(.65, 'rgba(70,233,255,.35)'); lg.addColorStop(1, 'rgba(70,233,255,0)');
     ctx.strokeStyle = lg; ctx.lineWidth = 2; ctx.shadowColor = '#fff'; ctx.shadowBlur = 16; ctx.beginPath(); ctx.moveTo(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L); ctx.lineTo(cx + Math.cos(ang) * L, cy + Math.sin(ang) * L); ctx.stroke(); ctx.restore(); }
-    if (!portrait && u > 2.5) { ctx.save(); ctx.globalAlpha = clamp((u - 2.5) / 1.5, 0, 1) * .22; ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(W * .535), H * .12, 1, H * .76); ctx.restore(); }
+    if (!portrait && u > 3.4) { ctx.save(); ctx.globalAlpha = clamp((u - 3.4) / 1.5, 0, 1) * .22; ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(W * .535), H * .12, 1, H * .76); ctx.restore(); }
     for (let i = 0; i < 70; i++) {                                                       // hạt bụi sáng bay lên
       const sp = 8 + hash(i + 1) * 26, y = ((hash(i * 3) * H - (u * sp)) % H + H) % H, x = (hash(i * 5) * W + Math.sin(u * .6 + i) * 14), s = .8 + hash(i * 7) * 2.2;
       ctx.fillStyle = i % 2 ? 'rgba(255,225,170,' + (.25 + hash(i) * .45) + ')' : 'rgba(170,240,255,' + (.25 + hash(i) * .45) + ')'; ctx.fillRect(x, y, s, s);
@@ -400,19 +437,27 @@
     const lx = portrait ? W / 2 : W * .075, al = portrait ? 'center' : 'left', ty = portrait ? H * .12 : H * .26;
     const yFs = Math.round(md * (portrait ? .1 : .115)), tFs = Math.round(md * (portrait ? .1 : .125));
     ctx.save(); ctx.textBaseline = 'alphabetic';
-    const yu = clamp(u / 1.6, 0, 1); let ys = '2026'; if (u < .9) { ys = ''; for (let i = 0; i < 4; i++) ys += (hash(Math.floor(u * 28) * 4 + i) * 10 | 0); }
-    ctx.font = 'bold ' + yFs + 'px "Courier New", monospace'; ctx.fillStyle = u < .9 ? '#ffffff' : '#ffe2b0'; ctx.shadowColor = 'rgba(255,200,120,.8)'; ctx.shadowBlur = 24 * (1 - yu) + 8; ctx.globalAlpha = clamp(u / .25, 0, 1);
-    const pop = 1 + .25 * Math.exp(-u * 5) * (u > .9 ? 1 : 0); ctx.save(); ctx.translate(lx + (al === 'center' ? 0 : 0), ty); ctx.scale(pop, pop); ctx.textAlign = al; ctx.fillText(ys, 0, 0); ctx.restore();
-    ctx.shadowBlur = 0; ctx.globalAlpha = clamp((u - .9) / .6, 0, 1); ctx.fillStyle = 'rgba(255,255,255,.55)'; const rw = Math.min(md * .55, W * .4) * clamp((u - .9) / .9, 0, 1); ctx.fillRect(al === 'center' ? lx - rw / 2 : lx, ty + md * .025, rw, 2);
+    const SH0 = 2.0, SH1 = 3.1, T2 = SH1 - .3;                                         // 2026 to giữa màn hình (u 0.9 -> 2.0), rồi thu nhỏ bay về góc trái (2.0 -> 3.1)
+    let ys = '2026'; if (u < .9) { ys = ''; for (let i = 0; i < 4; i++) ys += (hash(Math.floor(u * 28) * 4 + i) * 10 | 0); }
+    const eu = clamp((u - SH0) / (SH1 - SH0), 0, 1), ee = eu < .5 ? 4 * eu * eu * eu : 1 - Math.pow(-2 * eu + 2, 3) / 2, bigK = Math.max(2.2, md * .36 / yFs);
+    if (u > .3 && ee < 1) {                                                              // tia sáng quay phía sau con số lớn
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.rotate(u * .35); const ra = clamp((u - .3) / .5, 0, 1) * (1 - ee) * .16;
+      for (let i = 0; i < 28; i++) { const a = i / 28 * TAU; ctx.fillStyle = i % 2 ? 'rgba(255,220,160,' + ra + ')' : 'rgba(120,235,255,' + ra + ')'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, Math.hypot(W, H), a, a + TAU / 56); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    }
+    ctx.font = 'bold ' + yFs + 'px "Courier New", monospace'; ctx.fillStyle = u < .9 ? '#ffffff' : '#ffe2b0'; ctx.shadowColor = 'rgba(255,200,120,.85)'; ctx.shadowBlur = (30 + 40 * (1 - ee)); ctx.globalAlpha = clamp(u / .15, 0, 1);
+    const wF = ctx.measureText('2026').width, cxF = al === 'center' ? lx : lx + wF / 2, pop = 1 + .22 * Math.exp(-Math.max(0, u - .9) * 5) * (u > .9 ? 1 : 0), sS = lerp(bigK, 1, ee) * pop;
+    ctx.save(); ctx.translate(lerp(cx, cxF, ee), lerp(cy + .35 * yFs * bigK, ty, ee)); ctx.scale(sS, sS); ctx.textAlign = 'center'; ctx.fillText(ys, 0, 0); ctx.restore();
+    ctx.shadowBlur = 0; ctx.globalAlpha = clamp((u - T2) / .6, 0, 1); ctx.fillStyle = 'rgba(255,255,255,.55)'; const rw = Math.min(md * .55, W * .4) * clamp((u - T2) / .9, 0, 1); ctx.fillRect(al === 'center' ? lx - rw / 2 : lx, ty + md * .025, rw, 2);
     ctx.globalAlpha = 1;
     const lines = ['Thanks for', 'listening'];
     ctx.font = 'italic 700 ' + tFs + 'px ' + SERIF; ctx.textAlign = 'left'; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 14;
     let ci = 0;
     lines.forEach((ln, li) => {
       let w = 0; for (const ch of ln) w += ctx.measureText(ch).width; let px = al === 'center' ? lx - w / 2 : lx; const py = ty + md * .035 + tFs * (1.05 + li * 1.05);
-      for (const ch of ln) { const a = clamp((u - 1.0 - ci * .07) / .28, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.fillText(ch, px, py + (1 - a) * 18); px += ctx.measureText(ch).width; ci++; }
+      for (const ch of ln) { const a = clamp((u - T2 - ci * .07) / .28, 0, 1); ctx.globalAlpha = a; ctx.fillStyle = '#fff'; ctx.fillText(ch, px, py + (1 - a) * 18); px += ctx.measureText(ch).width; ci++; }
     });
-    ctx.globalAlpha = clamp((u - 2.6) / 1.0, 0, 1); ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.font = '400 ' + Math.round(md * .027) + 'px ' + SERIF; ctx.textAlign = al;
+    ctx.globalAlpha = clamp((u - T2 - 1.6) / 1.0, 0, 1); ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.72)'; ctx.font = '400 ' + Math.round(md * .027) + 'px ' + SERIF; ctx.textAlign = al;
     ctx.fillText('Life in My Neighbourhood – 40 Years Ago', lx, ty + md * .035 + tFs * 3.55);
     ctx.restore();
     // ---- credits bên phải (cuộn lên, lặp lại) ----
@@ -430,7 +475,7 @@
     const x0 = portrait ? W * .08 : W * .56, x1 = portrait ? W * .92 : W * .95, y0 = portrait ? H * .46 : H * .06, y1 = portrait ? H * .96 : H * .94, cx = (x0 + x1) / 2, fs = Math.round(clamp(md * .034, 14, 30));
     const gapName = fs * 1.5, blockGap = fs * 3.2, titleH = fs * 2.4;
     const heights = GROUPS.map((g) => titleH + g[1].length * gapName + blockGap), total = heights.reduce((a, b) => a + b, 0);
-    const start = TD + 1.4, a0 = clamp((u - 1.4) / 1.2, 0, 1); if (a0 <= 0) return;
+    const start = TD + 3.4, a0 = clamp((u - 3.4) / 1.2, 0, 1); if (a0 <= 0) return;
     const speed = fs * 2.3, scroll = Math.max(0, t - start) * speed;
     ctx.save(); ctx.textAlign = 'center';
     const baseY = y1 - scroll;                                                               // chữ đầu tiên đi lên từ đáy
@@ -490,7 +535,7 @@
   function render(t, now) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const barOpen = smooth(t / 1.3), barH = H * (.075 + .425 * (1 - barOpen)), close = t >= TD ? 1 - smooth((t - TD) / .5) : 1;
-    if (t < TD) drawMontage(t); else drawFinal(t);
+    if (t < TD - COL) drawMontage(t); else if (t < TD) drawCollapse(t); else drawFinal(t);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const bh2 = t < TD ? barH : H * .075 * close; if (bh2 > 0) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh2); ctx.fillRect(0, H - bh2, W, bh2); }
     if (t < .5) { ctx.fillStyle = 'rgba(0,0,0,' + (1 - t / .5) + ')'; ctx.fillRect(0, 0, W, H); }
