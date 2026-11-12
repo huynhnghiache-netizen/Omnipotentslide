@@ -141,6 +141,7 @@
     #soulGear canvas { width: 28px; height: 28px; display: block; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #000); }
     #soulGear:hover { transform: translateY(-3px); border-color: #3d66ff; box-shadow: 0 8px 0 #000, 0 0 14px rgba(0, 60, 255, 0.55); }
     #soulGear:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
+    #pwrOff { position: fixed; inset: 0; background: #000; z-index: 2147483647; display: none; cursor: none; touch-action: none; }
     #soulBack:hover { transform: translateY(-3px); border-color: #ff3344; box-shadow: 0 8px 0 #000, 0 0 14px rgba(255, 51, 68, 0.5); }
     #soulBack:active { transform: translateY(2px); box-shadow: 0 2px 0 #000; }
     #soulBack:focus-visible { outline: 3px dashed #ffb3b9; outline-offset: 4px; }
@@ -316,6 +317,7 @@
   <canvas id="glitch" aria-hidden="true"></canvas>
   <button id="soulBack" type="button" aria-label="Back to list"></button>
   <button id="soulGear" type="button" aria-label="Slide list"></button>
+  <div id="pwrOff" aria-hidden="true"></div>
 
   <!-- Bảng chọn slide cầm kiếm khi bị Sans chặn -->
   <div id="choose">
@@ -485,6 +487,7 @@
       return s;
     }
     function ambStart(i) {
+      if (i === 9) { ambStop(); return; }                            // slide 10 có nhạc Waterflame riêng trong khung của nó, không chồng âm thanh nền
       if (AMB.cur === i && AMB.scene) return;
       ambStop();
       const s = ambBuild(i); if (!s) return;
@@ -1412,7 +1415,7 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261112a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
@@ -2012,7 +2015,7 @@
       ambStop();
       animState = null;
       gsap.killTweensOf(anim3);
-      anim3.style.display = 'none';
+      anim3.style.display = 'none'; anim3.style.pointerEvents = '';
       anim3.src = 'about:blank';
     }
 
@@ -2285,7 +2288,7 @@
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
     // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
-    const QUIZ_V = '20261111a';
+    const QUIZ_V = '20261112a';
     const quiz = { on: false };
     const quizEl = document.getElementById('quiz95');
     function startQuiz() {
@@ -2965,12 +2968,61 @@
       }
     });
 
+    // ===== Sập nguồn (kết slide 10): đen thùi lùi, ẩn hết giao diện; chỉ một phím riêng mới bật lại về danh sách tim đỏ =====
+    // Phím đó không được ghi ở bất kỳ đâu trên trang.
+    const PWR = { off: false, taps: [] };
+    const pwrEl = document.getElementById('pwrOff');
+    function powerOff() {
+      if (PWR.off) return;
+      PWR.off = true; PWR.taps = [];
+      gsap.killTweensOf(pwrEl);
+      pwrEl.style.opacity = '1'; pwrEl.style.pointerEvents = 'auto'; pwrEl.style.display = 'block';
+      try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
+    }
+    function powerOn() {
+      if (!PWR.off) return;
+      PWR.off = false;
+      if (view === 'settings') closeSettings();
+      hideAnim3Now();
+      if (view === 'soul') {                                   // đang xem live: bỏ slide, tắt 2 nút tim đỏ / bánh răng, về danh sách
+        const cur = soul.cur; if (cur) disposeSlide(cur);
+        soul.cur = null; soul.on = false; particles.length = 0;
+        soulBack.style.display = 'none'; soulGear.style.display = 'none';
+      } else if (currentSlideObj) {
+        disposeSlide(currentSlideObj); currentSlideObj = null;
+      }
+      view = 'busy';
+      showGrid();
+      pwrEl.style.pointerEvents = 'none';
+      gsap.to(pwrEl, { opacity: 0, duration: 0.7, ease: 'power1.out', onComplete: () => { pwrEl.style.display = 'none'; pwrEl.style.opacity = '1'; } });
+    }
+    const isPwrKey = (k) => k === 'r' || k === 'R';
+    ['click', 'dblclick', 'pointerup', 'mousedown', 'mouseup', 'touchend', 'contextmenu', 'wheel'].forEach((ev) => window.addEventListener(ev, (e) => { if (PWR.off) e.stopPropagation(); }, true));
+    window.addEventListener('pointerdown', (e) => {                      // máy cảm ứng không có bàn phím: chạm liên tiếp 5 lần ở góc trên trái màn đen thì bật lại (không hiện chữ gì)
+      if (!PWR.off) return;
+      e.stopPropagation();
+      if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return;
+      const now = performance.now(); PWR.taps = PWR.taps.filter((t) => now - t < 3000);
+      if (e.clientX < innerWidth * 0.2 && e.clientY < innerHeight * 0.2) PWR.taps.push(now); else PWR.taps = [];
+      if (PWR.taps.length >= 5) powerOn();
+    }, true);
+    window.addEventListener('keydown', (e) => {
+      if (!PWR.off) return;
+      e.stopImmediatePropagation(); e.preventDefault();
+      if (!e.repeat && isPwrKey(e.key)) powerOn();
+    }, true);
+    window.addEventListener('keyup', (e) => { if (PWR.off) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+
     // Phím bấm trong slide 3 (iframe) được chuyển lên đây: Backspace quay lại danh sách
     window.addEventListener('message', (ev) => {
       const d = ev.data;
       if (d && d.type === 'hold-ready') { const q = POOL.find((x) => x.el.contentWindow === ev.source); if (q) q.ready = true; return; }
       if (d && ev.source === quizEl.contentWindow) { if (d.type === 'quiz-prev') quizBack(); else if (d.type === 'quiz-next') quizNext(); return; }
       if (ev.source !== anim3.contentWindow || !d) return;
+      if (d.type === 'power-off') { if (view === 'soul' || view === 'detail' || view === 'settings') powerOff(); return; }
+      if (d.type === 'need-tap') { anim3.style.pointerEvents = 'auto'; return; }               // trình duyệt chưa cho tự phát nhạc: cho phép bấm thẳng vào khung để bắt đầu
+      if (d.type === 'tap-done') { anim3.style.pointerEvents = ''; return; }
+      if (PWR.off) { if (d.type === 'slide-key' && isPwrKey(d.key)) powerOn(); return; }
       if (d.type === 'wind-gust') { if (AMB.cur === 2 && AMB.scene && AMB.scene.gust) AMB.scene.gust(1); return; }      // cơn gió thật trên hình -> tiếng gió đúng lúc
       if (d.type === 'anim-state') {
         animState = d.state;
