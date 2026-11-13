@@ -2742,8 +2742,10 @@
       await wait(450);
     }
 
-    // Chuyển cảnh Hiệp sĩ chém (slide 8 -> 9, chế độ tim xanh): nền tím tối, Hiệp sĩ bay xuống giữa màn hình -> vung kiếm -> vệt chém đỏ chéo
-    // -> slide hiện tại đứt đôi theo đường chéo, máu bắn ra, hai nửa tách ra rơi đi -> slide kế (đã chờ sẵn phía sau) zoom vào nhẹ -> Hiệp sĩ bay lên
+    // Chuyển cảnh Hiệp sĩ chém (slide 8 -> 9, chế độ tim xanh), dựng lại theo video mẫu:
+    // nền xanh/tím tối + lá trắng, Hiệp sĩ bay xuống giữa màn hình -> vệt chém chéo "\" -> slide ĐỨT ĐÔI và hai nửa bị ĐẨY SANG HAI PHÍA (không rơi),
+    // khe đen rộng dần với mép đỏ phát sáng + vầng trăng trắng, Hiệp sĩ nằm theo đường chém, kiếm để lại bóng mờ -> hai nửa ra khỏi màn hình
+    // -> màn đen tan, slide kế (đã chờ sẵn phía sau) zoom vào, Hiệp sĩ bay lên
     async function knightSlash(ni) {
       const W = innerWidth, H = innerHeight, cx = W / 2, cy = H / 2, cur = soul.cur, stage = document.getElementById('knStage'), fv = document.getElementById('knVid2');
       const dp = Math.min(1.5, window.devicePixelRatio || 1);
@@ -2755,25 +2757,21 @@
       const nsc = { x: next.group.scale.x, y: next.group.scale.y, z: next.group.scale.z };
       const h2 = Math.min(0.7 * H, 0.9 * W * 282 / 266), w2 = h2 * 266 / 282, topEnd = cy - h2 * 0.5;
       stage.style.display = 'block';
-      Object.assign(knCv2.style, { display: 'block', width: w2 + 'px', height: h2 + 'px', left: (cx - w2 / 2) + 'px', top: (-h2 - 20) + 'px', opacity: '1', transition: 'none', transform: 'none' });
+      Object.assign(knCv2.style, { display: 'block', width: w2 + 'px', height: h2 + 'px', left: (cx - w2 / 2) + 'px', top: (-h2 - 20) + 'px', opacity: '1', transition: 'none', transform: 'none', transformOrigin: '50% 40%' });
       try { fv.pause(); fv.currentTime = 0; } catch (e) {}
       knDrawing2 = true; requestAnimationFrame(knPaint2);
-      const A = 62 * Math.PI / 180, dx = Math.cos(A), dy = Math.sin(A), nx = -dy, ny = dx, R = Math.hypot(W, H);       // đường chém chéo "\\" hơi dốc
-      const eo = (x) => 1 - Math.pow(1 - x, 3), eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2), sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+      const A = 64 * Math.PI / 180, dx = Math.cos(A), dy = Math.sin(A), nx = -dy, ny = dx, R = Math.hypot(W, H);       // đường chém "\" dốc 64° như video
+      const eo = (x) => 1 - Math.pow(1 - x, 3), eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2), sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }, cl = (x) => Math.max(0, Math.min(1, x));
       const leaves = Array.from({ length: 44 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: 4 + Math.random() * 11, a: Math.random() * 6.283, va: (Math.random() - 0.5) * 3, vy: 25 + Math.random() * 80, vx: (Math.random() - 0.5) * 40 }));
-      const blood = [], BC = ['#c4001f', '#8d0016', '#ff2a45', '#a30019'];
+      const ghosts = [], gSp = document.createElement('canvas'); gSp.width = Math.round(w2); gSp.height = Math.round(h2); const gSx = gSp.getContext('2d');
       let snap = null, cutT = -1, played = false, vt0 = 0;
-      const addBlood = (n, drip) => {
-        for (let i = 0; i < n && blood.length < 420; i++) {
-          const sd = Math.random() < 0.5 ? 1 : -1, sPos = (Math.random() - 0.5) * R * 1.1, v = drip ? 40 + Math.random() * 140 : 90 + Math.random() * 520;
-          blood.push({ x: cx + dx * sPos, y: cy + dy * sPos, vx: nx * sd * v + dx * (Math.random() - 0.5) * 120, vy: ny * sd * v + (drip ? 30 : -Math.random() * 160), r: 1.5 + Math.random() * (drip ? 3 : 5.5), life: 1.2 + Math.random() * 1.1, age: 0, c: BC[(Math.random() * 4) | 0] });
-        }
-      };
+      const DIM = 0.7;
+      const tint = (gx, a) => { const gr = gx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.62); gr.addColorStop(0, 'rgba(40,36,170,' + a + ')'); gr.addColorStop(1, 'rgba(14,6,56,' + Math.min(1, a * 1.35) + ')'); gx.fillStyle = gr; gx.fillRect(-W, -H, W * 3, H * 3); };
       const doCut = (now) => {
         cutT = now;
         try { renderer.render(scene, camera); snap = document.createElement('canvas'); snap.width = renderer.domElement.width; snap.height = renderer.domElement.height; snap.getContext('2d').drawImage(renderer.domElement, 0, 0); } catch (e) { snap = null; }
         cur.group.visible = false; next.group.visible = true;
-        sfxPlay(SFX.slash); sfxPlay(SFX.knight); impact(1); shake(1.4, 8); addBlood(170, false);
+        sfxPlay(SFX.slash); sfxPlay(SFX.knight); impact(1); shake(1.2, 8);
       };
       const t0 = performance.now();
       await new Promise((res) => {
@@ -2784,54 +2782,65 @@
           const vtime = played ? (fv.readyState > 1 && !fv.paused ? fv.currentTime : (now - vt0) / 1000) : 0;
           if (cutT < 0 && played && (vtime >= 0.5 || (now - vt0) / 1000 > 1.6)) doCut(now);
           const tc = cutT < 0 ? -1 : (now - cutT) / 1000;
-          // Hiệp sĩ: bay xuống (có nhún), sau nhát chém đứng một nhịp rồi bay lên
-          let top = topEnd - (1 - eo(Math.min(1, t / 0.85))) * (topEnd + h2 + 20) + (tc < 0 && t > 0.85 ? Math.sin((t - 0.85) * 5) * 7 : 0);
-          if (tc > 0.5) top = topEnd - eio(Math.min(1, (tc - 0.5) / 0.7)) * (topEnd + h2 + 60);
-          knCv2.style.top = top + 'px';
-          if (tc >= 0) { const z = 0.9 + 0.1 * eo(Math.min(1, tc / 1.5)); next.group.scale.set(nsc.x * z, nsc.y * z, nsc.z); }
-          g.setTransform(dp, 0, 0, dp, 0, 0); g.clearRect(0, 0, W, H);
-          // hai nửa slide
-          if (tc >= 0 && snap) {
-            const u = Math.max(0, Math.min(1, (tc - 0.16) / 1.1)), e = eio(u), fade = 1 - sm((tc - 1.05) / 0.5), fall = Math.max(0, tc - 0.16);
-            for (const sg of [1, -1]) {
-              g.save(); g.globalAlpha = fade;
-              const jit = tc < 0.16 ? (Math.random() - 0.5) * 4 : 0, off = e * 0.62 * Math.max(W, H);
-              g.translate(cx + nx * sg * off + jit, cy + ny * sg * off + fall * fall * 420 * (sg > 0 ? 1.0 : 0.7)); g.rotate(sg * 0.07 * e); g.translate(-cx, -cy);
-              g.beginPath(); g.moveTo(cx - dx * R * 1.6, cy - dy * R * 1.6); g.lineTo(cx + dx * R * 1.6, cy + dy * R * 1.6); g.lineTo(cx + dx * R * 1.6 + nx * sg * R * 1.6, cy + dy * R * 1.6 + ny * sg * R * 1.6); g.lineTo(cx - dx * R * 1.6 + nx * sg * R * 1.6, cy - dy * R * 1.6 + ny * sg * R * 1.6); g.closePath(); g.clip();
-              g.drawImage(snap, 0, 0, W, H);
-              g.strokeStyle = '#a30019'; g.lineWidth = 6; g.beginPath(); g.moveTo(cx - dx * R, cy - dy * R); g.lineTo(cx + dx * R, cy + dy * R); g.stroke();     // mép đứt đỏ máu
-              g.restore();
-            }
-          }
-          // phủ nền tím tối
-          const dimA = tc < 0 ? 0.52 * sm(t / 0.7) : 0.52 * (1 - sm((tc - 0.5) / 0.8));
-          if (dimA > 0.005) { const gr = g.createRadialGradient(cx, cy, 0, cx, cy, R * 0.6); gr.addColorStop(0, 'rgba(70,30,140,' + dimA + ')'); gr.addColorStop(1, 'rgba(20,6,50,' + Math.min(1, dimA * 1.5) + ')'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
-          // lá / sao trắng trôi trước nhát chém
-          const lA = tc < 0 ? sm(t / 0.5) : 1 - sm(tc / 0.4);
-          if (lA > 0.01) for (const l of leaves) { l.x += l.vx * dt; l.y += l.vy * dt; l.a += l.va * dt; if (l.y > H + 20) { l.y = -20; l.x = Math.random() * W; } g.save(); g.globalAlpha = lA * 0.9; g.translate(l.x, l.y); g.rotate(l.a); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, -l.r); g.lineTo(l.r * 0.8, l.r * 0.7); g.lineTo(-l.r * 0.2, l.r * 0.35); g.lineTo(-l.r * 0.8, l.r * 0.7); g.closePath(); g.fill(); g.restore(); }
-          // vệt chém đỏ
+          // Hiệp sĩ: bay xuống (có nhún); khi chém thì nghiêng theo đường chém, trượt xuống theo nó, sau đó bay lên
+          let ox = 0, oy = 0, rot = 0, top = topEnd - (1 - eo(Math.min(1, t / 0.85))) * (topEnd + h2 + 20) + (tc < 0 && t > 0.85 ? Math.sin((t - 0.85) * 5) * 7 : 0);
           if (tc >= 0) {
-            if (tc < 0.14) { g.fillStyle = 'rgba(255,255,255,' + (0.85 * (1 - tc / 0.14)) + ')'; g.fillRect(0, 0, W, H); }
-            const head = eo(Math.min(1, tc / 0.12)), la = 1 - sm((tc - 0.12) / 0.8);
-            if (la > 0.01) {
-              const x0 = cx - dx * R, y0 = cy - dy * R, x1 = x0 + dx * 2 * R * head, y1 = y0 + dy * 2 * R * head;
-              g.save(); g.globalAlpha = la; g.lineCap = 'round'; g.shadowColor = '#ff1030'; g.shadowBlur = 34; g.strokeStyle = '#ff1030'; g.lineWidth = 16 * la + 2; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-              g.shadowBlur = 0; g.strokeStyle = '#fff'; g.lineWidth = 4 * la + 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+            top = topEnd; rot = -(90 - 64) * eo(cl(tc / 0.18));
+            const slide = eo(cl(tc / 0.7)) * 0.2 * H; ox = dx * slide; oy = dy * slide;
+            if (tc > 1.0) oy -= eio(cl((tc - 1.0) / 0.7)) * (topEnd + h2 + 160);
+          }
+          knCv2.style.top = top + 'px'; knCv2.style.transform = 'translate(' + ox + 'px,' + oy + 'px) rotate(' + rot + 'deg)';
+          if (tc >= 0) { const z = 0.88 + 0.12 * eo(cl((tc - 1.15) / 1.2)); next.group.scale.set(nsc.x * z, nsc.y * z, nsc.z); ghosts.push({ t: tc, ox, oy, rot, top }); if (ghosts.length > 26) ghosts.shift(); }
+          g.setTransform(dp, 0, 0, dp, 0, 0); g.clearRect(0, 0, W, H);
+          if (tc >= 0) {
+            // nền đen lộ ra giữa hai nửa
+            g.fillStyle = '#000'; g.globalAlpha = 1 - sm((tc - 1.35) / 0.6); g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+            // vệt sáng trắng (vầng trăng) trong khe chém, nằm dọc theo đường chém
+            const ca = sm(tc / 0.08) * (1 - sm((tc - 0.12) / 0.5));
+            if (ca > 0.01) {
+              g.save(); g.translate(cx - nx * 20, cy - ny * 20); g.rotate(A); g.scale(1, 0.16);
+              const mg = g.createRadialGradient(0, 0, 0, 0, 0, H * 0.75); mg.addColorStop(0, 'rgba(255,255,255,' + ca + ')'); mg.addColorStop(0.45, 'rgba(235,235,250,' + ca * 0.75 + ')'); mg.addColorStop(1, 'rgba(235,235,250,0)');
+              g.fillStyle = mg; g.beginPath(); g.arc(0, 0, H * 0.75, 0, 6.2832); g.fill(); g.restore();
             }
-            if (tc < 0.8) addBlood(5, true);
+            // bóng mờ của Hiệp sĩ + kiếm (dư ảnh chồng lớp như trong video): 1 sprite viền trắng, vẽ lại nhiều lần
+            if (ghosts.length > 3) {
+              gSx.clearRect(0, 0, w2, h2); gSx.save(); gSx.shadowColor = '#fff'; gSx.shadowBlur = 5; gSx.drawImage(knCv2, 0, 0, w2, h2); gSx.restore();
+              for (let k = 0; k < ghosts.length - 3; k += 3) {
+                const gh = ghosts[k], age = tc - gh.t, al = 0.6 * (1 - age / 0.7) * (1 - sm((tc - 1.0) / 0.5)); if (al <= 0.02) continue;
+                g.save(); g.globalAlpha = al; g.translate(cx + gh.ox, gh.top + h2 * 0.4 + gh.oy); g.rotate(gh.rot * Math.PI / 180); g.translate(-w2 / 2, -h2 * 0.4); g.drawImage(gSp, 0, 0); g.restore();
+              }
+            }
+            // hai nửa slide bị đẩy sang hai phía (trái đi trái, phải đi phải), mép đứt đỏ phát sáng
+            if (snap) {
+              const u = cl((tc - 0.1) / 0.95), off = Math.pow(u, 1.6) * 0.74 * W, jit = tc < 0.14 ? (Math.random() - 0.5) * 3 : 0;
+              for (const sg of [1, -1]) {
+                g.save(); g.translate((sg > 0 ? -1 : 1) * off + jit, 0);
+                g.beginPath(); g.moveTo(cx - dx * R * 1.6, cy - dy * R * 1.6); g.lineTo(cx + dx * R * 1.6, cy + dy * R * 1.6); g.lineTo(cx + dx * R * 1.6 + nx * sg * R * 1.6, cy + dy * R * 1.6 + ny * sg * R * 1.6); g.lineTo(cx - dx * R * 1.6 + nx * sg * R * 1.6, cy - dy * R * 1.6 + ny * sg * R * 1.6); g.closePath(); g.clip();
+                g.drawImage(snap, 0, 0, W, H); tint(g, DIM);
+                const rg = g.createLinearGradient(cx, cy, cx + nx * sg * 130, cy + ny * sg * 130); rg.addColorStop(0, 'rgba(255,60,90,0.95)'); rg.addColorStop(0.3, 'rgba(255,40,120,0.45)'); rg.addColorStop(1, 'rgba(255,40,120,0)');
+                g.globalCompositeOperation = 'lighter'; g.fillStyle = rg; g.fillRect(-W, -H, W * 3, H * 3); g.globalCompositeOperation = 'source-over';
+                g.strokeStyle = '#000'; g.lineWidth = 14; g.beginPath(); g.moveTo(cx - dx * R, cy - dy * R); g.lineTo(cx + dx * R, cy + dy * R); g.stroke();
+                g.strokeStyle = '#ff1a3c'; g.lineWidth = 3; g.shadowColor = '#ff1a3c'; g.shadowBlur = 24; g.beginPath(); g.moveTo(cx + nx * sg * 8 - dx * R, cy + ny * sg * 8 - dy * R); g.lineTo(cx + nx * sg * 8 + dx * R, cy + ny * sg * 8 + dy * R); g.stroke();
+                g.restore();
+              }
+            }
+            // tia chém sáng lúc vừa chém
+            if (tc < 0.14) {
+              const head = eo(cl(tc / 0.1)), x0 = cx - dx * R, y0 = cy - dy * R, x1 = x0 + dx * 2 * R * head, y1 = y0 + dy * 2 * R * head;
+              g.save(); g.lineCap = 'round'; g.globalAlpha = 1 - tc / 0.14; g.strokeStyle = '#fff'; g.shadowColor = '#ff1030'; g.shadowBlur = 30; g.lineWidth = 8; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.restore();
+            }
+          } else {
+            // trước nhát chém: nền xanh -> tím tối phủ lên slide + lá trắng trôi
+            const dimA = DIM * sm(t / 0.7); if (dimA > 0.005) tint(g, dimA);
+            const lA = sm(t / 0.5);
+            for (const l of leaves) { l.x += l.vx * dt; l.y += l.vy * dt; l.a += l.va * dt; if (l.y > H + 20) { l.y = -20; l.x = Math.random() * W; } g.save(); g.globalAlpha = lA * 0.9; g.translate(l.x, l.y); g.rotate(l.a); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, -l.r); g.lineTo(l.r * 0.8, l.r * 0.7); g.lineTo(-l.r * 0.2, l.r * 0.35); g.lineTo(-l.r * 0.8, l.r * 0.7); g.closePath(); g.fill(); g.restore(); }
           }
-          // máu
-          for (let i = blood.length - 1; i >= 0; i--) {
-            const b = blood[i]; b.age += dt; if (b.age > b.life) { blood.splice(i, 1); continue; }
-            b.vy += 1100 * dt; b.x += b.vx * dt; b.y += b.vy * dt; g.globalAlpha = Math.min(1, (b.life - b.age) * 2); g.strokeStyle = b.c; g.lineWidth = b.r * 1.6; g.lineCap = 'round'; g.beginPath(); g.moveTo(b.x, b.y); g.lineTo(b.x - b.vx * 0.025, b.y - b.vy * 0.025); g.stroke();
-          }
-          g.globalAlpha = 1;
-          if (tc >= 1.95) res(); else requestAnimationFrame(loop);
+          if (tc >= 2.5) res(); else requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
       });
       g.clearRect(0, 0, W, H); cv.style.display = 'none';
-      fv.pause(); knDrawing2 = false; knCv2.style.display = 'none'; stage.style.display = 'none';
+      fv.pause(); knDrawing2 = false; knCv2.style.display = 'none'; knCv2.style.transform = 'none'; stage.style.display = 'none';
       disposeSlide(cur);
       next.group.scale.set(nsc.x, nsc.y, nsc.z); next.mesh.renderOrder = 1; next.group.visible = true;
       soul.cur = next; soul.i = ni;
