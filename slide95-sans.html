@@ -186,7 +186,7 @@
   #stage.pap { --bg1: #3b1830; --bg2: #0a0408; --line: #ffd23c; --acc: #ffd23c; }
   #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 170px 40px rgba(10, 0, 8, .6); z-index: 2; }
   #stage.pap #deco i.h { background: #ffd23c; } #stage.pap #deco i.b { background: #8a5a7a; }
-  #papBig { position: absolute; left: -4px; top: 262px; width: 268px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; }
+  #papBig { position: absolute; left: -4px; top: 290px; width: 268px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; }
   #papSp { width: 100%; height: 100%; background: url(assets/papyrus-bw-anim.png?v=2) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .667s steps(4) infinite; transform-origin: 50% 100%; }
   @keyframes pbob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
   #papSp.hop { animation: pap .667s steps(4) infinite, pjump .75s ease-out; }
@@ -198,7 +198,7 @@
   #papShelf .sl { width: 62px; height: 62px; border: 4px dashed #8a5a7a; background: rgba(0, 0, 0, .45); display: flex; align-items: center; justify-content: center; }
   #papShelf .sl.on { border-style: solid; border-color: var(--line); }
   #papShelf .sl canvas { width: 44px; height: 44px; image-rendering: pixelated; }
-  #papPot { position: absolute; left: 490px; top: 160px; width: 300px; height: auto; display: none; z-index: 6; pointer-events: none; transform-origin: 50% 90%; }
+  #papPot { position: absolute; left: 490px; top: 160px; width: 300px; height: 300px; background: url(assets/cauldron-px.png?v=1) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .6s steps(4) infinite; display: none; z-index: 6; pointer-events: none; transform-origin: 50% 90%; }
   #papFx .bub { position: absolute; border-radius: 50%; background: #6cc04a; border: 3px solid #3c8a2a; }
   #papFx { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
   #papFx .plate { position: absolute; width: 90px; height: 38px; transform-origin: 50% 50%; filter: drop-shadow(0 4px 0 rgba(0,0,0,.5)); }
@@ -263,7 +263,7 @@
   <img id="gasBig" src="assets/gaster.png" alt="" draggable="false">
   <canvas id="gasCv" style="display:none"></canvas>
   <div id="boxes"><div class="info" id="bxInfo"></div><div id="boxRow"></div></div>
-  <div id="papBig"><div id="papSp"></div></div><div id="papShelf"><div class="lb">INGREDIENTS</div><div class="row"><div class="sl"></div><div class="sl"></div><div class="sl"></div></div></div><img id="papPot" src="assets/cauldron.png?v=1" alt=""><div id="papFx"></div>
+  <div id="papBig"><div id="papSp"></div></div><div id="papShelf"><div class="lb">INGREDIENTS</div><div class="row"><div class="sl"></div><div class="sl"></div><div class="sl"></div></div></div><div id="papPot"></div><div id="papFx"></div>
   <div id="wsBox"><div class="tag" id="wsTag"></div><div class="q" id="wsQ"></div><div class="hintw">PICK THE FRESH INGREDIENT (THE RIGHT WORD)</div><div id="wsCards"></div></div>
   <div id="qa"><div class="tag" id="qTag"></div><div class="q" id="qText"></div><div id="opts"></div><div id="why"></div></div>
   <div id="wheelBox"><canvas id="wheel" width="600" height="600"></canvas><div class="cap" id="wCap">CLICK TO SPIN</div><button id="wX" aria-label="Close"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button></div>
@@ -1058,13 +1058,13 @@
     sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
     const big = $('papBig'), spr = $('papSp'); big.style.display = 'none'; $('papFx').innerHTML = '';
     setX(false); pcandy = 0; hud(false);
-    const CEN = 'translate(510px, -96px) scale(1.75)';                    // vị trí giữa màn hình, to
+    const CEN = 'translate(510px, -124px) scale(1.75)';                    // vị trí giữa màn hình, to
     const hop = () => { spr.classList.remove('hop'); void spr.offsetWidth; spr.classList.add('hop'); };
     await sleep(900); chk(t);                                               // màn hình đen một nhịp
     await fadeIn(400); chk(t);
-    big.style.transform = 'translate(510px, 800px) scale(1.75)'; big.style.display = 'block';
+    big.style.transform = 'translate(510px, 700px) scale(1.75)'; big.style.display = 'block';
     sfx(papNyehBuf);                                                        // Papyrus nhảy vọt lên từ dưới hư không, một lần duy nhất
-    await new Promise((res) => { const a = big.animate([{ transform: 'translate(510px, 800px) scale(1.75)' }, { transform: 'translate(510px, -210px) scale(1.75)', offset: .55 }, { transform: 'translate(510px, -60px) scale(1.75)', offset: .8 }, { transform: CEN }], { duration: 1200, easing: 'ease-out', fill: 'forwards' }); a.onfinish = res; });
+    await new Promise((res) => { const a = big.animate([{ transform: 'translate(510px, 700px) scale(1.75)' }, { transform: 'translate(510px, -238px) scale(1.75)', offset: .55 }, { transform: 'translate(510px, -88px) scale(1.75)', offset: .8 }, { transform: CEN }], { duration: 1200, easing: 'ease-out', fill: 'forwards' }); a.onfinish = res; });
     chk(t); await sleep(300); chk(t);
     await psay(PP.hello, t, 'happy'); chk(t); await psay(PP.rule, t, 'normal'); chk(t); hideDlg();
     // thu nhỏ lại và về góc màn hình rồi bắt đầu trò chơi
