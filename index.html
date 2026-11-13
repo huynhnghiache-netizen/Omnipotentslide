@@ -400,7 +400,9 @@
     function musicRefresh() { audApply(MUSIC); if (musicWant) { if (MUS.on && AUD.on && AUD.vol > 0 && MUS.vol > 0) { try { MUSIC.play().catch(() => {}); } catch (e) {} } else { try { MUSIC.pause(); } catch (e) {} } } }
 
     const AMB = { ctx: null, master: null, noise: null, scene: null, cur: -1, doneAt: 0 };
-    function ambVol() { if (AMB.master) AMB.master.gain.value = AUD.on ? AUD.vol / 100 * 0.6 : 0; }
+    const BG = { on: true, vol: 100 };                                           // âm thanh nền của chế độ tim xanh (ambient từng slide + nhạc kết slide 10)
+    try { if (localStorage.getItem('bgOn') === '0') BG.on = false; const v = parseInt(localStorage.getItem('bgVol'), 10); if (v >= 0 && v <= 100) BG.vol = v; } catch (e) {}
+    function ambVol() { if (AMB.master) AMB.master.gain.value = AUD.on && BG.on ? AUD.vol / 100 * BG.vol / 100 * 0.6 : 0; }
     function ambCtx() {
       if (!AMB.ctx) {
         try {
@@ -1415,7 +1417,7 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261112b' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed', 6: 'slide7-anim.html?embed', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261113a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
@@ -1801,6 +1803,17 @@
     musRange.addEventListener('input', () => { MUS.vol = +musRange.value; musicRefresh(); musRefreshUI(); musSave(); });
     musToggle.addEventListener('click', (e) => { e.stopPropagation(); MUS.on = !MUS.on; musicRefresh(); musRefreshUI(); musSave(); });
     musRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
+    // Âm thanh nền (chỉ trong bảng của chế độ tim xanh): ON/OFF + 0-100%
+    const bgRow = document.createElement('div'); bgRow.className = 'sans-row snd-row';
+    bgRow.innerHTML = '<div class="sr-top"><span>BACKGROUND</span><span><button id="bgToggle" class="snd-toggle" type="button"></button> <span class="sr-val" id="bgVal"></span></span></div><input id="bgRange" type="range" min="0" max="100" step="1" aria-label="Background sound volume">';
+    settingsBox.appendChild(bgRow);
+    const bgRange = bgRow.querySelector('#bgRange'), bgVal = bgRow.querySelector('#bgVal'), bgToggle = bgRow.querySelector('#bgToggle');
+    function bgRefreshUI() { bgRange.value = BG.vol; bgVal.textContent = BG.vol + '%'; bgToggle.textContent = BG.on ? 'ON' : 'OFF'; bgToggle.classList.toggle('off', !BG.on); bgRange.style.opacity = BG.on ? '1' : '0.4'; }
+    function bgSave() { try { localStorage.setItem('bgOn', BG.on ? '1' : '0'); localStorage.setItem('bgVol', String(BG.vol)); } catch (e) {} }
+    bgRefreshUI();
+    bgRange.addEventListener('input', () => { BG.vol = +bgRange.value; ambVol(); bgRefreshUI(); bgSave(); });
+    bgToggle.addEventListener('click', (e) => { e.stopPropagation(); BG.on = !BG.on; ambVol(); bgRefreshUI(); bgSave(); });
+    bgRange.addEventListener('keydown', (e) => { if (e.key !== 'Escape') e.stopPropagation(); });
     let settingsFrom = 'grid';
     function openSettings(from) {
       from = from || 'grid';
@@ -1811,6 +1824,7 @@
       sndRow.style.display = '';
       redRow.style.display = from === 'soul' ? 'none' : '';
       musRow.style.display = from === 'soul' ? 'none' : '';
+      bgRow.style.display = from === 'soul' ? '' : 'none';
       sansRow.style.display = from === 'soul' ? 'none' : '';      // thanh tỉ lệ Sans chỉ nằm ở bảng Settings của màn danh sách, không hiện trong chế độ tim xanh
       settingsTitle.textContent = from === 'soul' ? 'GO TO SLIDE' : 'SETTINGS';
       if (from === 'soul') {                      // chế độ tim xanh: danh sách 10 slide để nhảy nhanh

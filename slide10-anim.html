@@ -519,8 +519,8 @@
   // ================= ÂM LƯỢNG (đọc từ cài đặt của trang chính) =================
   function vol() {
     try {
-      const on = localStorage.getItem('sndOn') !== '0', mo = localStorage.getItem('musOn') !== '0', sv = parseInt(localStorage.getItem('sndVol'), 10), mv = parseInt(localStorage.getItem('musVol'), 10);
-      if (!on || !mo) return 0; return ((isNaN(sv) ? 100 : sv) / 100) * ((isNaN(mv) ? 100 : mv) / 100);
+      const on = localStorage.getItem('sndOn') !== '0', bo = localStorage.getItem('bgOn') !== '0', sv = parseInt(localStorage.getItem('sndVol'), 10), bv = parseInt(localStorage.getItem('bgVol'), 10);   // nhạc kết = âm thanh nền của chế độ tim xanh
+      if (!on || !bo) return 0; return ((isNaN(sv) ? 100 : sv) / 100) * ((isNaN(bv) ? 100 : bv) / 100);
     } catch (e) { return 1; }
   }
 
@@ -547,6 +547,7 @@
     else if (phase === 'tap') drawTap();
     else if (phase === 'play' && silent) { tClock += dt; if (tClock >= DUR) startOff(); else render(tClock, now); }   // nhạc không tải được: vẫn chạy cảnh đúng giờ, im lặng
     else if (phase === 'play') {
+      { const vv = vol(); audio.volume = Math.min(1, vv * .95); audio.muted = vv === 0; }                  // đổi âm lượng nền ngay khi đang phát
       if (!audio.paused && audio.readyState >= 3) tClock += dt;
       const at = audio.currentTime, err = at - tClock; if (Math.abs(err) > .12) tClock = at; else tClock += err * .1;
       if (audio.ended || at >= DUR - .08) startOff(); else render(tClock, now);
