@@ -220,7 +220,7 @@
   #wsCards .card.fresh { background: #5dff7a; color: #08240f; border-color: #fff; box-shadow: 0 0 24px #5dff7a; animation: cfresh .5s steps(2) 2; }
   @keyframes cfresh { 50% { transform: scale(1.08) } }
   #wsCards .card.rot { background: #1c200a; border-style: dashed; border-color: #8a9b3c; color: #9fae4a; }
-  #wsCards .card.rot canvas { filter: sepia(.9) hue-rotate(35deg) saturate(1.8) brightness(.55); animation: crot .4s steps(2) infinite; }
+  #wsCards .card.rot canvas { animation: crot .4s steps(2) infinite; }
   @keyframes crot { 50% { transform: translateY(2px) rotate(3deg) } }
   #wsCards .card.rot::before { content: '~ ~ ~'; position: absolute; top: -14px; left: 0; right: 0; text-align: center; color: #9fae4a; letter-spacing: 6px; animation: stink 1s linear infinite; }
   @keyframes stink { from { transform: translateY(8px); opacity: 1 } to { transform: translateY(-10px); opacity: 0 } }
@@ -958,6 +958,26 @@
     ING[k % ING.length].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '.') return; const pc = ING_COL[k % ING_COL.length]; g.fillStyle = ch === 'W' ? pc[0] : ch === 'G' ? pc[1] : pc[2]; g.fillRect(x, y, 1, 1); }));
     return c;
   }
+  // phiên bản THỐI RỮA của cùng nguyên liệu: màu nâu xanh úa, đốm mốc, vết thâm, ruồi bay quanh
+  const ROT_COL = [['#6b6b2a', '#4a4a1c', '#2b2f12'], ['#7a5a22', '#563b14', '#2b2f12'], ['#8a8468', '#5c563c', '#3a3320'], ['#7d7a24', '#57541a', '#33320f'], ['#6c5d73', '#493d4f', '#2b2f12'], ['#8a7a50', '#5e5233', '#3a3320']];
+  function ingRotCv(k) {
+    const c = document.createElement('canvas'); c.width = 8; c.height = 8; const g = c.getContext('2d'), n = k % ING.length, pc = ROT_COL[n % ROT_COL.length];
+    ING[n].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '.') return; g.fillStyle = ch === 'W' ? pc[0] : ch === 'G' ? pc[1] : pc[2]; g.fillRect(x, y, 1, 1); }));
+    const d = g.getImageData(0, 0, 8, 8).data, on = (x, y) => x >= 0 && y >= 0 && x < 8 && y < 8 && d[(y * 8 + x) * 4 + 3] > 0;
+    let seed = 7 + k * 13; const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { if (!on(x, y)) continue; const q = rnd();
+      if (q < 0.17) { g.fillStyle = '#8fd13a'; g.fillRect(x, y, 1, 1); }          // mốc xanh
+      else if (q < 0.27) { g.fillStyle = '#d7e0c4'; g.fillRect(x, y, 1, 1); }     // mốc trắng
+      else if (q < 0.4) { g.fillStyle = '#1a1c0a'; g.fillRect(x, y, 1, 1); } }    // vết thâm đen
+    for (let x = 0; x < 8; x++) { let ly = -1; for (let y = 0; y < 8; y++) if (on(x, y)) ly = y; if (ly >= 0 && ly < 7 && rnd() < 0.35) { g.fillStyle = '#7c8a1e'; g.fillRect(x, ly + 1, 1, 1); } }   // dịch chảy xuống
+    g.fillStyle = '#111'; [[0, 0], [7, 1], [0, 6]].forEach(([x, y]) => { if (!on(x, y)) g.fillRect(x, y, 1, 1); });   // ruồi
+    return c;
+  }
+  function rotSwap(btn, ic) {
+    const old = btn.querySelector('canvas'); if (!old || btn.dataset.rotted) return; btn.dataset.rotted = '1';
+    const c = ingRotCv(ic); old.replaceWith(c);
+    c.animate([{ transform: 'scale(1.35) rotate(-10deg)' }, { transform: 'scale(.95) rotate(6deg)' }, { transform: 'scale(1) rotate(0)' }], { duration: 380, easing: 'ease-out' });
+  }
   function plateSvg() { return '<svg viewBox="0 0 90 38"><ellipse cx="45" cy="28" rx="42" ry="9" fill="#e9e4da" stroke="#07030f" stroke-width="3"/><ellipse cx="45" cy="26" rx="30" ry="6" fill="#cfc8ba"/><path d="M18 24Q22 6 45 6Q68 6 72 24Q60 30 45 30Q30 30 18 24Z" fill="#ffcf4a" stroke="#07030f" stroke-width="3"/><path d="M28 20Q45 10 62 20M32 14Q45 8 58 14" stroke="#e2a31c" stroke-width="3" fill="none"/><circle cx="45" cy="11" r="5" fill="#e63b2e" stroke="#07030f" stroke-width="2"/></svg>'; }
   function papCleanup() {
     $('papBig').style.display = 'none'; $('papBig').getAnimations().forEach((a) => a.cancel()); $('papFx').innerHTML = ''; $('papShelf').style.display = 'none'; $('papPot').style.display = 'none'; $('wsBox').style.display = 'none';
@@ -1046,6 +1066,7 @@
         btns[i].classList.add(o.ok ? 'fresh' : 'rot');
         if (!o.ok) { const g = list.findIndex((x) => x.ok); btns[g].classList.add('fresh'); }
         btns.forEach((b, k) => { if (!b.classList.contains('fresh') && !b.classList.contains('rot')) b.classList.add('dim'); });
+        list.forEach((q, k) => { if (!q.ok) rotSwap(btns[k], q.ic); });                  // đáp án sai: hiện nguyên liệu thối rữa
         resolve({ ok: o.ok, ic: o.ic, el: btns[i], word: o.t });
       }));
     });
