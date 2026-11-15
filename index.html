@@ -2800,7 +2800,7 @@
           if (tc >= 0) {
             top = topEnd; rot = -(90 - 64) * eo(cl(tc / 0.18));
             const slide = eo(cl(tc / 0.7)) * 0.2 * H; ox = dx * slide; oy = dy * slide;
-            if (tc > 1.0) oy -= eio(cl((tc - 1.0) / 0.7)) * (topEnd + h2 + 160);
+            if (tc > 1.35) oy -= eio(cl((tc - 1.35) / 0.7)) * (topEnd + h2 + 160);
           }
           knCv2.style.top = top + 'px'; knCv2.style.transform = 'translate(' + ox + 'px,' + oy + 'px) rotate(' + rot + 'deg)';
           if (tc >= 0) { const z = 0.95 + 0.05 * eo(cl(tc / 1.2)); next.group.scale.set(nsc.x * z, nsc.y * z, nsc.z); ghosts.push({ t: tc, ox, oy, rot, top }); if (ghosts.length > 26) ghosts.shift(); }
@@ -2818,7 +2818,7 @@
             if (ghosts.length > 3) {
               gSx.clearRect(0, 0, w2, h2); gSx.save(); gSx.shadowColor = '#fff'; gSx.shadowBlur = 5; gSx.drawImage(knCv2, 0, 0, w2, h2); gSx.restore();
               for (let k = 0; k < ghosts.length - 3; k += 4) {
-                const gh = ghosts[k], age = tc - gh.t, al = 0.6 * (1 - age / 0.7) * (1 - sm((tc - 1.0) / 0.5)); if (al <= 0.02) continue;
+                const gh = ghosts[k], age = tc - gh.t, al = 0.6 * (1 - age / 0.7) * (1 - sm((tc - 1.35) / 0.5)); if (al <= 0.02) continue;
                 g.save(); g.globalAlpha = al; g.translate(cx + gh.ox, gh.top + h2 * 0.4 + gh.oy); g.rotate(gh.rot * Math.PI / 180); g.translate(-w2 / 2, -h2 * 0.4); g.drawImage(gSp, 0, 0); g.restore();
               }
             }
@@ -2838,7 +2838,7 @@
             const lA = sm(t / 0.5);
             for (const l of leaves) { l.x += l.vx * dt; l.y += l.vy * dt; l.a += l.va * dt; if (l.y > H + 20) { l.y = -20; l.x = Math.random() * W; } g.save(); g.globalAlpha = lA * 0.9; g.translate(l.x, l.y); g.rotate(l.a); g.fillStyle = '#fff'; g.beginPath(); g.moveTo(0, -l.r); g.lineTo(l.r * 0.8, l.r * 0.7); g.lineTo(-l.r * 0.2, l.r * 0.35); g.lineTo(-l.r * 0.8, l.r * 0.7); g.closePath(); g.fill(); g.restore(); }
           }
-          if (tc >= 2.0) res(); else requestAnimationFrame(loop);
+          if (tc >= 2.15) res(); else requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
       });
