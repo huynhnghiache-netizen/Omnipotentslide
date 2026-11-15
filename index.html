@@ -295,8 +295,7 @@
         <button id="heartBtn" class="tool heart" type="button" aria-label="Soul"></button>
       </div>
       <header class="grid-head">
-        <h2>SELECT A SLIDE<span class="cursor">_</span></h2>
-        <span>CLICK TO SLASH · BACKSPACE TO EXIT</span>
+        <h2>SLIDE SELECTION<span class="cursor">_</span></h2>
       </header>
       <div id="cards" class="cards"></div>
     </div>
@@ -1893,7 +1892,7 @@
     }
     function applyLayout(fade) {
       gridEl.classList.toggle('float', gridFloat);
-      const hint = gridEl.querySelector('.grid-head span:last-child'); if (hint) hint.textContent = gridFloat ? 'CLICK TO ENTER · BACKSPACE TO EXIT' : 'CLICK TO SLASH · BACKSPACE TO EXIT';
+
       if (!gridFloat) { gsap.killTweensOf(cards); gsap.set(cards, { clearProps: 'transform,translate,rotate,scale,opacity,visibility' }); cards.forEach((c) => Object.assign(c.style, { width: '', height: '', left: '', top: '' })); dead.clear(); }
       if (gridFloat) layoutFloat();
       drawLayoutIcon();
