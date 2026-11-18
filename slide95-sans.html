@@ -107,6 +107,8 @@
   #boxRow .bx.other { opacity: .62; }
   #boxRow .bx .lbl { position: absolute; left: 0; right: 0; bottom: -24px; text-align: center; color: var(--acc); opacity: 0; transition: opacity .4s; font-size: 14px; }
   #boxRow .bx.open .lbl { opacity: 1; }
+  #boxRow .bx .num { position: absolute; left: 50%; top: -34px; transform: translateX(-50%); font: 22px 'Press Start 2P', monospace; color: #fff; text-shadow: 3px 3px 0 #000; z-index: 4; pointer-events: none; }
+  #boxRow .bx.pick .num { color: #c9a8ff; }
   #boxRow .bx .glow { position: absolute; left: 50%; top: 18px; width: 340px; height: 340px; margin: -170px 0 0 -170px; pointer-events: none; opacity: 0; mix-blend-mode: screen; z-index: 0;
     background: radial-gradient(circle, rgba(255,245,255,.95) 0, rgba(190,150,255,.55) 22%, rgba(141,99,255,0) 62%), repeating-conic-gradient(rgba(255,255,255,.32) 0 5deg, transparent 5deg 18deg);
     -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 68%); mask-image: radial-gradient(circle, #000 25%, transparent 68%);
@@ -844,7 +846,7 @@
     // ---- 5 rương ----
     showPanel('boxes'); $('bxInfo').innerHTML = 'CHOOSE ONE CHEST';
     const prizes = shuffle([1, 1, 2, 2, 3]), row = $('boxRow'); row.innerHTML = '';
-    const boxes = prizes.map((pz, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bx'; b.innerHTML = CHEST + '<div class="lbl">x' + pz + '</div>'; row.appendChild(b); return b; });
+    const boxes = prizes.map((pz, i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bx'; b.innerHTML = '<div class="num">' + (i + 1) + '</div>' + CHEST + '<div class="lbl">x' + pz + '</div>'; row.appendChild(b); return b; });
     const idx = await new Promise((res) => boxes.forEach((b, i) => b.addEventListener('click', () => res(i), { once: true })));
     chk(t);
     const openChest = (i, pickd) => {
