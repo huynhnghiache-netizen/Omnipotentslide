@@ -42,8 +42,8 @@ img.photo { object-fit: cover; }
         clip-path: polygon(0 8%, 4% 0, 9% 10%, 14% 0, 20% 9%, 100% 0, 96% 20%, 100% 44%, 95% 62%, 100% 86%, 100% 100%, 0 100%, 3% 70%, 0 46%, 4% 24%); }
 
 /* ===== 1. Tiêu đề ===== */
-.s1 h1 { left: 52px; top: 226px; width: 585px; font: 400 88px/1.14 var(--serif); color: var(--ink); }
-.s1 .rule { left: 54px; right: auto; width: 560px; top: 577px; }
+.s1 h1 { left: 52px; top: 216px; width: 640px; font: 400 98px/1.12 var(--serif); color: var(--ink); }
+.s1 .rule { left: 54px; right: auto; width: 604px; top: 577px; }
 .s1 .subtitle { left: 57px; top: 606px; font: 400 36px/1.2 var(--serif); color: var(--ink); }
 .s1 .photo { left: 697px; top: 38px; width: 801px; height: 788px; box-shadow: none; }
 
@@ -61,8 +61,8 @@ img.photo { object-fit: cover; }
 
 /* ===== 3 - 7: tiêu đề + 2 thẻ trái + ảnh phải ===== */
 .s3 .title { top: 50px; font-size: 90px; }  .s3 .rule { top: 177px; right: auto; width: 592px; }
-.s3 .c1 { left: 66px; top: 212px; width: 530px; height: 298px; }
-.s3 .c2 { left: 66px; top: 532px; width: 530px; height: 288px; }
+.s3 .c1 { left: 66px; top: 212px; width: 550px; height: 298px; }
+.s3 .c2 { left: 66px; top: 532px; width: 550px; height: 288px; }
 .s3 .pic { left: 670px; top: 230px; width: 822px; height: 518px; transform-origin: 50% 0; }
 .pic .photo { position: absolute; inset: 0; box-shadow: 0 8px 20px rgba(60,30,10,.25); }
 .ptape { position: absolute; image-rendering: pixelated; width: 120px; height: 40px; }
@@ -81,11 +81,10 @@ img.photo { object-fit: cover; }
 
 .s5 .title { top: 46px; font-size: 96px; }
 .s5 .rule { top: 177px; right: 66px; }
-.s5 .c1 { left: 66px; top: 222px; width: 505px; height: 288px; }
-.s5 .c2 { left: 66px; top: 525px; width: 505px; height: 278px; }
+.s5 .c1 { left: 66px; top: 222px; width: 510px; height: 288px; }
+.s5 .c2 { left: 66px; top: 525px; width: 510px; height: 278px; }
 .s5 .photo { left: 603px; top: 200px; width: 875px; height: 608px; }
-.s5 .card p { max-width: 350px; }
-.s5 .card h3 { font-size: 40px; }
+.s5 .card p { max-width: 360px; }
 
 .s6 .title { top: 58px; font-size: 94px; left: 68px; }
 .s6 .rule { top: 171px; left: 68px; right: 56px; }
