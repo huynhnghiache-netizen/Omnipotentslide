@@ -2797,8 +2797,9 @@
           // Hiệp sĩ: bay xuống (có nhún); khi chém thì nghiêng theo đường chém, trượt xuống theo nó, sau đó bay lên
           let ox = 0, oy = 0, rot = 0, top = topEnd - (1 - eo(Math.min(1, t / 0.85))) * (topEnd + h2 + 20) + (tc < 0 && t > 0.85 ? Math.sin((t - 0.85) * 5) * 7 : 0);
           if (tc >= 0) {
-            top = topEnd; rot = -(90 - 64) * eo(cl(tc / 0.18));
-            const slide = eo(cl(tc / 0.7)) * 0.2 * H; ox = dx * slide; oy = dy * slide;
+            top = topEnd; const back = 1 - eo(cl((tc - 0.8) / 0.4));                // sau nhát chém: nghiêng + trượt, rồi đứng thẳng lại ở giữa
+            rot = -(90 - 64) * eo(cl(tc / 0.18)) * back;
+            const slide = eo(cl(tc / 0.7)) * 0.2 * H * back; ox = dx * slide; oy = dy * slide;
             if (tc > 1.35) oy -= eio(cl((tc - 1.35) / 0.7)) * (topEnd + h2 + 160);
           }
           knCv2.style.top = top + 'px'; knCv2.style.transform = 'translate(' + ox + 'px,' + oy + 'px) rotate(' + rot + 'deg)';
