@@ -1418,7 +1418,8 @@
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
     const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261113a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
-    const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : slideImages[i];   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
+    const START_IMG = { 3: 'slide4-s.webp?v=1118', 4: 'slide5-s.webp?v=1118', 5: 'slide6-s.webp?v=1118', 6: 'slide7-s.webp?v=1118', 7: 'slide8-s.webp?v=1118', 8: 'slide9-s.webp?v=1118' };   // khung ĐẦU của hoạt ảnh: ảnh tĩnh lúc vào slide khớp với khung đầu của iframe -> không bị giật khi hoạt ảnh bắt đầu
+    const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : (START_IMG[i] || slideImages[i]);   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
     // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
@@ -3042,6 +3043,7 @@
       const tasks = [];
       tasks.push(['Fonts', font("16px 'Press Start 2P'", 'font1')], ['Fonts', font("700 20px Tinos", 'font2')], ['Fonts', font("400 20px 'Public Sans'", 'font3')]);
       slideImages.forEach((p, i) => tasks.push(['Slide ' + (i + 1), img(p)]));
+      Object.values(START_IMG).forEach((p) => tasks.push(['Slide', img(p)]));
       ['anim-blank.png', 'watch.png', 'spear.png', 'blaster.png', 'sans-cut.png', 'sans-hurt.png', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
