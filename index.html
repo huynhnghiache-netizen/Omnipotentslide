@@ -2357,7 +2357,11 @@
       if (quiz.on) return;
       if (dir > 0 && soul.i === 8) { startQuiz(); return; }
       const ni = soul.i + dir;
-      if (ni < 0 || ni >= slideImages.length) return;       // slide đầu / cuối: không có tác dụng, chỉ tim đỏ ở góc mới thoát được
+      if (dir > 0 && ni >= slideImages.length) {                // click ở slide cuối khi nhạc chưa hết: báo hết pin ngay (iframe chỉ nhận khi đang chạy cảnh, không nhận lúc chờ bấm/tải)
+        try { anim3.contentWindow.postMessage({ type: 'force-off' }, '*'); } catch (e) { }
+        return;
+      }
+      if (ni < 0 || ni >= slideImages.length) return;       // slide đầu: không có tác dụng, chỉ tim đỏ ở góc mới thoát được
       view = 'busy';
       if (ANIM_SRC[soul.i]) hideAnim3Now();
       if (dir > 0 && soul.i === 7) { await knightSlash(ni); view = 'soul'; return; }          // slide 8 -> 9: Hiệp sĩ bay xuống chém chéo
@@ -3151,12 +3155,12 @@
     }
     const isPwrKey = (k) => k === 'r' || k === 'R';
     ['click', 'dblclick', 'pointerup', 'mousedown', 'mouseup', 'touchend', 'contextmenu', 'wheel'].forEach((ev) => window.addEventListener(ev, (e) => { if (PWR.off) e.stopPropagation(); }, true));
-    window.addEventListener('pointerdown', (e) => {                      // máy cảm ứng không có bàn phím: chạm liên tiếp 5 lần ở góc trên trái màn đen thì bật lại (không hiện chữ gì)
+    window.addEventListener('pointerdown', (e) => {                      // máy cảm ứng không có bàn phím: chạm liên tiếp 5 lần trên màn đen thì bật lại (không hiện chữ gì)
       if (!PWR.off) return;
       e.stopPropagation();
       if (!(window.matchMedia && matchMedia('(pointer: coarse)').matches)) return;
       const now = performance.now(); PWR.taps = PWR.taps.filter((t) => now - t < 3000);
-      if (e.clientX < innerWidth * 0.2 && e.clientY < innerHeight * 0.2) PWR.taps.push(now); else PWR.taps = [];
+      PWR.taps.push(now);                                  // chạm 5 lần liên tiếp ở bất kỳ đâu
       if (PWR.taps.length >= 5) powerOn();
     }, true);
     window.addEventListener('keydown', (e) => {

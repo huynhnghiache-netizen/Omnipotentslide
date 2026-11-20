@@ -412,6 +412,7 @@
     ['THE MORAL SUPPORT', ['Papyrus', 'Yoda', 'Baby Yoda', 'Gaster']],
     ['THE REAL PRESENTERS', ['Sans', 'Gaster', 'Chara', 'Papyrus', 'Undyne']]
   ];
+  const NAMES = [...new Set(GROUPS.flatMap((g) => g[1]))];                         // tất cả tên, bỏ tên nhóm, bỏ trùng
   const SERIF = '"Tinos", Georgia, "Times New Roman", serif';
   function spaced(txt, x, y, sp, align) {
     let w = 0; for (const ch of txt) w += ctx.measureText(ch).width + sp; w -= sp; let px = align === 'center' ? x - w / 2 : x;
@@ -472,26 +473,19 @@
     }
   }
   function drawCredits(t, u, portrait, md) {
-    const x0 = portrait ? W * .08 : W * .56, x1 = portrait ? W * .92 : W * .95, y0 = portrait ? H * .46 : H * .06, y1 = portrait ? H * .96 : H * .94, cx = (x0 + x1) / 2, fs = Math.round(clamp(md * .034, 14, 30));
-    const gapName = fs * 1.5, blockGap = fs * 3.2, titleH = fs * 2.4;
-    const heights = GROUPS.map((g) => titleH + g[1].length * gapName + blockGap), total = heights.reduce((a, b) => a + b, 0);
+    // chỉ một danh sách tên (không chia nhóm), xếp thành hàng dọc, cách nhau thoáng, cuộn lên và lặp lại
+    const x0 = portrait ? W * .08 : W * .56, x1 = portrait ? W * .92 : W * .95, y0 = portrait ? H * .46 : H * .06, y1 = portrait ? H * .96 : H * .94, cx = (x0 + x1) / 2, fs = Math.round(clamp(md * .036, 15, 32));
+    const gap = fs * 2.3, total = NAMES.length * gap;
     const start = TD + 3.4, a0 = clamp((u - 3.4) / 1.2, 0, 1); if (a0 <= 0) return;
-    const speed = fs * 2.3, scroll = Math.max(0, t - start) * speed;
-    ctx.save(); ctx.textAlign = 'center';
-    const baseY = y1 - scroll;                                                               // chữ đầu tiên đi lên từ đáy
-    let py = baseY, idx = 0;
-    while (py < y1 + total) {                                                               // lặp vô hạn
-      const g = GROUPS[idx % GROUPS.length], h = heights[idx % GROUPS.length];
-      const draw = (yy, txt, kind) => {
-        if (yy < y0 - 40 || yy > y1 + 10) return; const fade = smooth((yy - y0) / (md * .12)) * smooth((y1 - yy) / (md * .1));
-        ctx.globalAlpha = fade * a0; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8;
-        if (kind === 'title') { ctx.font = '700 ' + Math.round(fs * .95) + 'px ' + SERIF; ctx.fillStyle = '#ffe2b0'; spaced(txt, cx, yy, fs * .18, 'center'); }
-        else { ctx.font = '400 ' + fs + 'px ' + SERIF; ctx.fillStyle = '#fff'; ctx.fillText('—  ' + txt + '  —', cx, yy); }
-      };
-      draw(py, g[0], 'title');
-      if (py > y0 - 40 && py < y1 + 10) { const fade = smooth((py - y0) / (md * .12)) * smooth((y1 - py) / (md * .1)); ctx.globalAlpha = fade * a0; ctx.fillStyle = 'rgba(255,226,176,.7)'; const w = Math.min((x1 - x0) * .7, fs * 14); ctx.fillRect(cx - w / 2, py + fs * .55, w, 1.5); }
-      g[1].forEach((n, k) => draw(py + titleH + k * gapName, n, 'name'));
-      py += h; idx++; if (idx > 400) break;
+    const scroll = Math.max(0, t - start) * fs * 2.3;
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = '400 ' + fs + 'px ' + SERIF; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8;
+    const n = Math.ceil((y1 - y0) / gap) + 2;
+    const first = Math.floor(scroll / gap);
+    for (let k = first - 1; k < first + n + (total < (y1 - y0) ? 0 : 0) + 2; k++) {
+      const yy = y1 - scroll + k * gap; if (yy < y0 - 40 || yy > y1 + 10) continue;
+      const nm = NAMES[((k % NAMES.length) + NAMES.length) % NAMES.length];
+      ctx.globalAlpha = smooth((yy - y0) / (md * .12)) * smooth((y1 - yy) / (md * .1)) * a0;
+      ctx.fillText(nm, cx, yy);
     }
     ctx.restore();
   }
@@ -565,6 +559,7 @@
     if (p && p.then) p.then(okPlay).catch(noPlay); else okPlay();
   }
   addEventListener('pointerdown', () => { if (phase === 'tap') tryPlay(); });
+  addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'force-off' && phase === 'play') startOff(); });          // người xem bấm khi nhạc chưa hết: báo hết pin ngay
   addEventListener('message', (ev) => { if (ev.data && (ev.data.type === 'finale' || ev.data.type === 'go') && phase === 'tap') tryPlay(); });
   addEventListener('pagehide', () => { try { audio && audio.pause(); } catch (e) {} });
 
