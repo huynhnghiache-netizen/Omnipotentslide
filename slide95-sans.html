@@ -30,8 +30,13 @@
   .ib:hover { border-color: var(--acc); transform: translateY(-2px); }
   .ib:active { transform: translateY(2px); }
   #bPrev { left: 18px; } #bNext { left: 78px; } #bReset { left: 154px; }
-  #bX { right: 18px; top: 84px; border-color: #ff3344; display: none; }
+  #bX { left: 214px; top: 18px; border-color: #ff3344; display: none; }                 /* nút thoát nằm cạnh RESET (bên trái), không còn trùng chỗ nút bánh răng của trang chính ở góc phải */
   #bX svg path { stroke: #ff3344; }
+  .hl { font-weight: normal; animation: hlp 1.1s steps(2) infinite; }
+  .hl.b { color: #5cc8ff; text-shadow: 0 0 8px #1f8fff, 0 0 18px rgba(31,143,255,.7); }
+  .hl.r { color: #ff5a5a; text-shadow: 0 0 8px #ff1f1f, 0 0 18px rgba(255,31,31,.7); }
+  .hl.p { color: #ffa030; text-shadow: 0 0 8px #ff7a00, 0 0 18px rgba(255,122,0,.7); }
+  @keyframes hlp { 0% { filter: brightness(1) } 50% { filter: brightness(1.35) } 100% { filter: brightness(1) } }
   .tip { position: absolute; top: 72px; font: 8px 'Press Start 2P', monospace; color: rgba(255,255,255,.45); letter-spacing: 1px; pointer-events: none; }
 
   /* Sans */
@@ -52,7 +57,7 @@
   #dlg .who { position: absolute; top: -17px; left: 22px; background: #000; padding: 0 10px; font-size: 12px; color: var(--acc); }
   #dlg .nxt { position: absolute; right: 14px; bottom: 8px; font-size: 12px; animation: blink 1s steps(1) infinite; color: var(--acc); }
   @keyframes blink { 50% { opacity: 0 } }
-  #dtrans { position: absolute; left: 132px; right: 60px; bottom: 12px; font: italic 14px/1.3 'Courier New', monospace; color: #b8a0ff; opacity: 0; transition: opacity .5s; letter-spacing: 0; }
+  #dtrans { position: absolute; left: 132px; right: 60px; bottom: 10px; font: italic bold 22px/1.3 'Courier New', monospace; text-shadow: 0 0 10px rgba(141,99,255,.55); color: #b8a0ff; opacity: 0; transition: opacity .5s; letter-spacing: 0; }
 
   /* màn chọn nhân vật */
   #sel { position: absolute; inset: 0; display: none; }
@@ -461,17 +466,30 @@
   // ===== khung thoại (gõ chữ, bấm để tiếp) =====
   const dlg = $('dlg'), dtxt = $('dtxt');
   let typing = null;
-  function say(text, t, trans) {
+  // Cụm chữ quan trọng: [[b:chữ]] xanh (Sans), [[r:chữ]] đỏ (Sans), [[p:chữ]] cam (Papyrus). Gaster không dùng.
+  function hlParse(src) {
+    const rg = [], re = /\[\[([brp]):(.*?)\]\]/g; let plain = '', last = 0, m;
+    while ((m = re.exec(src))) { plain += src.slice(last, m.index); rg.push([plain.length, plain.length + m[2].length, m[1]]); plain += m[2]; last = re.lastIndex; }
+    plain += src.slice(last); return { plain, rg };
+  }
+  const esc = (x) => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function hlHtml(plain, rg, n) {                    // n = số ký tự đã gõ
+    let out = '', pos = 0;
+    for (const [a, b, c] of rg) { if (a >= n) break; out += esc(plain.slice(pos, a)) + '<span class="hl ' + c + '">' + esc(plain.slice(a, Math.min(b, n))) + '</span>'; pos = Math.min(b, n); if (pos < b) return out; }
+    return out + esc(plain.slice(pos, n));
+  }
+  function say(src, t, trans) {
+    const { plain: text, rg } = hlParse(src);
     return new Promise((res, rej) => {
       const tr = $('dtrans'); tr.style.opacity = '0'; tr.textContent = trans ? '(' + trans + ')' : '';
       const showTr = () => { if (trans) tr.style.opacity = '1'; };
       dlg.style.display = 'block'; dtxt.textContent = ''; dlg.querySelector('.nxt').style.visibility = 'hidden';
       let i = 0, done = false, timer = 0;
-      const fin = () => { done = true; clearTimeout(timer); voiceStop(); dtxt.textContent = text; dlg.querySelector('.nxt').style.visibility = 'visible'; showTr(); };
+      const fin = () => { done = true; clearTimeout(timer); voiceStop(); dtxt.innerHTML = hlHtml(text, rg, text.length); dlg.querySelector('.nxt').style.visibility = 'visible'; showTr(); };
       const delayFor = (ch) => (ch === ',' ? 230 : /[.?!]/.test(ch) ? 330 : ch === ' ' ? 55 : 46);
       const step = () => {
         if (!alive(t)) { voiceStop(); rej(new Cancel()); return; }
-        const ch = text[i++]; dtxt.textContent = text.slice(0, i); voiceChar(ch);
+        const ch = text[i++]; dtxt.innerHTML = hlHtml(text, rg, i); voiceChar(ch);
         if (i >= text.length) { done = true; dlg.querySelector('.nxt').style.visibility = 'visible'; showTr(); return; }
         timer = setTimeout(step, delayFor(ch));
       };
@@ -593,7 +611,7 @@
         selStage = 1; $('hint').style.display = 'none';
         unlock(); setMusic('select');                         // bấm vào Sans lần đầu thì nhạc mới bắt đầu
         show('sel', 'normal');                                // Sans tỉnh giấc
-        await say('huh? do you want to challenge me?', t);
+        await say('huh? do you want to [[r:challenge me]]?', t);
         $('hint').textContent = 'CLICK SANS AGAIN'; $('hint').style.display = 'block'; hideDlg();
         selStage = 1.5;
       } else if (selStage === 1.5) {
@@ -718,27 +736,27 @@
     await sleep(700); chk(t);
     if (!r1.ok) {
       showWhy(r1);
-      await say('heh. nope. better luck next time, kid.', t); hideDlg();
+      await say('heh. nope. [[r:better luck next time]], kid.', t); hideDlg();
       await showSummary(t, 'BETTER LUCK NEXT TIME', 'lost', candies);
       await finish('lost', t); return;
     }
     prefetchHard();
-    await say('hehh, not bad. time to spin the wheel!', t); hideDlg();
+    await say('hehh, not bad. time to [[b:spin the wheel]]!', t); hideDlg();
     // ---- Vòng quay ----
     setX(true);
     const got = await wheelGame(t); chk(t);
     cancelAnimationFrame(wheelRaf);
     showPanel('qa'); $('qa').style.display = 'none';          // đóng vòng quay, hiện lại Sans
     show('small', 'shrug');                                    // Sans đổi dáng "whoops"
-    await say('whoops... my bad. mechanical issues, ya know?', t); hideDlg();
+    await say('whoops... my bad. [[r:mechanical issues]], ya know?', t); hideDlg();
     show('q', 'normal');                                       // quay lại model ban đầu
     candies = got; save(); hud(true);
     // ---- Kèo cược ----
     showPanel('gamble');
     $('gInfo').innerHTML = 'DOUBLE YOUR CANDIES<br>IF YOU BEAT QUESTION 2?<br><span style="color:#ff4455">LOSE 1 IF YOU FAIL.</span>';
     $('gamble').style.display = 'none';
-    await say('hey, wanna double your candies if you beat question 2? ...but lose 1 if you fail.', t); chk(t);
-    await say('oh, and there will be 8 choices instead of 4. you sure?', t); chk(t);
+    await say('hey, wanna [[b:double your candies]] if you beat question 2? ...but [[r:lose 1]] if you fail.', t); chk(t);
+    await say('oh, and there will be [[r:8 choices]] instead of 4. you sure?', t); chk(t);
     $('gamble').style.display = 'block'; dlg.style.display = 'block';
     const yes = await new Promise((res) => { $('gYes').onclick = () => res(true); $('gNo').onclick = () => res(false); });
     chk(t); hideDlg();
@@ -757,13 +775,13 @@
     await sleep(700); chk(t);
     if (r2.ok) {
       candies *= 2; save(); hud(true);
-      await say('...huh. you actually got it. fine, ' + candies + ' candies.', t); hideDlg();
+      await say('...huh. you actually got it. fine, [[b:' + candies + ' candies]].', t); hideDlg();
       await showSummary(t, 'DOUBLED!', 'ok', candies);
       await finish('ok', t); return;
     }
     candies = Math.max(0, candies - 1); save(); hud(true);
     showWhy(r2);
-    await say('geez, almost got it. better luck next time, kid.', t); hideDlg();
+    await say('geez, almost got it. [[r:better luck next time]], kid.', t); hideDlg();
     await showSummary(t, 'WRONG! -1 CANDY', 'lost', candies);
     await finish('lost', t);
   }
@@ -927,14 +945,14 @@
   $('cGas').addEventListener('click', onGasClick);
   // ===== Papyrus: 3 câu hỏi dạng ô chữ (Word Search), mỗi câu đúng = 1 đĩa spaghetti + 1 kẹo (tối đa 3); sai thì bỏ qua, không chơi lại =====
   const PP = {
-    hello: 'NYEH HEH HEH! HUMAN! I, THE GREAT PAPYRUS, AM COOKING MY SPECIAL SPAGHETTI!',
-    rule: 'PICK THE FRESH INGREDIENT, THE RIGHT WORD, TO FINISH EACH SENTENCE! BUT BEWARE OF THE ROTTEN ONES! NYEH!',
-    right: ['WOWIE! YOU FOUND IT!', 'NYEH HEH! EXCELLENT WORK!', 'THAT IS RIGHT! SPAGHETTI FOR YOU!'],
-    wrong: ['OH NO... THE WORD WAS ', 'NYEH... IT WAS ', 'DON\'T GIVE UP! THE WORD WAS '],
-    cook: 'NOW, LET US COOK THE INGREDIENTS YOU COLLECTED! NYEH HEH HEH!',
-    end3: 'INCREDIBLE! YOU ARE A TRUE SPAGHETTI MASTER! NYEH HEH HEH!',
-    end0: 'NYEH... NO SPAGHETTI THIS TIME. BUT I BELIEVE IN YOU, HUMAN!',
-    endN: 'NYEH HEH HEH! THANK YOU FOR PLAYING MY PUZZLE! TAKE YOUR CANDY!'
+    hello: 'NYEH HEH HEH! HUMAN! I, [[p:THE GREAT PAPYRUS]], AM COOKING MY [[p:SPECIAL SPAGHETTI]]!',
+    rule: 'PICK THE [[p:FRESH INGREDIENT]], THE RIGHT WORD, TO FINISH EACH SENTENCE! BUT BEWARE OF THE [[p:ROTTEN ONES]]! NYEH!',
+    right: ['[[p:WOWIE]]! YOU FOUND IT!', 'NYEH HEH! [[p:EXCELLENT WORK]]!', 'THAT IS RIGHT! [[p:SPAGHETTI]] FOR YOU!'],
+    wrong: ['OH NO... THE WORD WAS [[p:', 'NYEH... IT WAS [[p:', 'DON\'T GIVE UP! THE WORD WAS [[p:'],
+    cook: 'NOW, LET US [[p:COOK]] THE INGREDIENTS YOU COLLECTED! NYEH HEH HEH!',
+    end3: 'INCREDIBLE! YOU ARE A [[p:TRUE SPAGHETTI MASTER]]! NYEH HEH HEH!',
+    end0: 'NYEH... [[p:NO SPAGHETTI]] THIS TIME. BUT I BELIEVE IN YOU, HUMAN!',
+    endN: 'NYEH HEH HEH! THANK YOU FOR PLAYING MY PUZZLE! [[p:TAKE YOUR CANDY]]!'
   };
   // câu điền từ: 1 đáp án đúng (nguyên liệu tươi) + 3 đáp án sai (nguyên liệu thối)
   const WORDS = [
@@ -1106,7 +1124,7 @@
         $('wsBox').style.display = 'none';
         await papSpeakQuick(pick(PP.right), t, 1300, pick(['happy', 'wow'])); chk(t);
       } else {
-        await papSpeakQuick(pick(PP.wrong) + items[n].w.toUpperCase() + '!', t, 2200, pick(['sad', 'sweat', 'cry', 'angry'])); chk(t);
+        await papSpeakQuick(pick(PP.wrong) + items[n].w.toUpperCase() + ']]!', t, 2200, pick(['sad', 'sweat', 'cry', 'angry'])); chk(t);
       }
       hideDlg();
     }
