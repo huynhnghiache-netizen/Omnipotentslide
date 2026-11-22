@@ -390,7 +390,10 @@
   });
   window.__anim = { step, skip, start, get phase() { return phase; }, get T() { return T; } };
 
-  Promise.all([document.fonts ? document.fonts.ready : 0, load('brush', 'assets/paint-brush.png'), load('bucket', 'assets/paint-bucket.png'), load('doodles', 'assets/doodles.png'), load('pencil', 'assets/anim-pencil.png')]).then(() => {
+  const FONTS = document.fonts ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 700))]) : 0;   // không để phông Google chậm làm trễ cảnh
+  const NEED = (INTRO || STILL !== null) ? [load('brush', 'assets/paint-brush.png'), load('bucket', 'assets/paint-bucket.png'), load('doodles', 'assets/doodles.png'), load('pencil', 'assets/anim-pencil.png')] : [];
+  Promise.all([FONTS, ...NEED]).then(() => {
+    //, 'assets/paint-brush.png'), load('bucket', 'assets/paint-bucket.png'), load('doodles', 'assets/doodles.png'), load('pencil', 'assets/anim-pencil.png')]).then(() => {
     buildGround(); buildDoodles(); reset();
     cv.style.visibility = 'visible';
     if (STILL !== null) {

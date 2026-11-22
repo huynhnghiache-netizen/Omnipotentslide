@@ -638,7 +638,7 @@
   window.__anim = { step, skip, start, get phase() { return phase; }, get T() { return T; } };
   // ---------- Khởi động: đợi phông + ảnh rồi báo "sẵn sàng" ----------
   const imgs = [BRUSH, PENCIL, photo.querySelector('img')];
-  Promise.all([document.fonts ? document.fonts.ready : 0, ...imgs.map((im) => im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))]).then(() => {
+  Promise.all([document.fonts ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 700))]) : 0, ...imgs.map((im) => im.complete ? 0 : new Promise((r) => { im.onload = im.onerror = r; }))]).then(() => {
     const shadowOf = (im) => { if (!im.width) return null; const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const q = c.getContext('2d'); q.drawImage(im, 0, 0); q.globalCompositeOperation = 'source-in'; q.fillStyle = '#2a1a10'; q.fillRect(0, 0, c.width, c.height); return c; };
     BSH = shadowOf(BRUSH); PSH = shadowOf(PENCIL);
     setupMeasure(); resetVisuals();
