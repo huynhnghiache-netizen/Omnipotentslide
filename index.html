@@ -389,6 +389,25 @@
       });
     }
     const SFX = { slash: mkAudio('assets/sfx-slash.mp3', 1), knight: mkAudio('assets/sfx-knight.mp3', 1), finish: mkAudio('assets/sfx-finish.mp3', 1), start: mkAudio('assets/sfx-start.mp3', 1), blaster: mkAudio('assets/sfx-blaster.mp3', 1), hit: mkAudio('assets/sfx-hit.mp3', 1) };
+    SFX.brush = mkAudio('assets/sfx-brush.mp3', 1); SFX.pencil = mkAudio('assets/sfx-pencil.mp3', 0.55);          // cảnh cọ + bút chì (slide 3)
+    // phát tiếng dài có thể dừng giữa chừng (bỏ qua hoạt ảnh) + đổi tốc độ phát; vẫn theo âm lượng chung
+    const SFXLIVE = [];
+    function sfxLive(a, rate) {
+      if (!AUD.on || AUD.vol === 0) return;
+      const src = a.currentSrc || a.src, b = BOOST.dec[src];
+      if (b && BOOST.ctx) {
+        try {
+          if (BOOST.ctx.state !== 'running') BOOST.ctx.resume().catch(() => {});
+          const n = BOOST.ctx.createBufferSource(), gn = BOOST.ctx.createGain(); n.buffer = b; if (rate) n.playbackRate.value = rate; gn.gain.value = a.volume;
+          n.connect(gn); gn.connect(BOOST.comp || BOOST.ctx.destination);
+          n.onended = () => { const k = SFXLIVE.indexOf(n); if (k >= 0) SFXLIVE.splice(k, 1); };
+          SFXLIVE.push(n); n.start(0); return;
+        } catch (e) {}
+      }
+      sfxBoostLoad(a);
+      try { const c = a.cloneNode(); c.volume = a.volume; if (rate) c.playbackRate = rate; c.play().catch(() => {}); SFXLIVE.push({ stop() { try { c.pause(); } catch (e) {} } }); } catch (e) {}
+    }
+    function sfxStopLive() { SFXLIVE.splice(0).forEach((n) => { try { n.stop(0); } catch (e) {} }); }
     // ===== Nhạc nền (chế độ tim đỏ) + âm thanh môi trường nhẹ cho từng slide (tự tạo bằng WebAudio, không cần file) =====
     const MUS = { on: true, vol: 100 };
     try { if (localStorage.getItem('musOn') === '0') MUS.on = false; const v = parseInt(localStorage.getItem('musVol'), 10); if (v >= 0 && v <= 100) MUS.vol = v; } catch (e) {}
@@ -1416,7 +1435,7 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261113a' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed', 2: 'slide3-anim.html?embed&v=1122', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261113a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const START_IMG = { 3: 'slide4-s.webp?v=1118', 4: 'slide5-s.webp?v=1118', 5: 'slide6-s.webp?v=1118', 6: 'slide7-s.webp?v=1118', 7: 'slide8-s.webp?v=1118', 8: 'slide9-s.webp?v=1118' };   // khung ĐẦU của hoạt ảnh: ảnh tĩnh lúc vào slide khớp với khung đầu của iframe -> không bị giật khi hoạt ảnh bắt đầu
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : (START_IMG[i] || slideImages[i]);   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
@@ -3154,6 +3173,7 @@
     const PWR = { off: false, taps: [] };
     const pwrEl = document.getElementById('pwrOff');
     function powerOff() {
+      sfxStopLive();
       if (PWR.off) return;
       PWR.off = true; PWR.taps = [];
       gsap.killTweensOf(pwrEl);
@@ -3204,6 +3224,8 @@
       if (d.type === 'need-tap') { anim3.style.pointerEvents = 'auto'; return; }               // trình duyệt chưa cho tự phát nhạc: cho phép bấm thẳng vào khung để bắt đầu
       if (d.type === 'tap-done') { anim3.style.pointerEvents = ''; return; }
       if (PWR.off) { if (d.type === 'slide-key' && isPwrKey(d.key)) powerOn(); return; }
+      if (d.type === 'sfx') { const a = d.name === 'brush' ? SFX.brush : d.name === 'pencil' ? SFX.pencil : null; if (a) sfxLive(a, +d.rate || 1); return; }
+      if (d.type === 'sfx-stop') { sfxStopLive(); return; }
       if (d.type === 'wind-gust') { if (AMB.cur === 2 && AMB.scene && AMB.scene.gust) AMB.scene.gust(1); return; }      // cơn gió thật trên hình -> tiếng gió đúng lúc
       if (d.type === 'anim-state') {
         animState = d.state;
