@@ -58,7 +58,7 @@
   const SW = 640, SH = 360;
 
   // ================= ẢNH CỔ (ảnh thật có sẵn) + chỉnh màu bằng blend mode =================
-  const PHOTO_FILES = { gate: 'assets/s1-gate.jpg', tram: 'assets/s3-tram.jpg', kitchen: 'assets/s5-kitchen.jpg', water: 'assets/s6-water.jpg', games: 'assets/s7-games.jpg', tv: 'assets/s7-tv.jpg', past: 'assets/s8-past.jpg', present: 'assets/s8-present.jpg' };
+  const PHOTO_FILES = { thanks: 'assets/thanks.jpg', gate: 'assets/s1-gate.jpg', tram: 'assets/s3-tram.jpg', kitchen: 'assets/s5-kitchen.jpg', water: 'assets/s6-water.jpg', games: 'assets/s7-games.jpg', tv: 'assets/s7-tv.jpg', past: 'assets/s8-past.jpg', present: 'assets/s8-present.jpg' };
   const photos = {};
   function loadPhotos() {
     return Promise.all(Object.keys(PHOTO_FILES).map((k) => new Promise((res) => { const im = new Image(); im.onload = () => { photos[k] = im; res(); }; im.onerror = res; im.src = PHOTO_FILES[k]; })));
@@ -429,7 +429,7 @@
     if (seamA > 0.01) { ctx.save(); ctx.globalAlpha = seamA; ctx.globalCompositeOperation = 'lighter'; const lg = ctx.createLinearGradient(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L, cx + Math.cos(ang) * L, cy + Math.sin(ang) * L);
     lg.addColorStop(0, 'rgba(233,184,112,0)'); lg.addColorStop(.35, 'rgba(233,184,112,.35)'); lg.addColorStop(.5, 'rgba(255,255,255,.5)'); lg.addColorStop(.65, 'rgba(70,233,255,.35)'); lg.addColorStop(1, 'rgba(70,233,255,0)');
     ctx.strokeStyle = lg; ctx.lineWidth = 2; ctx.shadowColor = '#fff'; ctx.shadowBlur = 16; ctx.beginPath(); ctx.moveTo(cx - Math.cos(ang) * L, cy - Math.sin(ang) * L); ctx.lineTo(cx + Math.cos(ang) * L, cy + Math.sin(ang) * L); ctx.stroke(); ctx.restore(); }
-    if (!portrait && u > 3.4) { ctx.save(); ctx.globalAlpha = clamp((u - 3.4) / 1.5, 0, 1) * .22; ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(W * .535), H * .12, 1, H * .76); ctx.restore(); }
+    if (!portrait && u > 3.4) { ctx.save(); ctx.globalAlpha = clamp((u - 3.4) / 1.5, 0, 1) * .22; ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(W * .5), H * .12, 1, H * .76); ctx.restore(); }
     for (let i = 0; i < 70; i++) {                                                       // hạt bụi sáng bay lên
       const sp = 8 + hash(i + 1) * 26, y = ((hash(i * 3) * H - (u * sp)) % H + H) % H, x = (hash(i * 5) * W + Math.sin(u * .6 + i) * 14), s = .8 + hash(i * 7) * 2.2;
       ctx.fillStyle = i % 2 ? 'rgba(255,225,170,' + (.25 + hash(i) * .45) + ')' : 'rgba(170,240,255,' + (.25 + hash(i) * .45) + ')'; ctx.fillRect(x, y, s, s);
@@ -449,6 +449,7 @@
     ctx.font = 'bold ' + yFs + 'px "Courier New", monospace'; ctx.fillStyle = u < .9 ? '#ffffff' : '#ffe2b0'; ctx.shadowColor = 'rgba(255,200,120,.85)'; ctx.shadowBlur = (30 + 40 * (1 - ee)); ctx.globalAlpha = clamp(u / .15, 0, 1);
     const wF = ctx.measureText('2026').width, cxF = al === 'center' ? lx : lx + wF / 2, pop = 1 + .22 * Math.exp(-Math.max(0, u - .9) * 5) * (u > .9 ? 1 : 0), sS = lerp(bigK, 1, ee) * pop;
     ctx.save(); ctx.translate(lerp(cx, cxF, ee), lerp(cy + .35 * yFs * bigK, ty, ee)); ctx.scale(sS, sS); ctx.textAlign = 'center'; ctx.fillText(ys, 0, 0); ctx.restore();
+    { const hw = wF * sS * .6 + 14, hh = yFs * sS * .62 + 10, hx = lerp(cx, cxF, ee), hy = lerp(cy + .35 * yFs * bigK, ty, ee) - yFs * sS * .3; HIT = { x0: hx - hw, x1: hx + hw, y0: hy - hh, y1: hy + hh }; }
     ctx.shadowBlur = 0; ctx.globalAlpha = clamp((u - T2) / .6, 0, 1); ctx.fillStyle = 'rgba(255,255,255,.55)'; const rw = Math.min(md * .55, W * .4) * clamp((u - T2) / .9, 0, 1); ctx.fillRect(al === 'center' ? lx - rw / 2 : lx, ty + md * .025, rw, 2);
     ctx.globalAlpha = 1;
     const lines = ['Thanks for', 'listening'];
@@ -472,21 +473,16 @@
       ctx.restore();
     }
   }
+  let HIT = null;                                                                     // vùng "2026" đang hiển thị (để bấm vào là hết pin)
   function drawCredits(t, u, portrait, md) {
-    // chỉ một danh sách tên (không chia nhóm), xếp thành hàng dọc, cách nhau thoáng, cuộn lên và lặp lại
-    const x0 = portrait ? W * .08 : W * .56, x1 = portrait ? W * .92 : W * .95, y0 = portrait ? H * .46 : H * .06, y1 = portrait ? H * .96 : H * .94, cx = (x0 + x1) / 2, fs = Math.round(clamp(md * .036, 15, 32));
-    const gap = fs * 2.3, total = NAMES.length * gap;
-    const start = TD + 3.4, a0 = clamp((u - 3.4) / 1.2, 0, 1); if (a0 <= 0) return;
-    const scroll = Math.max(0, t - start) * fs * 2.3;
-    ctx.save(); ctx.textAlign = 'center'; ctx.font = '400 ' + fs + 'px ' + SERIF; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,0,0,.8)'; ctx.shadowBlur = 8;
-    const n = Math.ceil((y1 - y0) / gap) + 2;
-    const first = Math.floor(scroll / gap);
-    for (let k = first - 1; k < first + n + (total < (y1 - y0) ? 0 : 0) + 2; k++) {
-      const yy = y1 - scroll + k * gap; if (yy < y0 - 40 || yy > y1 + 10) continue;
-      const nm = NAMES[((k % NAMES.length) + NAMES.length) % NAMES.length];
-      ctx.globalAlpha = smooth((yy - y0) / (md * .12)) * smooth((y1 - yy) / (md * .1)) * a0;
-      ctx.fillText(nm, cx, yy);
-    }
+    // ảnh "Thank you for listening" chiếm trọn nửa phải (dọc: nửa dưới), bật lên với hiệu ứng pop
+    const im = photos.thanks, a0 = clamp((u - 3.0) / .8, 0, 1); if (!im || a0 <= 0) return;
+    const x0 = portrait ? W * .05 : W * .515, x1 = portrait ? W * .95 : W * .99, y0 = portrait ? H * .44 : H * .04, y1 = portrait ? H * .97 : H * .96;
+    const CR = .02, sw = im.width * (1 - 2 * CR), ar = sw / im.height; let w = x1 - x0, h = w / ar; if (h > y1 - y0) { h = y1 - y0; w = h * ar; }
+    const pop = .86 + .14 * smooth(a0) + .03 * Math.exp(-Math.max(0, u - 3.8) * 4) * Math.sin((u - 3.0) * 9), cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    ctx.save(); ctx.globalAlpha = a0; ctx.translate(cx, cy + Math.sin(t * 1.3) * 3); ctx.scale(pop, pop);
+    ctx.shadowColor = 'rgba(255,200,120,.45)'; ctx.shadowBlur = 40; ctx.fillStyle = '#000'; rr(ctx, -w / 2 - 4, -h / 2 - 4, w + 8, h + 8, 14); ctx.fill(); ctx.shadowBlur = 0;
+    rr(ctx, -w / 2, -h / 2, w, h, 12); ctx.clip(); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(im, im.width * CR, 0, sw, im.height, -w / 2, -h / 2, w, h);
     ctx.restore();
   }
 
@@ -559,7 +555,8 @@
     if (p && p.then) p.then(okPlay).catch(noPlay); else okPlay();
   }
   addEventListener('pointerdown', () => { if (phase === 'tap') tryPlay(); });
-  addEventListener('message', (ev) => { if (ev.data && ev.data.type === 'force-off' && phase === 'play') startOff(); });          // người xem bấm khi nhạc chưa hết: báo hết pin ngay
+  // bấm đúng vào số 2026 khi nhạc chưa hết: hết pin ngay (bấm chỗ khác không làm gì)
+  addEventListener('message', (ev) => { const d = ev.data; if (d && d.type === 'finale' && phase === 'play' && HIT && d.x != null && d.x >= 0) { const px = d.x * W, py = d.y * H; if (px >= HIT.x0 && px <= HIT.x1 && py >= HIT.y0 && py <= HIT.y1) startOff(); } });
   addEventListener('message', (ev) => { if (ev.data && (ev.data.type === 'finale' || ev.data.type === 'go') && phase === 'tap') tryPlay(); });
   addEventListener('pagehide', () => { try { audio && audio.pause(); } catch (e) {} });
 

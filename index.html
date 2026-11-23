@@ -1435,16 +1435,19 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed&v=1122', 2: 'slide3-anim.html?embed&v=1122', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261113a' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed&v=1122', 2: 'slide3-anim.html?embed&v=1122', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261123a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const START_IMG = { 3: 'slide4-s.webp?v=1118', 4: 'slide5-s.webp?v=1118', 5: 'slide6-s.webp?v=1118', 6: 'slide7-s.webp?v=1118', 7: 'slide8-s.webp?v=1118', 8: 'slide9-s.webp?v=1118' };   // khung ĐẦU của hoạt ảnh: ảnh tĩnh lúc vào slide khớp với khung đầu của iframe -> không bị giật khi hoạt ảnh bắt đầu
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : (START_IMG[i] || slideImages[i]);   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
     const GATED = new Set([2]);                            // slide 2, 3: bắt đầu bằng màn đen, click để vẽ
     let animState = null, animBusyAt = 0;                     // slide 2: 'loading' | 'wait' | 'busy' | 'done'
     // Click / Enter trên slide 2 chưa vẽ xong: bắt đầu vẽ (hoặc bỏ qua cho xong ngay), chưa chuyển slide
+    const lastPtr = { x: 0, y: 0, t: -1e9 };
+    window.addEventListener('pointerdown', (e) => { lastPtr.x = e.clientX; lastPtr.y = e.clientY; lastPtr.t = performance.now(); }, true);
     function animGate() {
       if ((view === 'soul' ? soul.i : currentIndex) === slideImages.length - 1 && (view === 'soul' || view === 'detail')) {   // slide 10: bắt đầu màn chú chim cuốn slide
-        try { anim3.contentWindow.postMessage({ type: 'finale' }, '*'); } catch (e) { }
+        const fresh = performance.now() - lastPtr.t < 400;     // chỉ gửi toạ độ khi vừa bấm chuột/chạm (phím thì không)
+        try { anim3.contentWindow.postMessage({ type: 'finale', x: fresh ? lastPtr.x / innerWidth : -1, y: fresh ? lastPtr.y / innerHeight : -1 }, '*'); } catch (e) { }
         return true;
       }
       const idx = view === 'soul' ? soul.i : currentIndex;
