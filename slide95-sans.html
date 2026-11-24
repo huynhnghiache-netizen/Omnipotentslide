@@ -190,9 +190,10 @@
   @keyframes gw { from { transform: translateX(-260px) } to { transform: translateX(1500px) } }
 
   /* Papyrus: nền cam đỏ ấm, bảng ô chữ + tháp spaghetti */
-  #stage.pap { --bg1: #3b1830; --bg2: #0a0408; --line: #ffd23c; --acc: #ffd23c; }
-  #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 170px 40px rgba(10, 0, 8, .6); z-index: 2; }
+  #stage.pap { --bg1: #2f1226; --bg2: #000; --line: #ffd23c; --acc: #ffd23c; }
+  #stage.pap::after { content: ''; position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 150px 60px rgba(0, 0, 0, .92); z-index: 2; }   /* viền đen quanh màn hình như Sans / Gaster */
   #stage.pap #deco i.h { background: #ffd23c; } #stage.pap #deco i.b { background: #8a5a7a; }
+  #papBig { filter: drop-shadow(0 0 12px rgba(255,255,255,.16)); }
   #papBig { position: absolute; left: -4px; top: 290px; width: 268px; height: 300px; display: none; z-index: 3; transform-origin: 50% 50%; }
   #papSp { width: 100%; height: 100%; background: url(assets/papyrus-bw-anim.png?v=2) 0 0 / 400% 100% no-repeat; image-rendering: pixelated; animation: pap .667s steps(4) infinite; transform-origin: 50% 100%; }
   @keyframes pbob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
@@ -514,39 +515,46 @@
   // ===== dữ liệu câu hỏi (lấy từ nội dung 10 slide) =====
   // opts[0] luôn là đáp án đúng; why = lý do tại sao SAI
   const EASY = [
-    { q: 'How did people often move around 40 years ago?', o: [
+    { t: 'move', q: 'How did people often move around 40 years ago?', o: [
       ['They often walked or rode bicycles.'],
       ['They often drove cars to work.', 'Slide 4: there were FEWER cars and motorbikes. People mostly walked or cycled.'],
       ['They often flew in small planes.', 'Nothing in the slides says that. Slide 4: people walked or rode bicycles.'],
       ['They often took the underground train.', 'Slide 4 mentions walking and cycling on quiet streets, not underground trains.'] ] },
-    { q: 'How did people cook at home in the past?', o: [
+    { t: 'cook', q: 'How did people cook at home in the past?', o: [
       ['On wood, straw or charcoal stoves.'],
       ['On modern electric cookers.', 'Slide 5: there were NO modern machines at home.'],
       ['In microwave ovens.', 'Slide 5: there were no modern machines. People used simple tools.'],
       ['On gas stoves only.', 'Slide 5 says wood, straw or charcoal stoves.'] ] },
-    { q: 'Where did families get water in the past?', o: [
+    { t: 'water', q: 'Where did families get water in the past?', o: [
       ['From village wells or public taps.'],
       ['From water bottles at the shop.', 'Slide 6: families got water from village wells or public taps.'],
       ['From pipes in every bathroom.', 'Slide 6 says wells or PUBLIC taps, not private pipes.'],
       ['From a river by boat.', 'Slide 6 does not mention rivers. It says village wells or public taps.'] ] },
-    { q: 'Why did people often use oil lamps?', o: [
+    { t: 'lamp', q: 'Why did people often use oil lamps?', o: [
       ['Because of power cuts.'],
       ['Because lamps were cheaper than TV.', 'Slide 6: the reason was limited electricity and power cuts.'],
       ['Because they loved the smell of oil.', 'Slide 6: the reason was power cuts, not a love of the smell.'],
       ['Because the sun never rose.', 'Not in the slides. Slide 6: power cuts.'] ] },
-    { q: 'What did children play in their free time?', o: [
+    { t: 'play', q: 'What did children play in their free time?', o: [
       ['Hide-and-seek and tug-of-war.'],
       ['Video games and online games.', 'Slide 7: games were outdoor games like hide-and-seek and tug-of-war.'],
       ['Chess and card games indoors.', 'Slide 7 says OUTDOOR games: hide-and-seek and tug-of-war.'],
       ['Football with a smartphone.', 'Slide 7: hide-and-seek and tug-of-war, with no smartphones.'] ] },
-    { q: 'What did people do together in the evening?', o: [
+    { t: 'evening', q: 'What did people do together in the evening?', o: [
       ['They listened to the radio and watched TV.'],
       ['They surfed the internet.', 'Slide 8: fast internet belongs to the PRESENT (2020s).'],
       ['They went to the cinema every night.', 'Slide 7: in the evening they listened to the radio and watched TV together.'],
-      ['They played games on tablets.', 'Slide 8: tablets and fast internet belong to the present, not the 1980s.'] ] }
+      ['They played games on tablets.', 'Slide 8: tablets and fast internet belong to the present, not the 1980s.'] ] },
+    { t: "streets", q: "What were the streets like 40 years ago?", o: [["Quiet, with fewer cars and motorbikes."], ["Crowded, with traffic jams all day.", "Slide 4: there were FEWER cars and motorbikes, so the streets were quieter."], ["Full of electric scooters.", "Slide 4 says fewer cars and motorbikes. Scooters are not mentioned."], ["Busy and noisy all night.", "Slide 4: the streets were QUIETER."]] },
+    { t: "tools", q: "What did people use at home because there were no modern machines?", o: [["Simple tools."], ["Robots and computers.", "Slide 5: there were NO modern machines at home."], ["Electric dishwashers.", "Slide 5: no modern machines. People used simple tools."], ["Smart speakers.", "Those are modern machines. Slide 5: simple tools."]] },
+    { t: "life", q: "What was life like in the past?", o: [["Slower, close to nature and family."], ["Faster and full of technology.", "Slide 3: life was SLOWER. A faster pace belongs to the present (Slide 8)."], ["Far away from nature and family.", "Slide 3: people lived CLOSE to nature and family."], ["Busy with fast internet.", "Slide 8: fast internet belongs to the present (2020s)."]] },
+    { t: "neighbours", q: "What were neighbours like in the past?", o: [["Close, and they helped each other."], ["They rarely talked to each other.", "Slide 3: neighbours were CLOSE and helped each other."], ["They only talked online.", "Slide 8: people talked face to face in the past."], ["They lived far apart and never met.", "Slide 3: neighbours were close."]] },
+    { t: "pace", q: "Which is true about the 1980s?", o: [["People talked face to face and life had a slower pace."], ["Life had a faster pace than today.", "Slide 8: the 1980s had a SLOWER pace. The faster pace is the present."], ["People enjoyed fast internet.", "Slide 8: fast internet belongs to the present (2020s)."], ["Technology was modern and complex.", "Slide 8: the past had SIMPLE technology."]] },
+    { t: "memory", q: "Why is it useful to know about difficult times in the past?", o: [["It helps us enjoy life today."], ["It makes us want to go back.", "Slide 9: it helps us ENJOY life today."], ["It helps us forget the past.", "Slide 9 is about KEEPING our memories, not forgetting."], ["It is only useful for exams.", "Slide 9: knowing about difficult times helps us enjoy life today."]] },
+    { t: "tradition", q: "What should we keep alive for the next generations?", o: [["Our community spirit."], ["Only modern machines.", "Slide 9: keep our COMMUNITY SPIRIT alive."], ["Only old photographs.", "Slide 9 says community spirit, not just photographs."], ["Fast internet.", "Slide 9: community spirit. Fast internet is part of the present."]] }
   ];
   const HARD = [
-    { q: 'Which sentence matches Slide 5 (Daily Life at Home) most exactly?', o: [
+    { t: 'tools', q: 'Which sentence matches Slide 5 (Daily Life at Home) most exactly?', o: [
       ['There were no modern machines, so people used simple tools at home.'],
       ['There were few modern machines, so people used simple tools at home.', '"few" is not "no". The slide says there were NO modern machines.'],
       ['There were no modern machines, so people used complex tools at home.', 'The slide says SIMPLE tools, not complex ones.'],
@@ -555,7 +563,7 @@
       ['There were no modern machines, so people used simple tools in the village.', 'The slide says at HOME, not in the village.'],
       ['There were no modern machines, so people had used simple tools at home.', 'Past perfect ("had used") is a different tense. The slide uses simple past: "used".'],
       ['There were no modern machines, because people used simple tools at home.', '"because" reverses the cause and the result. The lack of machines is the reason.'] ] },
-    { q: 'Which sentence matches Slide 6 (Limited Electricity) most exactly?', o: [
+    { t: 'lamp', q: 'Which sentence matches Slide 6 (Limited Electricity) most exactly?', o: [
       ['People often used oil lamps because of power cuts.'],
       ['People sometimes used oil lamps because of power cuts.', '"sometimes" is not "often". The slide says OFTEN.'],
       ['People often used oil lamps despite power cuts.', '"despite" means the opposite. Power cuts were the REASON.'],
@@ -564,7 +572,7 @@
       ['People often used oil lamps because of water cuts.', 'The slide says POWER cuts, not water cuts.'],
       ['People always used oil lamps because of power cuts.', '"always" is too strong. The slide says OFTEN.'],
       ['People never used oil lamps because of power cuts.', '"never" is the opposite of the slide.'] ] },
-    { q: 'Which sentence matches Slide 7 (Evenings Together) most exactly?', o: [
+    { t: 'evening', q: 'Which sentence matches Slide 7 (Evenings Together) most exactly?', o: [
       ['In the evening, people listened to the radio and watched TV together.'],
       ['In the morning, people listened to the radio and watched TV together.', 'The slide says in the EVENING, not the morning.'],
       ['In the evening, people listened to the radio and watched films together.', 'They watched TV, not films.'],
@@ -572,9 +580,23 @@
       ['In the evening, people listened to the radio and watched TV alone.', 'The slide says TOGETHER, not alone.'],
       ['In the evening, people listen to the radio and watch TV together.', 'Present tense. The slide is about the past.'],
       ['In the evening, people listened to the radio or watched TV together.', '"or" is not "and". They did both.'],
-      ['In the evening, children listened to the radio and watched TV together.', 'The slide says PEOPLE, not only children.'] ] }
+      ['In the evening, children listened to the radio and watched TV together.', 'The slide says PEOPLE, not only children.'] ] },
+    { t: "cook", q: "Which sentence matches Slide 5 (Daily Life at Home) most exactly?", o: [["People cooked on wood, straw or charcoal stoves."], ["People cooked on wood, straw or gas stoves.", "The slide says CHARCOAL, not gas."], ["People cook on wood, straw or charcoal stoves.", "Present tense. The slide is about the past: \"cooked\"."], ["People cooked on wood, straw or charcoal ovens.", "The slide says STOVES, not ovens."], ["People cooked on wood, rice or charcoal stoves.", "The slide says STRAW, not rice."], ["People never cooked on wood, straw or charcoal stoves.", "\"never\" is the opposite of the slide."]] },
+    { t: "water", q: "Which sentence matches Slide 6 (Water and Electricity) most exactly?", o: [["Families got water from village wells or public taps."], ["Families got water from village wells or private taps.", "The slide says PUBLIC taps, not private ones."], ["Families get water from village wells or public taps.", "Present tense. The slide is about the past: \"got\"."], ["Families got water from village rivers or public taps.", "The slide says WELLS, not rivers."], ["Families got water from city wells or public taps.", "The slide says VILLAGE wells."], ["Families sold water from village wells or public taps.", "They GOT water. Nobody sold it in the slide."]] },
+    { t: "play", q: "Which sentence matches Slide 7 (How People Spent Free Time) most exactly?", o: [["Children played games like hide-and-seek and tug-of-war."], ["Children play games like hide-and-seek and tug-of-war.", "Present tense. The slide is about the past: \"played\"."], ["Children played games like hide-and-seek and hopscotch.", "The slide says TUG-OF-WAR, not hopscotch."], ["Adults played games like hide-and-seek and tug-of-war.", "The slide says CHILDREN played these games."], ["Children watched games like hide-and-seek and tug-of-war.", "They PLAYED the games. They did not just watch."], ["Children played games like tag and tug-of-war.", "The slide says HIDE-AND-SEEK, not tag."]] },
+    { t: "move", q: "Which sentence matches Slide 4 (How People Moved Around) most exactly?", o: [["People often walked or rode bicycles."], ["People often walked or rode motorbikes.", "The slide says BICYCLES. Slide 4 says there were fewer motorbikes."], ["People sometimes walked or rode bicycles.", "\"sometimes\" is not \"often\". The slide says OFTEN."], ["People often walk or ride bicycles.", "Present tense. The slide is about the past."], ["Children often walked or rode bicycles.", "The slide says PEOPLE, not only children."], ["People never walked or rode bicycles.", "\"never\" is the opposite of the slide."]] },
+    { t: "pace", q: "Which sentence matches Slide 8 (Key Changes Over 40 Years) most exactly?", o: [["In the 1980s, people had simple technology and talked face to face."], ["In the 1980s, people had modern technology and talked face to face.", "The slide says SIMPLE technology."], ["In the 1980s, people had simple technology and talked online.", "The slide says FACE TO FACE."], ["In the 2020s, people had simple technology and talked face to face.", "That describes the PAST (1980s), not the 2020s."], ["In the 1980s, people have simple technology and talk face to face.", "Present tense. The slide is about the past."], ["In the 1980s, people had fast internet and talked face to face.", "Fast internet belongs to the present (2020s)."]] },
+    { t: "memory", q: "Which sentence matches Slide 9 (Keeping Our Memories) most exactly?", o: [["Knowing about difficult times helps us enjoy life today."], ["Knowing about difficult times helps us enjoy life tomorrow.", "The slide says TODAY."], ["Knowing about easy times helps us enjoy life today.", "The slide says DIFFICULT times."], ["Knowing about difficult times helps us forget life today.", "The slide says ENJOY, not forget."], ["Knowing about difficult times stops us enjoying life today.", "The slide says it HELPS us."], ["Knowing about difficult times helps them enjoy life today.", "The slide says US, not them."]] }
   ];
   const pick = (arr) => arr[rnd(arr.length)];
+  // chọn câu theo CHỦ ĐỀ chưa dùng (chung cho Sans / Gaster / Papyrus trong cả phiên) -> không trùng câu giữa các nhân vật; hết chủ đề thì xoay vòng
+  const USED = (() => { try { return new Set(JSON.parse(sessionStorage.getItem('qzUsed') || '[]')); } catch (e) { return new Set(); } })();
+  const saveUsed = () => { try { sessionStorage.setItem('qzUsed', JSON.stringify([...USED])); } catch (e) {} };
+  function pickT(arr, avoid) {
+    let c = arr.filter((x) => !USED.has(x.t) && !(avoid && avoid.includes(x.t)));
+    if (!c.length) { arr.forEach((x) => USED.delete(x.t)); c = arr.filter((x) => !(avoid && avoid.includes(x.t))); }
+    const q = c[rnd(c.length)]; USED.add(q.t); saveUsed(); return q;
+  }
   const LET = 'ABCDEFGH';
 
   // ===== kẹo (sprite nhỏ) =====
@@ -732,7 +754,7 @@
     show('q', 'normal');
     // ---- Câu 1 (dễ) ----
     showPanel('qa'); setX(true); hud(true);
-    const r1 = await ask(pick(EASY), false, t); chk(t);
+    const r1 = await ask(pickT(EASY), false, t); chk(t);
     await sleep(700); chk(t);
     if (!r1.ok) {
       showWhy(r1);
@@ -771,7 +793,7 @@
     stage.classList.add('dark'); show('q', 'normal');
     showPanel('qa'); hud(true); setX(true);
     await fadeIn(700); chk(t);
-    const r2 = await ask(pick(HARD), true, t); chk(t);
+    const r2 = await ask(pickT(HARD), true, t); chk(t);
     await sleep(700); chk(t);
     if (r2.ok) {
       candies *= 2; save(); hud(true);
@@ -852,7 +874,7 @@
     await gsay('hello', t); chk(t); hideDlg();
     showPanel('qa'); setX(true);                                  // hiện khung câu hỏi (trước đó đã ẩn khi nói chuyện)
     gasIdleStart(t);
-    const r = await ask(pick(EASY), false, t, 'QUESTION'); chk(t);
+    const r = await ask(pickT(EASY), false, t, 'QUESTION'); chk(t);
     gasIdleStop();
     await sleep(700); chk(t);
     if (!r.ok) {
@@ -956,12 +978,19 @@
   };
   // câu điền từ: 1 đáp án đúng (nguyên liệu tươi) + 3 đáp án sai (nguyên liệu thối)
   const WORDS = [
-    { q: 'People cooked on wood, straw or charcoal ___.', w: 'stoves', x: ['microwaves', 'fridges', 'machines'] },
-    { q: 'People often walked or rode ___.', w: 'bicycles', x: ['cars', 'planes', 'scooters'] },
-    { q: 'In the evening, people listened to the ___ and watched TV together.', w: 'radio', x: ['internet', 'tablet', 'phone'] },
-    { q: 'People often used ___ lamps because of power cuts.', w: 'oil', x: ['electric', 'neon', 'LED'] },
-    { q: 'There were no modern machines, so people used simple ___ at home.', w: 'tools', x: ['robots', 'computers', 'engines'] },
-    { q: 'Children played games like hide-and-seek and ___.', w: 'tug-of-war', x: ['video games', 'chess', 'tennis'] }
+    { t: "cook", q: "People cooked on wood, straw or charcoal ___.", w: "stoves", x: ["microwaves", "fridges", "machines"] },
+    { t: "move", q: "People often walked or rode ___.", w: "bicycles", x: ["cars", "planes", "scooters"] },
+    { t: "evening", q: "In the evening, people listened to the ___ and watched TV together.", w: "radio", x: ["internet", "tablet", "phone"] },
+    { t: "lamp", q: "People often used ___ lamps because of power cuts.", w: "oil", x: ["electric", "neon", "LED"] },
+    { t: "tools", q: "There were no modern machines, so people used simple ___ at home.", w: "tools", x: ["robots", "computers", "engines"] },
+    { t: "play", q: "Children played games like hide-and-seek and ___.", w: "tug-of-war", x: ["video games", "chess", "tennis"] },
+    { t: "water", q: "Families got water from village wells or public ___.", w: "taps", x: ["lakes", "trucks", "bottles"] },
+    { t: "streets", q: "There were fewer cars and motorbikes, so the streets were ___.", w: "quieter", x: ["noisier", "busier", "crowded"] },
+    { t: "life", q: "Life was ___. People lived close to nature and family.", w: "slower", x: ["faster", "louder", "busier"] },
+    { t: "neighbours", q: "Neighbours were close and ___ each other.", w: "helped", x: ["ignored", "avoided", "blamed"] },
+    { t: "memory", q: "Knowing about difficult times helps us ___ life today.", w: "enjoy", x: ["forget", "fear", "waste"] },
+    { t: "tradition", q: "We should keep our community ___ for the next generations.", w: "spirit", x: ["machines", "money", "traffic"] },
+    { t: "pace", q: "The present has fast ___ and modern comforts.", w: "internet", x: ["stoves", "lamps", "wells"] }
   ];
   // biểu tượng nguyên liệu pixel trắng đen (W trắng, G xám, D xám đậm)
   const ING = [
@@ -1112,7 +1141,7 @@
     await new Promise((res) => { const a = big.animate([{ transform: CEN }, { transform: 'translate(0,0) scale(1)' }], { duration: 900, easing: 'ease-in-out', fill: 'forwards' }); a.onfinish = res; });
     chk(t); big.style.transform = 'none'; big.getAnimations().forEach((a) => a.cancel());
     setFace('smug'); setX(true); shelfReset();
-    const items = shuffle(WORDS).slice(0, 3);
+    const items = []; for (let k = 0; k < 3; k++) items.push(pickT(WORDS, items.map((x) => x.t)));
     for (let n = 0; n < 3; n++) {
       showPanel('wsBox'); setX(true);
       const r = await askWord(items[n], n + 1, t); chk(t);
