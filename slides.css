@@ -131,3 +131,11 @@ img.photo { object-fit: cover; }
 .s10 .rule { left: 424px; right: 419px; top: 421px; border-top: 3px solid #c98a4d; }
 .s10 h2 { left: 0; right: 0; top: 436px; text-align: center; font: 500 50px/1.2 var(--display); color: #2f2b27; }
 .s10 p  { left: 0; right: 0; top: 500px; text-align: center; font: 400 29px/1.3 var(--display); color: #2f2b27; letter-spacing: .5px; }
+
+/* ===== slide 3 "A Look at the Past": nâng nhẹ đồ hoạ (viền ảnh in, vignette ấm, chữ nổi nhẹ) ===== */
+.s3::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at 50% 46%, rgba(255,255,255,0) 55%, rgba(120,70,30,.13) 100%); }
+.s3 .title { text-shadow: 0 1px 0 rgba(255,255,255,.75), 0 5px 12px rgba(90,45,15,.16); }
+.s3 .pic .photo { box-shadow: 0 14px 30px rgba(60,30,10,.30), 0 3px 6px rgba(60,30,10,.2); }
+.s3 .pic .photo::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  border: 11px solid #fffaf0; box-shadow: inset 0 0 0 1px rgba(120,80,40,.35), inset 0 0 46px rgba(50,25,5,.30); }
