@@ -556,6 +556,8 @@
   }
   addEventListener('pointerdown', () => { if (phase === 'tap') tryPlay(); });
   // bấm đúng vào số 2026 khi nhạc chưa hết: hết pin ngay (bấm chỗ khác không làm gì)
+  // bấm / bấm phím sau khi xem >= 5 giây (chưa tới cú drop): nhảy thẳng tới cú drop (không hiện gợi ý)
+  addEventListener('message', (ev) => { const d = ev.data; if (d && d.type === 'finale' && phase === 'play' && tClock >= 5 && tClock < TD - 0.6) { tClock = TD - 0.05; if (!silent && audio) { try { audio.currentTime = TD - 0.05; } catch (e) {} } } });
   addEventListener('message', (ev) => { const d = ev.data; if (d && d.type === 'finale' && phase === 'play' && HIT && d.x != null && d.x >= 0) { const px = d.x * W, py = d.y * H; if (px >= HIT.x0 && px <= HIT.x1 && py >= HIT.y0 && py <= HIT.y1) startOff(); } });
   addEventListener('message', (ev) => { if (ev.data && (ev.data.type === 'finale' || ev.data.type === 'go') && phase === 'tap') tryPlay(); });
   addEventListener('pagehide', () => { try { audio && audio.pause(); } catch (e) {} });
