@@ -295,6 +295,7 @@
   addEventListener('resize', fit); fit();
   const post = (t) => { try { parent.postMessage({ type: t }, '*'); } catch (e) {} };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  addEventListener('keydown', (e) => { if ((e.key === 'f' || e.key === 'F') && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && window.parent !== window) window.parent.postMessage({ type: 'slide-key', key: e.key }, '*'); });   // phím F = toàn màn hình (trang cha xử lý)
   const rnd = (n) => Math.floor(Math.random() * n);
   const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 

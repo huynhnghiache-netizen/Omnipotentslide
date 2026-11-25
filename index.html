@@ -2349,7 +2349,7 @@
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
     // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
-    const QUIZ_V = '20261125c';
+    const QUIZ_V = '20261125d';
     const quiz = { on: false };
     const quizEl = document.getElementById('quiz95');
     // Tải sẵn nhạc kết trong lúc người xem ở slide 9.5: vào slide 10 là chạy ngay (trình duyệt dùng lại bản đã tải)
@@ -3219,6 +3219,16 @@
       PWR.taps.push(now);                                  // chạm 5 lần liên tiếp ở bất kỳ đâu
       if (PWR.taps.length >= 5) powerOn();
     }, true);
+    // Phím F: bật / tắt toàn màn hình (F11 của trình duyệt vẫn dùng được)
+    const isFsKey = (k) => k === 'f' || k === 'F';
+    function toggleFS() {
+      try {
+        const d = document, el = d.documentElement;
+        if (d.fullscreenElement || d.webkitFullscreenElement) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); }
+        else { const f = el.requestFullscreen || el.webkitRequestFullscreen; if (f) { const r = f.call(el); if (r && r.catch) r.catch(() => {}); } }
+      } catch (e) {}
+    }
+    window.addEventListener('keydown', (e) => { if (!e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && isFsKey(e.key) && !PWR.off) toggleFS(); });
     window.addEventListener('keydown', (e) => {
       if (!PWR.off) return;
       e.stopImmediatePropagation(); e.preventDefault();
@@ -3236,6 +3246,7 @@
       if (d.type === 'need-tap') { anim3.style.pointerEvents = 'auto'; return; }               // trình duyệt chưa cho tự phát nhạc: cho phép bấm thẳng vào khung để bắt đầu
       if (d.type === 'tap-done') { anim3.style.pointerEvents = ''; return; }
       if (PWR.off) { if (d.type === 'slide-key' && isPwrKey(d.key)) powerOn(); return; }
+      if (d.type === 'slide-key' && isFsKey(d.key)) { toggleFS(); return; }
       if (d.type === 'sfx') { const a = d.name === 'brush' ? SFX.brush : d.name === 'pencil' ? SFX.pencil : null; if (a) sfxLive(a, +d.rate || 1); return; }
       if (d.type === 'sfx-stop') { sfxStopLive(); return; }
       if (d.type === 'wind-gust') { if (AMB.cur === 2 && AMB.scene && AMB.scene.gust) AMB.scene.gust(1); return; }      // cơn gió thật trên hình -> tiếng gió đúng lúc
