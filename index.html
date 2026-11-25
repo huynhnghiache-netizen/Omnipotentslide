@@ -328,7 +328,7 @@
   <script>
     // ================= CẤU HÌNH =================
     const slideImages = [
-      'slide1.webp?v=1118', 'slide2.webp?v=1118', 'slide3.webp?v=1124', 'slide4.webp?v=1118', 'slide5.webp?v=1118',
+      'slide1.webp?v=1118', 'slide2.webp?v=1124', 'slide3.webp?v=1124', 'slide4.webp?v=1118', 'slide5.webp?v=1118',
       'slide6.webp?v=1118', 'slide7.webp?v=1118', 'slide8.webp?v=1118', 'slide9.webp?v=1118', 'slide10.webp?v=1118'
     ];
     // Thông tin hiển thị khi mở từng slide: sửa title / desc ở đây
@@ -1156,11 +1156,11 @@
     const SANS_HURT = new Image();
     let SANS_HURT_O = null;
     SANS_HURT.onload = () => { SANS_HURT_O = outlineSprite(SANS_HURT, 5, '#0b0b0b'); };
-    SANS_HURT.src = 'assets/sans-hurt.png?v=2';            // Sans ngồi gục
+    SANS_HURT.src = 'assets/sans-hurt.png?v=3';            // Sans ngồi gục
     const SANS_CUT = new Image();
     let SANS_CUT_O = null;
     SANS_CUT.onload = () => { SANS_CUT_O = outlineSprite(SANS_CUT, 4, '#0b0b0b'); };
-    SANS_CUT.src = 'assets/sans-cut.png?v=2';              // Sans đứng, vết chém đỏ ngang ngực
+    SANS_CUT.src = 'assets/sans-cut.png?v=3';              // Sans đứng, vết chém đỏ ngang ngực
     function outlineSprite(img, o, col) {                            // viền đen quanh sprite trắng cho dễ nhìn trên nền sáng
       const c = document.createElement('canvas'); c.width = img.width + o * 2; c.height = img.height + o * 2;
       const g = c.getContext('2d'), k = document.createElement('canvas'); k.width = img.width; k.height = img.height;
@@ -1435,7 +1435,7 @@
       return true;
     }
     // Slide có bản động (iframe phủ lên): slide 2 (cọ sơn + bút chì vẽ), slide 3 (gió + keo dán), slide 4 (phố xe đạp), slide 5 (bếp), slide 6 (giếng + mất điện), slide 7 (làng quê), slide 10 (cảnh kết: ghế, sân khấu, pháo hoa)
-    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed&v=1122', 2: 'slide3-anim.html?embed&v=1124', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261124a' };
+    const ANIM_SRC = { 0: 'slide1-anim.html?embed', 1: 'slide2-anim.html?embed&v=1124', 2: 'slide3-anim.html?embed&v=1124', 3: 'slide4-anim.html?embed&v=1118', 4: 'slide5-anim.html?embed', 5: 'slide6-anim.html?embed&v=1118', 6: 'slide7-anim.html?embed&v=1118', 7: 'slide8-anim.html?embed', 8: 'slide9-anim.html?embed', 9: 'slide10-anim.html?embed&v=20261124a' };
     const BLANK_SLIDE = 'assets/anim-blank.png';            // nền đen cho slide 2 lúc chưa vẽ
     const START_IMG = { 3: 'slide4-s.webp?v=1118', 4: 'slide5-s.webp?v=1118', 5: 'slide6-s.webp?v=1118', 6: 'slide7-s.webp?v=1118', 7: 'slide8-s.webp?v=1118', 8: 'slide9-s.webp?v=1118' };   // khung ĐẦU của hoạt ảnh: ảnh tĩnh lúc vào slide khớp với khung đầu của iframe -> không bị giật khi hoạt ảnh bắt đầu
     const slidePath = (i) => (i === 2 || i === 9) ? BLANK_SLIDE : (START_IMG[i] || slideImages[i]);   // slide 2 và 10 (cảnh kết) bắt đầu từ nền đen
@@ -2349,7 +2349,7 @@
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
     // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
-    const QUIZ_V = '20261124c';
+    const QUIZ_V = '20261124d';
     const quiz = { on: false };
     const quizEl = document.getElementById('quiz95');
     // Tải sẵn nhạc kết trong lúc người xem ở slide 9.5: vào slide 10 là chạy ngay (trình duyệt dùng lại bản đã tải)
@@ -2363,7 +2363,7 @@
     let quizWarm = false;
     function prefetchQuiz() {
       if (quizWarm) return; quizWarm = true;
-      const small = ['slide95-sans.html?embed&v=' + QUIZ_V, 'assets/papyrus.png', 'assets/papyrus-bw-anim.png', 'assets/papyrus-faces.png', 'assets/papyrus-head.png', 'assets/cauldron-px.png', 'assets/sans-head.png', 'assets/sans-shake.png?v=2', 'assets/sans-shrug.png?v=2', 'assets/sans-sleep.png?v=2', 'assets/gaster.png', 'assets/gaster-b.png',
+      const small = ['slide95-sans.html?embed&v=' + QUIZ_V, 'assets/papyrus.png', 'assets/papyrus-bw-anim.png', 'assets/papyrus-faces.png', 'assets/papyrus-head.png', 'assets/cauldron-px.png', 'assets/sans-head.png', 'assets/sans-shake.png?v=3', 'assets/sans-shrug.png?v=3', 'assets/sans-sleep.png?v=3', 'assets/gaster.png', 'assets/gaster-b.png',
         'assets/sfx-correct.mp3', 'assets/sfx-nuhuh.mp3', 'assets/sfx-prize.mp3', 'assets/sfx-rock.mp3', 'assets/sfx-sans-talk.mp3', 'assets/sfx-pap-nyeh.mp3', 'assets/sfx-pap-talk.mp3', 'assets/sfx-gaster-talk.mp3', 'assets/sfx-gaster-vanish.mp3', 'assets/sfx-wheel.mp3'];
       const big = ['assets/music-sans-select.mp3', 'assets/music-papyrus.mp3', 'assets/music-gaster.mp3', 'assets/music-megalovania.mp3'];
       (async () => { for (const u of small.concat(big)) { try { const r = await fetch(u); await r.blob(); } catch (e) { } await new Promise((res) => setTimeout(res, 150)); } })();
@@ -3102,7 +3102,7 @@
       tasks.push(['Fonts', font("16px 'Press Start 2P'", 'font1')], ['Fonts', font("700 20px Tinos", 'font2')], ['Fonts', font("400 20px 'Public Sans'", 'font3')]);
       slideImages.forEach((p, i) => tasks.push(['Slide ' + (i + 1), img(p)]));
       Object.values(START_IMG).forEach((p) => tasks.push(['Slide', img(p)]));
-      ['anim-blank.png', 'watch.png', 'spear.png', 'blaster.png', 'sans-cut.png?v=2', 'sans-hurt.png?v=2', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
+      ['anim-blank.png', 'watch.png', 'spear.png', 'blaster.png', 'sans-cut.png?v=3', 'sans-hurt.png?v=3', 'stage.jpg', 's3-tram.jpg', 's4-tram.jpg', 's5-kitchen.jpg', 's6-water.jpg', 's7-games.jpg', 's7-tv.jpg', 's8-past.jpg', 's8-present.jpg',
         'anim-brush.png', 'anim-pencil.png', 'icon-designer.png', 'icon-image.png', 'icon-presenter.png', 'icon-researcher.png'].forEach((f) => tasks.push(['Images', img('assets/' + f)]));
       tasks.push(['Style', get('slides.css')], ['Effects', get('fx-post.js')]);
       AUD.list.forEach((a) => { if (a.preload !== 'none' && !a.loop) tasks.push(['Audio', () => sfxBoostLoad(a)]); });      // mọi tiếng hiệu ứng: tải + giải mã sẵn
