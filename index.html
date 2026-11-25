@@ -2365,8 +2365,16 @@
       if (quizWarm) return; quizWarm = true;
       const small = ['slide95-sans.html?embed&v=' + QUIZ_V, 'assets/papyrus.png', 'assets/papyrus-bw-anim.png', 'assets/papyrus-faces.png', 'assets/papyrus-head.png', 'assets/cauldron-px.png', 'assets/sans-head.png', 'assets/sans-shake.png?v=3', 'assets/sans-shrug.png?v=3', 'assets/sans-sleep.png?v=3', 'assets/gaster.png', 'assets/gaster-b.png',
         'assets/sfx-correct.mp3', 'assets/sfx-nuhuh.mp3', 'assets/sfx-prize.mp3', 'assets/sfx-rock.mp3', 'assets/sfx-sans-talk.mp3', 'assets/sfx-pap-nyeh.mp3', 'assets/sfx-pap-talk.mp3', 'assets/sfx-gaster-talk.mp3', 'assets/sfx-gaster-vanish.mp3', 'assets/sfx-wheel.mp3'];
-      const big = ['assets/music-sans-select.mp3', 'assets/music-papyrus.mp3', 'assets/music-gaster.mp3', 'assets/music-megalovania.mp3'];
-      (async () => { for (const u of small.concat(big)) { try { const r = await fetch(u); await r.blob(); } catch (e) { } await new Promise((res) => setTimeout(res, 150)); } })();
+      // thứ tự theo lúc dùng: minigame (file nhỏ) -> nhạc chọn nhân vật -> nhạc 3 nhân vật -> nhạc kết (slide 10) cuối cùng; tải nối đuôi, ưu tiên thấp để không giành mạng với lúc đang trình chiếu
+      const big = ['assets/music-sans-select.mp3', 'assets/music-papyrus.mp3', 'assets/music-gaster.mp3', 'assets/music-megalovania.mp3', 'assets/music-waterflame.mp3?v=1'];
+      (async () => {
+        for (const u of small.concat(big)) {
+          for (let tr = 0; tr < 3; tr++) {         // lỗi mạng thì thử lại (tối đa 3 lần)
+            try { const r = await fetch(u, { cache: 'force-cache', priority: 'low' }); await r.blob(); break; } catch (e) { await new Promise((res) => setTimeout(res, 3000)); }
+          }
+          await new Promise((res) => setTimeout(res, 150));
+        }
+      })();
     }
     function startQuiz() {
       quiz.on = true;
