@@ -1105,8 +1105,19 @@
   }
   const psay = (text, t, face) => { if (face) setFace(face); return say(text, t); };
   function papSpeakQuick(text, t, ms, face) {
-    if (face) setFace(face);                          // nói ngắn: hiện chữ rồi tự đóng, không cần bấm
-    return new Promise((res, rej) => { say(text, t).then(res, rej); const mine = typing; setTimeout(() => { if (alive(t) && typing === mine && mine) { mine(); if (typing === mine) mine(); } }, ms || 1500); });
+    if (face) setFace(face);                          // nói ngắn: tự đóng, NHƯNG chỉ sau khi gõ xong + đủ thời gian đọc (tỉ lệ độ dài câu)
+    return new Promise((res, rej) => {
+      say(text, t).then(res, rej); const mine = typing;
+      const plain = hlParse(text).plain, hold = Math.max(ms || 1500, plain.length * 75 + 1400), nxt = dlg.querySelector('.nxt');
+      let shown = 0;
+      const poll = setInterval(() => {
+        if (!alive(t) || typing !== mine || !mine) { clearInterval(poll); return; }
+        if (nxt.style.visibility === 'visible') {          // đã gõ xong -> bắt đầu tính giờ đọc
+          if (!shown) shown = performance.now();
+          if (performance.now() - shown >= hold) { clearInterval(poll); if (typing === mine) mine(); }
+        }
+      }, 100);
+    });
   }
   function askWord(item, idx, t) {
     return new Promise((resolve) => {
