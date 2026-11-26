@@ -2349,7 +2349,7 @@
     // ----- Chuyển slide trong chế độ tim xanh -----
     // Chuyển tới slide kế (dir = +1: click, chém) hoặc slide trước (dir = -1: Backspace, tan)
     // ----- Slide 9.5 (Sans quiz): không có trong danh sách tim đỏ / tim xanh, chỉ xuất hiện khi bấm tiếp từ slide 9 ở chế độ tim xanh -----
-    const QUIZ_V = '20261125d';
+    const QUIZ_V = '20261126a';
     const quiz = { on: false };
     const quizEl = document.getElementById('quiz95');
     // Tải sẵn nhạc kết trong lúc người xem ở slide 9.5: vào slide 10 là chạy ngay (trình duyệt dùng lại bản đã tải)
@@ -2374,6 +2374,7 @@
           }
           await new Promise((res) => setTimeout(res, 150));
         }
+        window.__quizReady = true;      // tải xong mọi thứ -> phím bí mật (4) của minigame mới có tác dụng
       })();
     }
     function startQuiz() {
@@ -3229,6 +3230,7 @@
       } catch (e) {}
     }
     window.addEventListener('keydown', (e) => { if (!e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && isFsKey(e.key) && !PWR.off) toggleFS(); });
+    window.addEventListener('keydown', (e) => { if (e.key === '4' && !e.repeat && quiz.on) { try { quizEl.contentWindow.postMessage({ type: 'secret-key' }, '*'); } catch (er) {} } });
     window.addEventListener('keydown', (e) => {
       if (!PWR.off) return;
       e.stopImmediatePropagation(); e.preventDefault();

@@ -260,11 +260,13 @@
       <div class="chc" id="cPap"><div class="spr" id="papSpr"></div><div class="nm">PAPYRUS</div><div class="st" id="stP"></div></div>
       <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div><div class="st" id="stS"></div></div>
       <div class="chc" id="cGas"><img class="spr" id="gasSpr" src="assets/gaster.png" alt="Gaster" draggable="false"><div class="nm">GASTER</div><div class="st" id="stG"></div></div>
+      <div class="chc" id="cFlo" style="display:none"><canvas class="spr" id="floSpr" width="16" height="16" style="image-rendering:pixelated;position:absolute;left:35px;top:60px;width:192px;height:192px"></canvas><div class="nm">FLOWEY</div><div class="st" id="stF"></div></div>
     </div>
     <div id="status"></div>
     <div id="hint">CLICK SANS</div>
   </div>
 
+  <div id="floBigW" style="display:none;position:absolute;left:90px;top:150px"><canvas id="floBig" width="16" height="16" style="image-rendering:pixelated;width:256px;height:256px"></canvas></div>
   <img id="sans" src="assets/sans-shrug.png?v=4" alt="Sans" draggable="false">
   <div id="sansSp"></div>
 
@@ -623,12 +625,12 @@
     gasIdleStop(); $('sX').style.display = 'none'; papCleanup();
     candies = 0; gcandy = 0; pcandy = 0; save();                           // thoát ra phần chọn nhân vật: tổng kẹo của lượt chơi về 0 (trạng thái COMPLETED/LOST vẫn giữ)
     stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
-    showPanel('sel'); show('sel', 'sleep');
+    showPanel('sel'); show('sel', 'sleep'); $('floBigW').style.display = 'none'; $('dhead').style.visibility = ''; floRefresh();
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
     [['stS', status], ['stG', gstatus], ['stP', pstatus]].forEach(([id, v]) => { const st = $(id); if (v === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else if (v === 'lost') { st.className = 'st lost'; st.textContent = 'LOST'; st.style.display = 'block'; } else st.style.display = 'none'; });
     $('hint').textContent = 'CLICK SANS, PAPYRUS OR GASTER'; $('hint').style.display = (status && gstatus && pstatus) ? 'none' : 'block';
     $('selCard').style.cursor = sp.style.cursor = status ? 'default' : 'pointer';
-    $('cGas').style.cursor = gstatus ? 'default' : 'pointer'; $('cPap').style.cursor = pstatus ? 'default' : 'pointer';
+    $('cGas').style.cursor = gstatus ? 'default' : 'pointer'; $('cFlo').style.cursor = fstatus ? 'default' : 'pointer'; $('cPap').style.cursor = pstatus ? 'default' : 'pointer';
     selStage = 0;
     if (!(opts && opts.instant)) await fadeIn(500);
   }
@@ -974,6 +976,59 @@
     try { unlock(); await gasGame(t); } catch (e) { if (!(e instanceof Cancel)) throw e; }
   }
   $('cGas').addEventListener('click', onGasClick);
+
+  // ===== nhân vật bí mật: FLOWEY (thẻ tàng hình; chỉ hiện khi trang chính tải xong mọi thứ VÀ bấm phím 4) =====
+  let fstatus = null, fcandy = 0, floOn = false;
+  try { fstatus = sessionStorage.getItem('flo95.status') || null; floOn = sessionStorage.getItem('flo95.on') === '1'; } catch (e) {}
+  const FLO = ['.....YYYY.....', '...YYWWWWYY...', '..YWWWWWWWWY..', '.YWWWWWWWWWWY.', '.YWWKWWWWKWWY.', '.YWWKWWWWKWWY.', '.YWWWWWWWWWWY.', '.YWKWWWWWWKWY.', '..YWKKKKKKWY..', '...YWWWWWWY...', '.....GGGG.....', '.....GGGG.....', '..GG.GGGG.GG..', '...GGGGGGGGG..', '.....GGGG.....', '.....GGGG.....'];
+  (function () {
+    const col = { Y: '#ffe23a', W: '#fff7c4', K: '#000', G: '#2fc24a' };
+    ['floSpr', 'floBig'].forEach((id) => { const c = $(id), g = c.getContext('2d'); FLO.forEach((r, y) => [...r].forEach((ch, x) => { if (col[ch]) { g.fillStyle = col[ch]; g.fillRect(x, y, 1, 1); } })); });
+  })();
+  const flowReady = () => { try { return !!(window.parent !== window && window.parent.__quizReady); } catch (e) { return false; } };   // trang chính đã tải xong HẾT
+  function floRefresh() {
+    $('cFlo').style.display = floOn ? 'block' : 'none'; $('selRow').style.gap = floOn ? '36px' : '60px';
+    const st = $('stF'); if (fstatus === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else st.style.display = 'none';
+  }
+  floRefresh();
+  function floKey(e) {
+    if (e.key !== '4' || e.repeat || floOn || $('sel').style.display !== 'block' || selStage !== 0) return;
+    if (!flowReady()) return;                                  // chưa tải xong -> phím chưa có tác dụng
+    floOn = true; try { sessionStorage.setItem('flo95.on', '1'); } catch (er) {}
+    floRefresh(); $('cFlo').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
+  }
+  addEventListener('keydown', floKey); addEventListener('message', (m) => { if (m.data && m.data.type === 'secret-key') floKey({ key: '4' }); });
+  const FL = { hello: ['Howdy! I\'m [[p:FLOWEY]]. Flowey the Flower!', 'Three little questions. Easy, right?'], right: ['Huh?! You actually got it right...', ''], wrong: ['Hee hee hee... [[r:WRONG]]!', ''], end: ['Now get out of here. [[p:Scram]]!', ''] };
+  const fsay = (k, t) => say(FL[k][0], t, FL[k][1]);
+  async function floGame(t) {
+    setSpeaker('sans'); $('dhead').style.visibility = 'hidden'; dlg.querySelector('.who').textContent = 'FLOWEY'; setMusic('gas');
+    await fadeOut(450); chk(t);
+    stage.classList.add('dark'); stage.classList.remove('gas');
+    showPanel('qa'); $('qa').style.display = 'none';
+    sp.style.display = 'none'; sans.style.display = 'none'; clearInterval(spTimer);
+    $('floBigW').style.display = 'block'; setX(true); fcandy = 0; hud(false); await fadeIn(600); chk(t);
+    await fsay('hello', t); chk(t); hideDlg();
+    showPanel('qa'); setX(true);
+    const used = [];
+    for (let i = 1; i <= 3; i++) {
+      const q = pickT(EASY, used); used.push(q.t);
+      const r = await ask(q, false, t, 'QUESTION ' + i + ' / 3'); chk(t);
+      await sleep(600); chk(t);
+      if (r.ok) fcandy++; else showWhy(r);
+      await fsay(r.ok ? 'right' : 'wrong', t); hideDlg(); chk(t);
+    }
+    await fsay('end', t); hideDlg(); chk(t);
+    fstatus = 'ok'; try { sessionStorage.setItem('flo95.status', 'ok'); } catch (e) {}
+    await showSummary(t, fcandy ? 'CANDIES RECEIVED' : 'BETTER LUCK NEXT TIME', fcandy ? 'ok' : 'lost', fcandy, true);
+    await sleep(250); chk(t); await fadeOut(600); chk(t);
+    await gotoSelect({ instant: true }); await sleep(80); await fadeIn(600);
+  }
+  async function onFloClick() {
+    if (selStage !== 0 || fstatus) return;
+    selStage = 2; const t = token;
+    try { unlock(); await floGame(t); } catch (e) { if (!(e instanceof Cancel)) throw e; }
+  }
+  $('cFlo').addEventListener('click', onFloClick);
   // ===== Papyrus: 3 câu hỏi dạng ô chữ (Word Search), mỗi câu đúng = 1 đĩa spaghetti + 1 kẹo (tối đa 3); sai thì bỏ qua, không chơi lại =====
   const PP = {
     hello: 'NYEH HEH HEH! HUMAN! I, [[p:THE GREAT PAPYRUS]], AM COOKING MY [[p:SPECIAL SPAGHETTI]]!',
