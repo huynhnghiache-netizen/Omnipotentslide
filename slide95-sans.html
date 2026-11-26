@@ -215,6 +215,9 @@
   #papFx .bit { position: absolute; width: 10px; height: 10px; background: #ffcf4a; box-shadow: 0 0 0 2px #07030f; }
   #dhead.pap { display: none; }
   #fHead { position: absolute; left: 22px; top: 50%; width: 88px; height: 100px; margin-top: -50px; background: url(assets/flowey-talk.png?v=1) 0 0 / 176px 100px no-repeat; image-rendering: pixelated; display: none; }
+  #floPick { position: absolute; left: 430px; top: 150px; width: 780px; display: none; text-align: center; z-index: 20; }
+  #floPick .fl { display: inline-block; margin: 0 26px; cursor: pointer; transition: transform .15s; } #floPick .fl:hover { transform: scale(1.08); } #floPick .fl canvas { width: 144px; height: 144px; image-rendering: pixelated; display: block; } #floPick .fl.got { cursor: default; transform: none; animation: flup .6s ease-out; } #floPick .fl.got canvas { filter: drop-shadow(0 0 12px #ffe23a); }
+  #floPick .cap { font-size: 14px; color: #ffe23a; margin-top: 22px; letter-spacing: 1px; } @keyframes flup { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-34px) scale(1.25); } 100% { transform: translateY(0) scale(1); } }
   #pHead { position: absolute; left: 24px; top: 50%; width: 72px; height: 91.6px; margin-top: -46px; background: url(assets/papyrus-faces.png?v=1) 0 0 / 144px auto no-repeat; image-rendering: pixelated; display: none; }
   #wsBox { position: absolute; left: 390px; right: 40px; top: 84px; bottom: 170px; display: none; flex-direction: column; align-items: center; justify-content: center; }
   #wsBox .tag { font: 11px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 10px; letter-spacing: 1px; }
@@ -267,7 +270,7 @@
     <div id="hint">CLICK SANS</div>
   </div>
 
-  <div id="floBigW" style="display:none;position:absolute;left:40px;top:230px"><canvas id="floBig" width="402" height="249" style="image-rendering:pixelated;width:340px;height:210px"></canvas></div>
+  <div id="floPick"></div><div id="floBigW" style="display:none;position:absolute;left:40px;top:230px"><canvas id="floBig" width="402" height="249" style="image-rendering:pixelated;width:340px;height:210px"></canvas></div>
   <img id="sans" src="assets/sans-shrug.png?v=4" alt="Sans" draggable="false">
   <div id="sansSp"></div>
 
@@ -628,7 +631,7 @@
     gasIdleStop(); $('sX').style.display = 'none'; papCleanup();
     candies = 0; gcandy = 0; pcandy = 0; save();                           // thoát ra phần chọn nhân vật: tổng kẹo của lượt chơi về 0 (trạng thái COMPLETED/LOST vẫn giữ)
     stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
-    showPanel('sel'); show('sel', 'sleep'); $('floBigW').style.display = 'none'; $('fHead').style.display = 'none'; $('dhead').style.visibility = ''; floRefresh();
+    showPanel('sel'); show('sel', 'sleep'); $('floBigW').style.display = 'none'; $('floPick').style.display = 'none'; $('fHead').style.display = 'none'; $('dhead').style.visibility = ''; floRefresh();
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
     [['stS', status], ['stG', gstatus], ['stP', pstatus]].forEach(([id, v]) => { const st = $(id); if (v === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else if (v === 'lost') { st.className = 'st lost'; st.textContent = 'LOST'; st.style.display = 'block'; } else st.style.display = 'none'; });
     $('hint').textContent = 'CLICK SANS, PAPYRUS OR GASTER'; $('hint').style.display = (status && gstatus && pstatus) ? 'none' : 'block';
@@ -1005,8 +1008,28 @@
     floRefresh(); $('cFlo').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
   }
   addEventListener('keydown', floKey); addEventListener('message', (m) => { if (m.data && m.data.type === 'secret-key') floKey({ key: '4' }); });
-  const FL = { hello: ['Howdy! I\'m [[p:FLOWEY]]. Flowey the Flower!', 'Three little questions. Easy, right?'], right: ['Huh?! You actually got it right...', ''], wrong: ['Hee hee hee... [[r:WRONG]]!', ''], end: ['Now get out of here. [[p:Scram]]!', ''] };
+  const FL = { hello: ['Howdy! I\'m [[p:FLOWEY]]. Flowey the Flower!', 'Answer right, and you may [[b:pick my flowers]]. Three questions!'], right: ['Huh?! You actually got it right...', ''], wrong: ['Hee hee hee... [[r:WRONG]]!', ''], end: ['Now get out of here. [[p:Scram]]!', ''] };
   const fsay = (k, t) => say(FL[k][0], t, FL[k][1]);
+  const FLD = ['....rr..rr....', '...rppr.pprr..', '..rpppppppr...', '..rppYYYpppr..', '...pYYYYYpp...', '..rpYYYYYYpr..', '..rpYYYYYpr...', '...pppYYppr...', '..rrpppppr....', '.....GG.......', '.....GG..GG...', '..GG.GG.GG....', '...GGGGGG.....', '.....GG.......'];
+  function drawFl(c, got) {
+    const g = c.getContext('2d'), P = { r: got ? '#ff9ad0' : '#8a8a8a', p: got ? '#ffd0ea' : '#cfcfcf', Y: got ? '#ffe23a' : '#6a6a6a', G: got ? '#2fc24a' : '#4a4a4a' };
+    g.clearRect(0, 0, 14, 14); FLD.forEach((r, y) => [...r].forEach((ch, x) => { if (P[ch]) { g.fillStyle = P[ch]; g.fillRect(x, y, 1, 1); } }));
+  }
+  function floPickFlowers(t, n) {                              // người chơi tự "hái" n bông hoa (n = số câu trả lời đúng)
+    return new Promise((res) => {
+      const box = $('floPick'); box.innerHTML = ''; box.style.display = 'block'; let got = 0;
+      const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = 'PICK ' + n + ' FLOWER' + (n > 1 ? 'S' : '') + '!  (0 / ' + n + ')';
+      for (let i = 0; i < 3; i++) {
+        const w = document.createElement('div'); w.className = 'fl'; const c = document.createElement('canvas'); c.width = 14; c.height = 14; drawFl(c, false); w.appendChild(c); box.appendChild(w);
+        w.addEventListener('click', () => {
+          if (!alive(t) || w.classList.contains('got') || got >= n) return;
+          got++; w.classList.add('got'); drawFl(c, true); sfx(prizeBuf); cap.textContent = got >= n ? 'NICE FLOWERS!' : 'PICK ' + n + ' FLOWER' + (n > 1 ? 'S' : '') + '!  (' + got + ' / ' + n + ')';
+          if (got >= n) setTimeout(() => { box.style.display = 'none'; res(); }, 1100);
+        });
+      }
+      box.appendChild(cap);
+    });
+  }
   async function floGame(t) {
     setSpeaker('sans'); speaker = 'flo'; $('dhead').style.visibility = 'hidden'; $('fHead').style.display = 'block'; dlg.querySelector('.who').textContent = 'FLOWEY'; setMusic('gas');
     await fadeOut(450); chk(t);
@@ -1024,9 +1047,10 @@
       if (r.ok) fcandy++; else showWhy(r);
       await fsay(r.ok ? 'right' : 'wrong', t); hideDlg(); chk(t);
     }
+    if (fcandy > 0) { $('qa').style.display = 'none'; await floPickFlowers(t, fcandy); chk(t); }
     await fsay('end', t); hideDlg(); chk(t);
     fstatus = 'ok'; try { sessionStorage.setItem('flo95.status', 'ok'); } catch (e) {}
-    await showSummary(t, fcandy ? 'CANDIES RECEIVED' : 'BETTER LUCK NEXT TIME', fcandy ? 'ok' : 'lost', fcandy, true);
+    await showSummary(t, fcandy ? 'FLOWERS PICKED' : 'BETTER LUCK NEXT TIME', fcandy ? 'ok' : 'lost', fcandy, true);
     await sleep(250); chk(t); await fadeOut(600); chk(t);
     await gotoSelect({ instant: true }); await sleep(80); await fadeIn(600);
   }
