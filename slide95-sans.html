@@ -214,6 +214,7 @@
   #papFx canvas { position: absolute; image-rendering: pixelated; filter: drop-shadow(0 0 8px #fff); }
   #papFx .bit { position: absolute; width: 10px; height: 10px; background: #ffcf4a; box-shadow: 0 0 0 2px #07030f; }
   #dhead.pap { display: none; }
+  #fHead { position: absolute; left: 22px; top: 50%; width: 88px; height: 100px; margin-top: -50px; background: url(assets/flowey-talk.png?v=1) 0 0 / 176px 100px no-repeat; image-rendering: pixelated; display: none; }
   #pHead { position: absolute; left: 24px; top: 50%; width: 72px; height: 91.6px; margin-top: -46px; background: url(assets/papyrus-faces.png?v=1) 0 0 / 144px auto no-repeat; image-rendering: pixelated; display: none; }
   #wsBox { position: absolute; left: 390px; right: 40px; top: 84px; bottom: 170px; display: none; flex-direction: column; align-items: center; justify-content: center; }
   #wsBox .tag { font: 11px 'Press Start 2P', monospace; color: var(--acc); margin-bottom: 10px; letter-spacing: 1px; }
@@ -260,13 +261,13 @@
       <div class="chc" id="cPap"><div class="spr" id="papSpr"></div><div class="nm">PAPYRUS</div><div class="st" id="stP"></div></div>
       <div class="chc" id="selCard"><div class="nm" id="selName">SANS</div><div class="st" id="stS"></div></div>
       <div class="chc" id="cGas"><img class="spr" id="gasSpr" src="assets/gaster.png" alt="Gaster" draggable="false"><div class="nm">GASTER</div><div class="st" id="stG"></div></div>
-      <div class="chc" id="cFlo" style="display:none"><canvas class="spr" id="floSpr" width="16" height="16" style="image-rendering:pixelated;position:absolute;left:35px;top:60px;width:192px;height:192px"></canvas><div class="nm">FLOWEY</div><div class="st" id="stF"></div></div>
+      <div class="chc" id="cFlo" style="display:none"><canvas class="spr" id="floSpr" width="402" height="249" style="image-rendering:pixelated;position:absolute;left:6px;top:110px;width:246px;height:152px"></canvas><div class="nm">FLOWEY</div><div class="st" id="stF"></div></div>
     </div>
     <div id="status"></div>
     <div id="hint">CLICK SANS</div>
   </div>
 
-  <div id="floBigW" style="display:none;position:absolute;left:90px;top:150px"><canvas id="floBig" width="16" height="16" style="image-rendering:pixelated;width:256px;height:256px"></canvas></div>
+  <div id="floBigW" style="display:none;position:absolute;left:40px;top:230px"><canvas id="floBig" width="402" height="249" style="image-rendering:pixelated;width:340px;height:210px"></canvas></div>
   <img id="sans" src="assets/sans-shrug.png?v=4" alt="Sans" draggable="false">
   <div id="sansSp"></div>
 
@@ -282,7 +283,7 @@
   <div id="summary"></div>
   <button id="sX" aria-label="Back"><svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1L1 7" stroke="#f34" stroke-width="1.6" fill="none"/></svg></button>
 
-  <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><div id="pHead"></div><span class="who">SANS</span><span id="dtxt"></span><div id="dtrans"></div><span class="nxt">▼</span></div>
+  <div id="dlg"><img id="dhead" src="assets/sans-head.png" alt="" draggable="false"><div id="pHead"></div><div id="fHead"></div><span class="who">SANS</span><span id="dtxt"></span><div id="dtrans"></div><span class="nxt">▼</span></div>
   <div id="gust"></div>
   <div id="blk"></div>
 </div>
@@ -344,6 +345,7 @@
       loadBuf('assets/sfx-rock.mp3').then((b) => { rockBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-wheel.mp3?v=2').then((b) => { wheelBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-sans-talk.mp3').then((b) => { talkBuf = b; }).catch(() => {});
+      loadBuf('assets/sfx-flowey-talk.mp3').then((b) => { floTalkBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-gaster-talk.mp3?v=2').then((b) => { gasTalkBuf = b; }).catch(() => {});
       loadBuf('assets/sfx-gaster-vanish.mp3?v=2').then((b) => { gasVanBuf = b; }).catch(() => {});
       loadBuf('assets/music-gaster.mp3?v=2').then((b) => { gasMusBuf = b; syncMusic(); }).catch(() => {});
@@ -392,7 +394,7 @@
   // giọng Sans: mỗi chữ cái / chữ số phát 1 tiếng "bla" ngắn (cùng chữ -> cùng âm), dấu cách và dấu câu thì im
   let vSrc = null;
   function voiceStop() { if (vSrc) { try { vSrc.stop(); } catch (e) {} vSrc = null; } }
-  let speaker = 'sans';
+  let speaker = 'sans'; let floTalkBuf = null;
   function setSpeaker(w) {
     speaker = w; const h = $('dhead');
     h.classList.toggle('gas', w === 'gas'); h.classList.toggle('pap', w === 'pap'); $('pHead').style.display = w === 'pap' ? 'block' : 'none'; h.src = w === 'gas' ? 'assets/gaster.png' : w === 'pap' ? 'assets/papyrus-head.png' : 'assets/sans-head.png';
@@ -422,6 +424,7 @@
   }
   function voiceChar(ch) {
     if (speaker === 'pap') { if (/[a-z0-9]/i.test(ch)) papBlip(); return; }
+    if (speaker === 'flo') { if (/[a-z0-9]/i.test(ch)) floBlip(); return; }
     if (speaker === 'gas') { if (!/\s/.test(ch)) gasBlip(); return; }
     if (!ctx || !talkBuf || gv() === 0 || !/[a-z0-9]/i.test(ch)) return;
     voiceStop(); window.__voices = (window.__voices || 0) + 1;
@@ -625,7 +628,7 @@
     gasIdleStop(); $('sX').style.display = 'none'; papCleanup();
     candies = 0; gcandy = 0; pcandy = 0; save();                           // thoát ra phần chọn nhân vật: tổng kẹo của lượt chơi về 0 (trạng thái COMPLETED/LOST vẫn giữ)
     stage.classList.remove('dark', 'gas'); $('gasCv').style.display = 'none'; $('gasBig').style.opacity = '1';
-    showPanel('sel'); show('sel', 'sleep'); $('floBigW').style.display = 'none'; $('dhead').style.visibility = ''; floRefresh();
+    showPanel('sel'); show('sel', 'sleep'); $('floBigW').style.display = 'none'; $('fHead').style.display = 'none'; $('dhead').style.visibility = ''; floRefresh();
     setSpeaker('sans'); $('gasBig').style.display = 'none'; $('gasBig').classList.remove('van');
     [['stS', status], ['stG', gstatus], ['stP', pstatus]].forEach(([id, v]) => { const st = $(id); if (v === 'ok') { st.className = 'st ok'; st.textContent = 'COMPLETED'; st.style.display = 'block'; } else if (v === 'lost') { st.className = 'st lost'; st.textContent = 'LOST'; st.style.display = 'block'; } else st.style.display = 'none'; });
     $('hint').textContent = 'CLICK SANS, PAPYRUS OR GASTER'; $('hint').style.display = (status && gstatus && pstatus) ? 'none' : 'block';
@@ -980,11 +983,15 @@
   // ===== nhân vật bí mật: FLOWEY (thẻ tàng hình; chỉ hiện khi trang chính tải xong mọi thứ VÀ bấm phím 4) =====
   let fstatus = null, fcandy = 0, floOn = false;
   try { fstatus = sessionStorage.getItem('flo95.status') || null; floOn = sessionStorage.getItem('flo95.on') === '1'; } catch (e) {}
-  const FLO = ['.....YYYY.....', '...YYWWWWYY...', '..YWWWWWWWWY..', '.YWWWWWWWWWWY.', '.YWWKWWWWKWWY.', '.YWWKWWWWKWWY.', '.YWWWWWWWWWWY.', '.YWKWWWWWWKWY.', '..YWKKKKKKWY..', '...YWWWWWWY...', '.....GGGG.....', '.....GGGG.....', '..GG.GGGG.GG..', '...GGGGGGGGG..', '.....GGGG.....', '.....GGGG.....'];
-  (function () {
-    const col = { Y: '#ffe23a', W: '#fff7c4', K: '#000', G: '#2fc24a' };
-    ['floSpr', 'floBig'].forEach((id) => { const c = $(id), g = c.getContext('2d'); FLO.forEach((r, y) => [...r].forEach((ch, x) => { if (col[ch]) { g.fillStyle = col[ch]; g.fillRect(x, y, 1, 1); } })); });
-  })();
+  const floImg = new Image(); let floF = 0;
+  floImg.onload = () => { setInterval(() => { if (!floOn && $('floBigW').style.display === 'none') return; floF = (floF + 1) % 20; ['floSpr', 'floBig'].forEach((id) => { const c = $(id), g = c.getContext('2d'); g.clearRect(0, 0, 402, 249); g.drawImage(floImg, (floF % 5) * 402, Math.floor(floF / 5) * 249, 402, 249, 0, 0, 402, 249); }); }, 90); };
+  floImg.src = 'assets/flowey-idle.webp?v=2';
+  let fhT = 0, fhF = 0;
+  function floBlip() {
+    fhF = fhF ? 0 : 1; $('fHead').style.backgroundPosition = fhF ? '-88px 0' : '0 0'; clearTimeout(fhT); fhT = setTimeout(() => { fhF = 0; $('fHead').style.backgroundPosition = '0 0'; }, 170);
+    if (!ctx || !floTalkBuf || gv() === 0) return;
+    voiceStop(); const src = ctx.createBufferSource(); src.buffer = floTalkBuf; src.playbackRate.value = 0.9 + Math.random() * 0.3; src.connect(voiceG); src.start(); vSrc = src;
+  }
   const flowReady = () => { try { return !!(window.parent !== window && window.parent.__quizReady); } catch (e) { return false; } };   // trang chính đã tải xong HẾT
   function floRefresh() {
     $('cFlo').style.display = floOn ? 'block' : 'none'; $('selRow').style.gap = floOn ? '36px' : '60px';
@@ -1001,7 +1008,7 @@
   const FL = { hello: ['Howdy! I\'m [[p:FLOWEY]]. Flowey the Flower!', 'Three little questions. Easy, right?'], right: ['Huh?! You actually got it right...', ''], wrong: ['Hee hee hee... [[r:WRONG]]!', ''], end: ['Now get out of here. [[p:Scram]]!', ''] };
   const fsay = (k, t) => say(FL[k][0], t, FL[k][1]);
   async function floGame(t) {
-    setSpeaker('sans'); $('dhead').style.visibility = 'hidden'; dlg.querySelector('.who').textContent = 'FLOWEY'; setMusic('gas');
+    setSpeaker('sans'); speaker = 'flo'; $('dhead').style.visibility = 'hidden'; $('fHead').style.display = 'block'; dlg.querySelector('.who').textContent = 'FLOWEY'; setMusic('gas');
     await fadeOut(450); chk(t);
     stage.classList.add('dark'); stage.classList.remove('gas');
     showPanel('qa'); $('qa').style.display = 'none';
